@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="quality.css" />
     <link rel="stylesheet" href="production.css" />
+    <link rel="stylesheet" href="brand.css" />
   </head>
   <body>
     <aside class="sidebar">
@@ -51,7 +52,8 @@
       <section class="view" id="suppliers-view"><div class="view-head"><div><h2>Suppliers</h2><p>Keep supplier contacts, products and purchasing details together.</p></div><button class="primary" id="add-supplier">+ Add supplier</button></div><div class="supplier-grid" id="supplier-grid"></div></section>
     </main>
 
-    <dialog id="record-dialog"><form method="dialog" id="record-form"><div class="modal-head"><div><span class="modal-label" id="modal-label">NEW RECORD</span><h2 id="modal-title">Record purchase</h2></div><button class="close" value="cancel">×</button></div><div id="form-fields"></div><div class="modal-actions"><button value="cancel" class="secondary">Cancel</button><button class="primary" id="save-record" value="default">Save record</button></div></form></dialog>
+    <dialog id="record-dialog"><form method="dialog" id="record-form"><div class="modal-head"><div><span class="modal-label" id="modal-label">NEW RECORD</span><h2 id="modal-title">Record purchase</h2></div><button class="close" type="button" data-close>×</button></div><div id="form-fields"></div><div class="modal-actions"><button type="button" data-close class="secondary">Cancel</button><button class="primary" id="save-record" value="default">Save record</button></div></form></dialog>
     <script src="app.js"></script>
+    <script src="fixes.js"></script>
   </body>
 </html>

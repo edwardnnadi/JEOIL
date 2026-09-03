@@ -4,11 +4,11 @@ import { getChatGPTUser } from '../../chatgpt-auth';
 import { getDb } from '../../../db';
 import { operationsState } from '../../../db/schema';
 
-const OWNER = 'edward.nnadi@jeanedwards.com';
+const OWNERS = new Set(['edward@nnadi.com', 'edward.nnadi@jeanedwards.com']);
 
 async function authorize() {
   const user = await getChatGPTUser();
-  return user?.email.toLowerCase() === OWNER ? user : null;
+  return user && OWNERS.has(user.email.toLowerCase()) ? user : null;
 }
 
 export async function GET() {
