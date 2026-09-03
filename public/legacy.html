@@ -23,6 +23,7 @@
         <button class="nav-item" data-view="production"><span>◒</span>Production</button>
         <button class="nav-item" data-view="stock"><span>□</span>Stock</button>
         <button class="nav-item" data-view="suppliers"><span>♙</span>Suppliers</button>
+        <button class="nav-item" data-view="admin"><span>⚙</span>Admin</button>
       </nav>
       <div class="sidebar-footer"><span class="avatar">EN</span><div><strong>JE Oils</strong><small>Administrator</small></div></div>
     </aside>
@@ -41,7 +42,7 @@
         <section class="panel activity"><div class="panel-head"><div><h3>Recent activity</h3><p>Latest operational records</p></div><button class="text-btn" data-goto="purchases">View all →</button></div><div id="activity-list"></div></section>
       </section>
 
-      <section class="view" id="purchases-view"><div class="view-head"><div><h2>Purchases</h2><p>Record incoming peanut kernels, chemicals, fuel and other supplies.</p></div><button class="primary" id="add-purchase">+ Record purchase</button></div><div class="filters"><input id="purchase-search" placeholder="Search purchases…" /><select id="purchase-filter"><option value="all">All categories</option><option>Peanut kernels</option><option>Chemicals</option><option>Fuel & energy</option><option>Packaging</option></select></div><div class="panel table-panel"><table><thead><tr><th>Date</th><th>Item</th><th>Supplier</th><th>Category</th><th>Quantity</th><th>Quality</th><th>Total cost</th></tr></thead><tbody id="purchases-table"></tbody></table></div></section>
+      <section class="view" id="purchases-view"><div class="view-head"><div><h2>Purchases</h2><p>Record incoming peanut kernels, chemicals, fuel and other supplies.</p></div><button class="primary" id="add-purchase">+ Record purchase</button></div><div class="filters"><input id="purchase-search" placeholder="Search purchases…" /><select id="purchase-filter"><option value="all">All categories</option><option>Peanut kernels</option><option>Chemicals</option><option>Fuel & energy</option><option>Packaging</option></select></div><div class="panel table-panel"><table><thead><tr><th>Date</th><th>Item</th><th>Supplier</th><th>Purchased by</th><th>Quantity</th><th>Unit price</th><th>Quality</th><th>Total</th></tr></thead><tbody id="purchases-table"></tbody></table></div></section>
 
       <section class="view" id="quality-view"><div class="view-head"><div><h2>Goods quality checks</h2><p>Assess incoming goods before they are cleared for production. Kernel batches include key safety and quality checks.</p></div><button class="primary" id="add-quality">+ New assessment</button></div><div class="quality-guide"><span>✓</span><div><strong>Kernel receiving guide</strong><p>Record moisture, damaged kernels, foreign matter and aflatoxin results. Use Hold or Reject to clearly flag unsuitable batches before production.</p></div></div><div class="quality-stats" id="quality-stats"></div><div class="panel table-panel"><table><thead><tr><th>Assessment date</th><th>Goods / batch</th><th>Supplier</th><th>Key results</th><th>Decision</th><th>Inspector</th></tr></thead><tbody id="quality-table"></tbody></table></div></section>
 
@@ -50,10 +51,13 @@
       <section class="view" id="stock-view"><div class="view-head"><div><h2>Stock on hand</h2><p>Your current inventory across raw materials, consumables and finished goods.</p></div><button class="primary" id="add-stock">+ Add stock item</button></div><div class="stock-grid" id="stock-grid"></div></section>
 
       <section class="view" id="suppliers-view"><div class="view-head"><div><h2>Suppliers</h2><p>Keep supplier contacts, products and purchasing details together.</p></div><button class="primary" id="add-supplier">+ Add supplier</button></div><div class="supplier-grid" id="supplier-grid"></div></section>
+
+      <section class="view" id="admin-view"><div class="view-head"><div><h2>People & purchasing items</h2><p>Maintain your users, contacts, roles and approved items for purchasing.</p></div><div class="header-actions"><button class="secondary" id="add-person">+ Add person</button><button class="primary" id="add-item">+ Add purchase item</button></div></div><div class="dashboard-grid"><section class="panel table-panel"><div class="panel-head"><div><h3>People</h3><p>Users can be selected as the purchaser on a purchase record.</p></div></div><table><thead><tr><th>Name</th><th>Type</th><th>Role</th><th>Contact</th></tr></thead><tbody id="people-table"></tbody></table></section><section class="panel table-panel"><div class="panel-head"><div><h3>Purchase items</h3><p>Available in the purchase form.</p></div></div><table><thead><tr><th>Item</th><th>Category</th><th>Default unit</th></tr></thead><tbody id="items-table"></tbody></table></section></div></section>
     </main>
 
     <dialog id="record-dialog"><form method="dialog" id="record-form"><div class="modal-head"><div><span class="modal-label" id="modal-label">NEW RECORD</span><h2 id="modal-title">Record purchase</h2></div><button class="close" type="button" data-close>×</button></div><div id="form-fields"></div><div class="modal-actions"><button type="button" data-close class="secondary">Cancel</button><button class="primary" id="save-record" value="default">Save record</button></div></form></dialog>
     <script src="app.js"></script>
     <script src="fixes.js"></script>
+    <script src="admin.js"></script>
   </body>
 </html>
