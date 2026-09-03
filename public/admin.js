@@ -32,3 +32,23 @@ openModal=(type,pid)=>{
   if(selected)category.value=selected.category;
   category.onchange=()=>{let match=data.items.find(i=>i.category===category.value);if(match){item.value=match.name;unit.value=match.unit}};
 };
+// Dedicated role master-data area in Admin.
+const renderAdminWithRoles=renderAdmin;
+renderAdmin=()=>{
+  renderAdminWithRoles();
+  let grid=$('#admin-view .dashboard-grid');
+  if(!$('#roles-panel'))grid.insertAdjacentHTML('beforeend','<section class="panel table-panel" id="roles-panel"><div class="panel-head"><div><h3>Roles</h3><p>Roles available when creating or editing people.</p></div><button class="secondary" id="add-role">+ Add role</button></div><table><thead><tr><th>Role</th></tr></thead><tbody id="roles-table"></tbody></table></section>');
+  $('#roles-table').innerHTML=data.roles.map(role=>`<tr><td><strong>${role}</strong></td></tr>`).join('')||'<tr><td>No roles yet.</td></tr>';
+  $('#add-role').onclick=()=>{
+    $('#modal-label').textContent='NEW ROLE';$('#modal-title').textContent='Add role';
+    $('#form-fields').innerHTML='<div class="form-grid"><div class="field full"><label>Role name</label><input name="role" placeholder="e.g. Procurement officer" required></div></div>';
+    $('#record-form').dataset.type='role';$('#record-dialog').showModal();
+  };
+};
+$('#record-form').addEventListener('submit',e=>{
+  if(e.currentTarget.dataset.type!=='role')return;
+  e.stopImmediatePropagation();let role=formData(e.currentTarget).role?.trim();adminData();
+  if(role&&!data.roles.some(existing=>existing.toLowerCase()===role.toLowerCase()))data.roles.push(role);
+  save();render();
+},true);
+render();
