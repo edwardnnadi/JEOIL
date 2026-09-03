@@ -38,12 +38,18 @@ renderAdmin=()=>{
   renderAdminWithRoles();
   let grid=$('#admin-view .dashboard-grid');
   if(!$('#roles-panel'))grid.insertAdjacentHTML('beforeend','<section class="panel table-panel" id="roles-panel"><div class="panel-head"><div><h3>Roles</h3><p>Roles available when creating or editing people.</p></div><button class="secondary" id="add-role">+ Add role</button></div><table><thead><tr><th>Role</th></tr></thead><tbody id="roles-table"></tbody></table></section>');
-  $('#roles-table').innerHTML=data.roles.map(role=>`<tr><td><strong>${role}</strong></td></tr>`).join('')||'<tr><td>No roles yet.</td></tr>';
+  $('#roles-table').innerHTML=data.roles.map((role,index)=>`<tr><td><strong>${role}</strong></td><td><button class="text-btn edit-role" data-role-index="${index}">Edit</button></td></tr>`).join('')||'<tr><td>No roles yet.</td></tr>';
   $('#add-role').onclick=()=>{
     $('#modal-label').textContent='NEW ROLE';$('#modal-title').textContent='Add role';
     $('#form-fields').innerHTML='<div class="form-grid"><div class="field full"><label>Role name</label><input name="role" placeholder="e.g. Procurement officer" required></div></div>';
     $('#record-form').dataset.type='role';$('#record-dialog').showModal();
   };
+  document.querySelectorAll('.edit-role').forEach(button=>button.onclick=()=>{
+    let index=+button.dataset.roleIndex,role=data.roles[index];
+    $('#modal-label').textContent='EDIT ROLE';$('#modal-title').textContent='Edit role';
+    $('#form-fields').innerHTML=`<div class="form-grid"><div class="field full"><label>Role name</label><input name="role" value="${role}" required></div></div>`;
+    $('#record-form').dataset.type='role-edit';$('#record-form').dataset.roleIndex=index;$('#record-dialog').showModal();
+  });
 };
 $('#record-form').addEventListener('submit',e=>{
   if(e.currentTarget.dataset.type!=='role')return;
@@ -51,4 +57,73 @@ $('#record-form').addEventListener('submit',e=>{
   if(role&&!data.roles.some(existing=>existing.toLowerCase()===role.toLowerCase()))data.roles.push(role);
   save();render();
 },true);
+$('#record-form').addEventListener('submit',e=>{
+  if(e.currentTarget.dataset.type!=='role-edit')return;
+  e.stopImmediatePropagation();let form=e.currentTarget,newRole=formData(form).role?.trim(),index=+form.dataset.roleIndex,oldRole=data.roles[index];adminData();
+  if(newRole&&(!data.roles.some((role,i)=>i!==index&&role.toLowerCase()===newRole.toLowerCase()))){data.roles[index]=newRole;data.people.forEach(person=>{if(person.role===oldRole)person.role=newRole})}
+  save();render();
+},true);
 render();
+// People must use a role maintained in Admin → Roles.
+const adminModalWithRoleSelect=adminModal;
+adminModal=(type)=>{
+  adminModalWithRoleSelect(type);
+  if(type!=='person')return;
+  let form=$('#record-form'),role=form.elements.role;
+  role.outerHTML=`<select name="role" required>${data.roles.map(value=>`<option value="${value}">${value}</option>`).join('')}</select>`;
+};
+// Dedicated purchase-category master data in Admin.
+const renderAdminWithCategories=renderAdmin;
+renderAdmin=()=>{
+  renderAdminWithCategories();
+  let grid=$('#admin-view .dashboard-grid');
+  if(!$('#categories-panel'))grid.insertAdjacentHTML('beforeend','<section class="panel table-panel" id="categories-panel"><div class="panel-head"><div><h3>Purchase categories</h3><p>Categories available for purchase items and purchase records.</p></div><button class="secondary" id="add-category">+ Add category</button></div><table><thead><tr><th>Category</th><th></th></tr></thead><tbody id="categories-table"></tbody></table></section>');
+  $('#categories-table').innerHTML=data.categories.map((category,index)=>`<tr><td><strong>${category}</strong></td><td><button class="text-btn edit-category" data-category-index="${index}">Edit</button></td></tr>`).join('')||'<tr><td>No categories yet.</td></tr>';
+  $('#add-category').onclick=()=>{
+    $('#modal-label').textContent='NEW CATEGORY';$('#modal-title').textContent='Add purchase category';
+    $('#form-fields').innerHTML='<div class="form-grid"><div class="field full"><label>Category name</label><input name="category" placeholder="e.g. Packaging" required></div></div>';
+    $('#record-form').dataset.type='category';$('#record-dialog').showModal();
+  };
+  document.querySelectorAll('.edit-category').forEach(button=>button.onclick=()=>{
+    let index=+button.dataset.categoryIndex,category=data.categories[index];
+    $('#modal-label').textContent='EDIT CATEGORY';$('#modal-title').textContent='Edit purchase category';
+    $('#form-fields').innerHTML=`<div class="form-grid"><div class="field full"><label>Category name</label><input name="category" value="${category}" required></div></div>`;
+    $('#record-form').dataset.type='category-edit';$('#record-form').dataset.categoryIndex=index;$('#record-dialog').showModal();
+  });
+};
+$('#record-form').addEventListener('submit',e=>{
+  if(e.currentTarget.dataset.type!=='category')return;
+  e.stopImmediatePropagation();let category=formData(e.currentTarget).category?.trim();adminData();
+  if(category&&!data.categories.some(existing=>existing.toLowerCase()===category.toLowerCase()))data.categories.push(category);
+  save();render();
+},true);
+$('#record-form').addEventListener('submit',e=>{
+  if(e.currentTarget.dataset.type!=='category-edit')return;
+  e.stopImmediatePropagation();let form=e.currentTarget,newCategory=formData(form).category?.trim(),index=+form.dataset.categoryIndex,oldCategory=data.categories[index];adminData();
+  if(newCategory&&(!data.categories.some((category,i)=>i!==index&&category.toLowerCase()===newCategory.toLowerCase()))){
+    data.categories[index]=newCategory;
+    data.items.forEach(item=>{if(item.category===oldCategory)item.category=newCategory});
+    data.purchases.forEach(purchase=>{if(purchase.category===oldCategory)purchase.category=newCategory});
+    data.stock.forEach(item=>{if(item.category===oldCategory)item.category=newCategory});
+  }
+  save();render();
+},true);
+render();
+// Purchase records include their receipt quality assessment and audit details.
+const standardPurchaseModal=openModal;
+const currentOperator=()=>data.people.find(person=>person.email?.toLowerCase()===data.currentUserEmail?.toLowerCase())||data.people.find(person=>person.type==='User')||data.people[0];
+const qualityFields=(values={})=>`<div class="field full"><label>Quality assessment</label><div class="item-note">Record the delivery inspection with the purchase. Update it later from Edit purchase.</div></div><div class="field"><label>Batch / lot number</label><input name="batch" value="${values.batch||''}"></div><div class="field"><label>Assessment date</label><input name="qualityDate" type="date" value="${values.date||new Date().toISOString().slice(0,10)}"></div><div class="field"><label>Moisture (%)</label><input name="moisture" type="number" min="0" step="0.1" value="${values.moisture??''}"></div><div class="field"><label>Damaged kernels (%)</label><input name="damaged" type="number" min="0" step="0.1" value="${values.damaged??''}"></div><div class="field"><label>Foreign matter (%)</label><input name="foreignMatter" type="number" min="0" step="0.1" value="${values.foreignMatter??''}"></div><div class="field"><label>Aflatoxin (ppb)</label><input name="aflatoxin" type="number" min="0" step="0.1" value="${values.aflatoxin??''}"></div><div class="field"><label>Visual condition</label><select name="condition">${['Clean and dry','Minor defects','Contamination observed'].map(value=>`<option ${value===(values.condition||'Clean and dry')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Quality decision</label><select name="decision">${['Accepted','Hold','Rejected'].map(value=>`<option ${value===(values.decision||'Accepted')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Inspector</label><input name="inspector" value="${values.inspector||currentOperator()?.name||''}"></div><div class="field full"><label>Quality notes</label><textarea name="notes">${values.notes||''}</textarea></div>`;
+openModal=(type,pid)=>{
+  if(type!=='purchase')return standardPurchaseModal(type,pid);
+  adminData();let operator=currentOperator(),today=new Date().toISOString().slice(0,10);
+  $('#modal-label').textContent='NEW PURCHASE';$('#modal-title').textContent='Record purchase and quality check';
+  $('#form-fields').innerHTML=`<div class="form-grid"><div class="field"><label>Purchased date</label><input name="purchasedDate" type="date" required value="${today}"></div><div class="field"><label>Purchased by</label><select name="purchasedById" required>${data.people.map(person=>`<option value="${person.id}">${person.name} · ${person.role}</option>`).join('')}</select></div><div class="field"><label>Created by</label><input value="${operator?.name||'Current user'}" readonly></div><div class="field"><label>Created date</label><input value="${today}" readonly></div><div class="field"><label>Category</label><select name="category" required>${data.categories.map(category=>`<option>${category}</option>`).join('')}</select></div><div class="field"><label>Item purchased</label><select name="item" required>${data.items.map(item=>`<option value="${item.name}">${item.name}</option>`).join('')}</select></div><div class="field"><label>Supplier</label><input name="supplier" list="supplier-list" required><datalist id="supplier-list">${data.suppliers.map(supplier=>`<option value="${supplier.name}">`).join('')}</datalist></div><div class="field"><label>Quantity</label><input name="qty" type="number" min="0" step="any" required></div><div class="field"><label>Unit</label><input name="unit" required></div><div class="field"><label>Unit price (₦)</label><input name="unitPrice" type="number" min="0" step="any" required></div><div class="field"><label>Total (₦)</label><input name="cost" type="number" readonly required></div>${qualityFields()}</div>`;
+  let form=$('#record-form'),item=form.elements.item,category=form.elements.category,unit=form.elements.unit,qty=form.elements.qty,price=form.elements.unitPrice,total=form.elements.cost;
+  function sync(){let selected=data.items.find(entry=>entry.name===item.value);category.value=selected?.category||category.value;unit.value=selected?.unit||unit.value;total.value=((+qty.value||0)*(+price.value||0)).toFixed(2)}item.onchange=sync;qty.oninput=sync;price.oninput=sync;sync();form.dataset.type='purchase-enhanced';$('#record-dialog').showModal();
+};
+$('#record-form').addEventListener('submit',event=>{
+  if(event.currentTarget.dataset.type!=='purchase-enhanced')return;
+  event.stopImmediatePropagation();let values=formData(event.currentTarget),person=data.people.find(entry=>entry.id===+values.purchasedById),operator=currentOperator(),purchase={id:id(),date:values.purchasedDate,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:+values.unitPrice,cost:+values.cost};
+  data.purchases.unshift(purchase);let stock=stockItem(purchase.item);stock?stock.qty+=purchase.qty:data.stock.push({id:id(),name:purchase.item,category:purchase.category,qty:purchase.qty,unit:purchase.unit,reorder:0});
+  let assessment={id:id(),purchaseId:purchase.id,date:values.qualityDate,goods:purchase.item,supplier:purchase.supplier,batch:values.batch,condition:values.condition,decision:values.decision,inspector:values.inspector,notes:values.notes};['moisture','damaged','foreignMatter','aflatoxin'].forEach(key=>assessment[key]=values[key]===''?'':+values[key]);data.assessments.unshift(assessment);save();render();
+},true);

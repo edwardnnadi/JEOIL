@@ -12,9 +12,20 @@ async function authorize() {
 }
 
 export async function GET() {
-  if (!(await authorize())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  const user = await authorize();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   const row = await getDb().select().from(operationsState).where(eq(operationsState.id, 'main')).get();
-  return NextResponse.json({ payload: row?.payload ?? null });
+  let payload = row?.payload ?? null;
+  if (payload) {
+    try {
+      const state = JSON.parse(payload);
+      state.currentUserEmail = user.email;
+      payload = JSON.stringify(state);
+    } catch {
+      // The stored payload is validated by the client; return it unchanged if legacy data is malformed.
+    }
+  }
+  return NextResponse.json({ payload });
 }
 
 export async function POST(request: Request) {
