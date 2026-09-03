@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "je-oils-operations",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "app.jeoilsoperations.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "dist/client"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "je-oils-operations",
+      "database_id": "79d3b781-0ea5-4edb-b263-db758608f858"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

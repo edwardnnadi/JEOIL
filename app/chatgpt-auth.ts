@@ -1,5 +1,4 @@
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
 
 export type ChatGPTUser = {
   userId: string;
@@ -8,31 +7,36 @@ export type ChatGPTUser = {
   fullName: string | null;
 };
 
-const USER_ID_HEADER = 'oai-authenticated-user-id';
-const USER_EMAIL_HEADER = 'oai-authenticated-user-email';
-const USER_FULL_NAME_HEADER = 'oai-authenticated-user-full-name';
-const USER_FULL_NAME_ENCODING_HEADER =
-  'oai-authenticated-user-full-name-encoding';
-const PERCENT_ENCODED_UTF8 = 'percent-encoded-utf-8';
-const SIGN_IN_PATH = '/signin-with-chatgpt';
-const SIGN_OUT_PATH = '/signout-with-chatgpt';
-const CALLBACK_PATH = '/callback';
+const ACCESS_JWT_HEADER = 'cf-access-jwt-assertion';
+
+/**
+ * Cloudflare Access authenticates the visitor before forwarding the request to
+ * this Worker and adds a signed identity JWT. The app runs only on the custom
+ * domain (workers.dev is disabled), so requests cannot bypass that gateway.
+ */
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const requestHeaders = await headers();
-  const userId = requestHeaders.get(USER_ID_HEADER);
-  const email = requestHeaders.get(USER_EMAIL_HEADER);
-  if (!userId || !email) return null;
+  const host = requestHeaders.get('host') ?? '';
 
-  const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get(USER_FULL_NAME_ENCODING_HEADER) === PERCENT_ENCODED_UTF8
-      ? safeDecodeURIComponent(encodedFullName)
-      : null;
+  // Local development remains usable without having to emulate Cloudflare
+  // Access. This branch is never available on the public hostname.
+  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
+    return {
+      userId: 'local-developer',
+      displayName: 'Edward Nnadi',
+      email: 'edward.nnadi@jeanedwards.com',
+      fullName: 'Edward Nnadi',
+    };
+  }
+
+  const claims = decodeJwtPayload(requestHeaders.get(ACCESS_JWT_HEADER));
+  const email = typeof claims?.email === 'string' ? claims.email : null;
+  if (!email) return null;
+  const fullName = typeof claims?.name === 'string' ? claims.name : null;
 
   return {
-    userId,
+    userId: typeof claims?.sub === 'string' ? claims.sub : email,
     displayName: fullName ?? email,
     email,
     fullName,
@@ -40,50 +44,30 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
 }
 
 export async function requireChatGPTUser(
-  returnTo: string,
+  _returnTo: string,
 ): Promise<ChatGPTUser> {
   const user = await getChatGPTUser();
   if (user) return user;
-
-  redirect(chatGPTSignInPath(returnTo));
+  throw new Error('Sign in through Cloudflare Access is required.');
 }
 
-export function chatGPTSignInPath(returnTo: string): string {
-  const safeReturnTo = safeRelativeReturnPath(returnTo);
-  return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
+export function chatGPTSignInPath(_returnTo: string): string {
+  return '/';
 }
 
-export function chatGPTSignOutPath(returnTo = '/'): string {
-  const safeReturnTo = safeRelativeReturnPath(returnTo);
-  return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
+export function chatGPTSignOutPath(_returnTo = '/'): string {
+  return '/';
 }
 
-function safeRelativeReturnPath(value: string): string {
-  if (!value.startsWith('/') || value.startsWith('//')) return '/';
-
-  let url: URL;
+function decodeJwtPayload(token: string | null): Record<string, unknown> | null {
+  if (!token) return null;
+  const encodedPayload = token.split('.')[1];
+  if (!encodedPayload) return null;
   try {
-    url = new URL(value, 'https://app.local');
-  } catch {
-    return '/';
-  }
-  if (url.origin !== 'https://app.local') return '/';
-  if (isReservedAuthPath(url.pathname)) return '/';
-
-  return `${url.pathname}${url.search}${url.hash}`;
-}
-
-function isReservedAuthPath(pathname: string): boolean {
-  return (
-    pathname === SIGN_IN_PATH ||
-    pathname === SIGN_OUT_PATH ||
-    pathname === CALLBACK_PATH
-  );
-}
-
-function safeDecodeURIComponent(value: string): string | null {
-  try {
-    return decodeURIComponent(value);
+    const base64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const bytes = Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
   } catch {
     return null;
   }

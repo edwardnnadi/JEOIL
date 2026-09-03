@@ -22,6 +22,7 @@
         <button class="nav-item" data-view="quality"><span>✓</span>Goods inwards</button>
         <button class="nav-item" data-view="production"><span>◒</span>Production</button>
         <button class="nav-item" data-view="stock"><span>□</span>Stock</button>
+        <button class="nav-item" data-view="warehouse"><span>⌂</span>Warehouse</button>
         <button class="nav-item" data-view="suppliers"><span>♙</span>Suppliers</button>
         <button class="nav-item" data-view="admin"><span>⚙</span>Admin</button>
       </nav>
@@ -49,6 +50,7 @@
       <section class="view" id="production-view"><div class="view-head"><div><h2>Production runs</h2><p>Convert kernels and production fuel into finished goods ready for sale.</p></div><button class="primary" id="add-production">+ Record production run</button></div><div class="production-tip"><span>✦</span><div><strong>Built for your oil process</strong><p>Each run deducts peanut kernels, diesel and firewood from stock, then adds crude oil, refined oil and cake to finished-goods stock. You can optionally add another output.</p></div></div><div class="panel table-panel"><table><thead><tr><th>Date</th><th>Run reference</th><th>Finished products</th><th>Materials consumed</th></tr></thead><tbody id="production-table"></tbody></table></div></section>
 
       <section class="view" id="stock-view"><div class="view-head"><div><h2>Stock on hand</h2><p>Your current inventory across raw materials, consumables and finished goods.</p></div><button class="primary" id="add-stock">+ Add stock item</button></div><div class="stock-grid" id="stock-grid"></div></section>
+      <section class="view" id="warehouse-view"><div class="view-head"><div><h2>Warehouses</h2><p>Maintain the warehouses used to receive, store and issue materials.</p></div><button class="primary" id="add-warehouse">+ Add warehouse</button></div><div class="panel table-panel"><table><thead><tr><th>Warehouse name</th><th>Warehouse location</th><th></th></tr></thead><tbody id="warehouses-table"></tbody></table></div></section>
 
       <section class="view" id="suppliers-view"><div class="view-head"><div><h2>Suppliers</h2><p>Keep supplier contacts, products and purchasing details together.</p></div><button class="primary" id="add-supplier">+ Add supplier</button></div><div class="supplier-grid" id="supplier-grid"></div></section>
 
@@ -60,8 +62,14 @@
     <script src="fixes.js"></script>
     <script src="admin.js"></script>
     <script src="edit.js"></script>
-    <script src="goods-inwards.js"></script>
+    <script src="goods-inwards.js?v=warehouse-goods-inwards-20260903"></script>
     <script src="purchase-workflow.js"></script>
     <script src="purchase-presentation.js"></script>
+    <script src="purchase-traceability.js?v=purchase-quality-20260903b"></script>
+    <script src="warehouse.js?v=warehouse-20260903"></script>
+    <script src="goods-inwards-receiving.js?v=receiving-quality-20260903"></script>
+    <script src="purchase-wizard.js?v=purchase-wizard-20260903b"></script>
+    <script src="purchase-actions.js?v=purchase-actions-20260903"></script>
+    <script src="goods-inwards-wizard.js?v=goods-inwards-wizard-20260903"></script>
   </body>
 </html>
