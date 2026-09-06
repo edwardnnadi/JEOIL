@@ -1,7 +1,10 @@
 // Guided receiving workflow: receipt selection, quality comparison, decision, then warehouse assignment.
 function buildGoodsInwardsWizard(form,receipt){
-  if(form.dataset.goodsWizard==='ready')return;
   const area=$('#form-fields'),allFields=[...area.querySelectorAll('.field')];
+  // The flag alone is not enough: #form-fields is re-rendered on every open, so
+  // a sticky 'ready' left the second and later receipts with a flat form and no
+  // wizard at all. Confirm the wizard is actually still in the DOM.
+  if(form.dataset.goodsWizard==='ready'&&area.querySelector('.goods-inwards-wizard'))return;
   if(!allFields.length)return;
   const groups=[
     {title:'Select goods to receive',help:'Choose the purchase being received. Its supplier, item and quantity will be brought through automatically.',names:['purchaseId','receivedDate','supplier','item','category','qty','unit','receivedBy']},
@@ -25,7 +28,7 @@ function buildGoodsInwardsWizard(form,receipt){
   const qualityOfficer=form.elements.qualityCheckOfficerId?.closest('.field');if(qualityOfficer)qualityOfficer.querySelector('label').textContent='Inspection officer';
   const controls=document.createElement('div');controls.className='wizard-controls';controls.innerHTML='<button type="button" class="secondary goods-wizard-back">Back</button><button type="button" class="primary goods-wizard-next">Continue</button>';wizard.append(controls);area.append(wizard);
   let step=0,save=$('#save-record');
-  const show=next=>{step=next;panels.forEach((panel,index)=>panel.hidden=index!==step);progress.querySelectorAll('span').forEach((item,index)=>item.classList.toggle('active',index===step));controls.querySelector('.goods-wizard-back').hidden=step===0;controls.querySelector('.goods-wizard-next').hidden=step===groups.length-1;save.hidden=step!==groups.length-1;};
+  const show=next=>{step=next;if(step===groups.length-1&&typeof receivingApplyGate==='function')receivingApplyGate(form);panels.forEach((panel,index)=>panel.hidden=index!==step);progress.querySelectorAll('span').forEach((item,index)=>item.classList.toggle('active',index===step));controls.querySelector('.goods-wizard-back').hidden=step===0;controls.querySelector('.goods-wizard-next').hidden=step===groups.length-1;save.hidden=step!==groups.length-1;};
   controls.querySelector('.goods-wizard-back').onclick=()=>show(Math.max(0,step-1));
   controls.querySelector('.goods-wizard-next').onclick=()=>{const required=[...panels[step].querySelectorAll('[required]')];if(required.some(input=>!input.reportValidity()))return;show(Math.min(groups.length-1,step+1));};
   const purchase=form.elements.purchaseId;

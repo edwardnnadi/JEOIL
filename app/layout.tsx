@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import './brand-experience.css';
+import { ClerkProvider } from '@clerk/nextjs';
+import { AuthControls } from './auth-controls';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -13,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Untitled site',
+  title: 'JE Oils | Operations',
 };
 
 export default function RootLayout({
@@ -26,7 +29,43 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ClerkProvider
+          publishableKey={
+            process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
+            process.env.VITE_CLERK_PUBLISHABLE_KEY
+          }
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
+          signInFallbackRedirectUrl="/"
+          signUpFallbackRedirectUrl="/"
+          appearance={{
+            variables: {
+              colorPrimary: '#b49a50',
+              colorPrimaryForeground: '#171914',
+              colorForeground: '#20231d',
+              colorMutedForeground: '#686b60',
+              colorBackground: '#ffffff',
+              borderRadius: '0.375rem',
+              fontFamily: 'var(--font-geist-sans), Arial, sans-serif',
+            },
+            elements: {
+              rootBox: 'je-clerk-root',
+              cardBox: 'je-clerk-card-box',
+              card: 'je-clerk-card',
+              header: 'je-clerk-header',
+              headerTitle: 'je-clerk-title',
+              headerSubtitle: 'je-clerk-subtitle',
+              formButtonPrimary: 'je-clerk-submit',
+              footer: 'je-clerk-footer',
+            },
+          }}
+        >
+          <a className="je-skip" href="#main-content">
+            Skip to content
+          </a>
+          <AuthControls />
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );

@@ -8,23 +8,23 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="quality.css" />
+    <link rel="stylesheet" href="quality.css?v=settlement-20260904" />
     <link rel="stylesheet" href="production.css" />
-    <link rel="stylesheet" href="brand.css" />
+    <link rel="stylesheet" href="brand.css?v=operations-brand-20260905b" />
   </head>
-  <body>
+  <body class="operations-app">
     <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">J</span><span>JE OILS</span></div>
+      <div class="brand"><img class="brand-logo" src="/brand/je-oils-logo.png" alt="" /><span>JE OILS<small>INSPIRED BY CHANGE</small></span></div>
       <p class="workspace">OPERATIONS WORKSPACE</p>
       <nav>
-        <button class="nav-item active" data-view="dashboard"><span>▦</span>Dashboard</button>
-        <button class="nav-item" data-view="purchases"><span>↙</span>Purchases</button>
-        <button class="nav-item" data-view="quality"><span>✓</span>Goods inwards</button>
-        <button class="nav-item" data-view="production"><span>◒</span>Production</button>
-        <button class="nav-item" data-view="stock"><span>□</span>Stock</button>
-        <button class="nav-item" data-view="warehouse"><span>⌂</span>Warehouse</button>
-        <button class="nav-item" data-view="suppliers"><span>♙</span>Suppliers</button>
-        <button class="nav-item" data-view="admin"><span>⚙</span>Admin</button>
+        <button class="nav-item active" data-view="dashboard" data-title="Operations overview"><span>▦</span>Dashboard</button>
+        <button class="nav-item" data-view="purchases" data-title="Purchases"><span>↙</span>Purchases</button>
+        <button class="nav-item" data-view="quality" data-title="Goods inwards"><span>✓</span>Goods inwards</button>
+        <button class="nav-item" data-view="production" data-title="Production"><span>◒</span>Production</button>
+        <button class="nav-item" data-view="stock" data-title="Stock"><span>□</span>Stock</button>
+        <button class="nav-item" data-view="warehouse" data-title="Warehouse"><span>⌂</span>Warehouse</button>
+        <button class="nav-item" data-view="suppliers" data-title="Suppliers"><span>♙</span>Suppliers</button>
+        <button class="nav-item" data-view="admin" data-title="Administration"><span>⚙</span>Admin</button>
       </nav>
       <div class="sidebar-footer"><span class="avatar">EN</span><div><strong>JE Oils</strong><small>Administrator</small></div></div>
     </aside>
@@ -33,7 +33,7 @@
       <header><div><p id="eyebrow">GOOD MORNING</p><h1 id="page-title">Operations overview</h1></div><div class="header-actions"><span class="date" id="today"></span><button class="primary" id="quick-add">+ Record purchase</button></div></header>
 
       <section class="view active" id="dashboard-view">
-        <div class="hero"><div><span class="hero-label">SEPTEMBER 2026</span><h2>Keep your operation<br/>moving with clarity.</h2><p>Track raw materials, purchases, and production from one place.</p></div><div class="hero-orb">◉</div></div>
+        <section class="hero" aria-labelledby="operations-summary-title"><div><span class="hero-label">OPERATIONS / SEPTEMBER 2026</span><h2 id="operations-summary-title">Everything your team needs<br/>to keep work moving.</h2><p>Purchases, receiving, production, and stock — connected in one clear workspace.</p></div><div class="hero-summary"><span>LIVE OPERATIONS</span><strong>One shared view for every handover.</strong><ul><li>Purchases & suppliers</li><li>Goods inwards & quality</li><li>Production & stock</li></ul></div></section>
         <div class="stat-grid" id="stats"></div>
         <section class="panel production-summary"><div class="panel-head"><div><h3>Production output</h3><p>Finished goods recorded from production runs</p></div><button class="text-btn" data-goto="production">Record a run →</button></div><div class="output-summary" id="output-summary"></div></section>
         <div class="dashboard-grid">
@@ -43,11 +43,11 @@
         <section class="panel activity"><div class="panel-head"><div><h3>Recent activity</h3><p>Latest operational records</p></div><button class="text-btn" data-goto="purchases">View all →</button></div><div id="activity-list"></div></section>
       </section>
 
-      <section class="view" id="purchases-view"><div class="view-head"><div><h2>Purchases</h2><p>Record incoming peanut kernels, chemicals, fuel and other supplies.</p></div><button class="primary" id="add-purchase">+ Record purchase</button></div><div class="filters"><input id="purchase-search" placeholder="Search purchases…" /><select id="purchase-filter"><option value="all">All categories</option><option>Peanut kernels</option><option>Chemicals</option><option>Fuel & energy</option><option>Packaging</option></select></div><div class="panel table-panel"><table><thead><tr><th>Date</th><th>Item</th><th>Supplier</th><th>Purchased by</th><th>Quantity</th><th>Unit price</th><th>Quality</th><th>Total</th></tr></thead><tbody id="purchases-table"></tbody></table></div></section>
+      <section class="view" id="purchases-view"><div class="view-head"><div><h2>Purchases</h2><p>Record incoming peanut kernels, chemicals, fuel and other supplies.</p></div><button class="primary" id="add-purchase">+ Record purchase</button></div><div class="filters"><input id="purchase-search" placeholder="Search purchases…" /><select id="purchase-filter" aria-label="Filter by category"><option value="all">All categories</option><option>Peanut kernels</option><option>Chemicals</option><option>Fuel & energy</option><option>Packaging</option></select><select id="purchase-status-filter" aria-label="Filter by status"><option value="all">All statuses</option><option>Ordered</option><option>QC inspection</option><option>QC accepted</option><option>In transit</option><option>Arrived at factory</option><option>Moved to warehouse</option><option>Rejected</option></select></div><div class="panel table-panel"><table><thead><tr><th>Date</th><th>Item</th><th>Supplier</th><th>Purchased by</th><th>Quantity</th><th>Unit price</th><th>Quality</th><th>Total</th></tr></thead><tbody id="purchases-table"></tbody></table></div></section>
 
       <section class="view" id="quality-view"><div class="view-head"><div><h2>Goods quality checks</h2><p>Assess incoming goods before they are cleared for production. Kernel batches include key safety and quality checks.</p></div><button class="primary" id="add-quality">+ New assessment</button></div><div class="quality-guide"><span>✓</span><div><strong>Kernel receiving guide</strong><p>Record moisture, damaged kernels, foreign matter and aflatoxin results. Use Hold or Reject to clearly flag unsuitable batches before production.</p></div></div><div class="quality-stats" id="quality-stats"></div><div class="panel table-panel"><table><thead><tr><th>Assessment date</th><th>Goods / batch</th><th>Supplier</th><th>Key results</th><th>Decision</th><th>Inspector</th></tr></thead><tbody id="quality-table"></tbody></table></div></section>
 
-      <section class="view" id="production-view"><div class="view-head"><div><h2>Production runs</h2><p>Convert kernels and production fuel into finished goods ready for sale.</p></div><button class="primary" id="add-production">+ Record production run</button></div><div class="production-tip"><span>✦</span><div><strong>Built for your oil process</strong><p>Each run deducts peanut kernels, diesel and firewood from stock, then adds crude oil, refined oil and cake to finished-goods stock. You can optionally add another output.</p></div></div><div class="panel table-panel"><table><thead><tr><th>Date</th><th>Run reference</th><th>Finished products</th><th>Materials consumed</th></tr></thead><tbody id="production-table"></tbody></table></div></section>
+      <section class="view" id="production-view"><div class="view-head"><div><h2>Production runs</h2><p>Issue kernels from the warehouse, record the production run, then close it with outputs and management sign-off.</p></div><button class="primary" id="add-production">+ Record production run</button></div><div class="production-tip"><span>✦</span><div><strong>Production control flow</strong><p>Warehouse issues the batch → production receives it → the supervisor records the run → outputs, yield and fuel are entered → the production manager signs off.</p></div></div><div class="panel table-panel production-table-wrap"><table><thead><tr><th>Date</th><th>Production batch no.</th><th>Warehouse issue</th><th>Production timing</th><th>Outputs &amp; yield</th><th>Controls</th><th>Status</th></tr></thead><tbody id="production-table"></tbody></table></div></section>
 
       <section class="view" id="stock-view"><div class="view-head"><div><h2>Stock on hand</h2><p>Your current inventory across raw materials, consumables and finished goods.</p></div><button class="primary" id="add-stock">+ Add stock item</button></div><div class="stock-grid" id="stock-grid"></div></section>
       <section class="view" id="warehouse-view"><div class="view-head"><div><h2>Warehouses</h2><p>Maintain the warehouses used to receive, store and issue materials.</p></div><button class="primary" id="add-warehouse">+ Add warehouse</button></div><div class="panel table-panel"><table><thead><tr><th>Warehouse name</th><th>Warehouse location</th><th></th></tr></thead><tbody id="warehouses-table"></tbody></table></div></section>
@@ -59,18 +59,43 @@
 
     <dialog id="record-dialog"><form method="dialog" id="record-form"><div class="modal-head"><div><span class="modal-label" id="modal-label">NEW RECORD</span><h2 id="modal-title">Record purchase</h2></div><button class="close" type="button" data-close>×</button></div><div id="form-fields"></div><div class="modal-actions"><button type="button" data-close class="secondary">Cancel</button><button class="primary" id="save-record" value="default">Save record</button></div></form></dialog>
     <script src="app.js"></script>
+    <script src="production-flow.js?v=20260905"></script>
     <script src="fixes.js"></script>
     <script src="admin.js"></script>
-    <script src="edit.js"></script>
-    <script src="goods-inwards.js?v=warehouse-goods-inwards-20260903"></script>
+    <script src="edit.js?v=goods-inwards-single-edit-20260905"></script>
+    <script src="goods-inwards.js?v=settlement-favourable-qc-20260905"></script>
     <script src="purchase-workflow.js"></script>
     <script src="purchase-presentation.js"></script>
-    <script src="purchase-traceability.js?v=purchase-quality-20260903b"></script>
-    <script src="warehouse.js?v=warehouse-20260903"></script>
+    <script src="purchase-traceability.js?v=purchase-edit-lock-20260905"></script>
+    <script src="warehouse.js?v=warehouse-items-20260905"></script>
     <script src="goods-inwards-receiving.js?v=receiving-quality-20260903"></script>
-    <script src="purchase-wizard.js?v=purchase-wizard-20260903b"></script>
+    <script src="purchase-wizard.js?v=purchase-edit-status-lock-20260905"></script>
     <script src="purchase-actions.js?v=purchase-actions-20260903"></script>
-    <script src="goods-inwards-wizard.js?v=goods-inwards-wizard-20260903"></script>
-    <script src="qc-engine.js?v=qc-engine-20260904"></script>
+    <script src="goods-inwards-wizard.js?v=warehouse-gate-20260905"></script>
+    <script src="receiving-assessment.js?v=settlement-favourable-qc-20260905"></script>
+    <script src="purchase-lifecycle.js?v=purchase-list-controls-20260905"></script>
+    <script src="view-persistence.js?v=20260904"></script>
+    <script>
+      document.querySelectorAll('.nav-item').forEach((item) => {
+        item.onclick = () => {
+          document.querySelectorAll('.nav-item').forEach((navItem) =>
+            navItem.classList.remove('active'),
+          );
+          item.classList.add('active');
+          document.querySelectorAll('.view').forEach((view) =>
+            view.classList.remove('active'),
+          );
+          document
+            .querySelector(`#${item.dataset.view}-view`)
+            .classList.add('active');
+          document.querySelector('#page-title').textContent =
+            item.dataset.title || 'Operations overview';
+          document.querySelector('#eyebrow').textContent =
+            item.dataset.view === 'dashboard'
+              ? 'GOOD MORNING'
+              : 'JE OILS OPERATIONS';
+        };
+      });
+    </script>
   </body>
 </html>

@@ -1,1 +1,57 @@
-:root{--ink:#121212;--muted:#6e675e;--line:#e2d8c7;--cream:#faf7f0;--sage:#f4ead7;--green:#171717;--lime:#c9a227;--amber:#c9a227;--red:#a94737}body{background:#faf7f0}.sidebar{background:#111}.brand-mark{background:#c9a227;color:#111}.workspace{color:#c7aa65}.nav-item{color:#e9dfca}.nav-item span{color:#c9a227}.nav-item.active,.nav-item:hover{background:#292317;color:#fff}.nav-item.active span{color:#e0ba48}.sidebar-footer{border-color:#473b24}.hero{background:#151515;color:#fff}.hero-label{color:#d7b75f}.hero p{color:#e4d8bd}.hero-orb{border-color:#493c21;color:#c9a227}.primary{background:#c9a227;color:#151515}.primary:hover{background:#e0bb4c}.stat .stat-icon{background:#fbf3df;color:#94751b}.text-btn{color:#92711a}.activity-icon{background:#fbf3df;color:#8c6f1e}.category,.supplier-products{background:#fbf3df;color:#766019}.production-tip,.quality-guide{background:#f6edd9;color:#3b3017}.production-tip p,.quality-guide p{color:#75633a}.output-card{border-color:#c9a227;background:#fffaf0}.output-card em{color:#92711a}.badge.ok{background:#f4ebd3;color:#806818}.badge.low{background:#fff0e6;color:#a35337}
+:root{--ink:#242720;--muted:#6b6d62;--line:#dcded2;--cream:#f6f5ef;--sage:#ebe8d8;--green:#242720;--lime:#b49b53;--amber:#b49b53;--red:#a94737}
+.operations-app{background:var(--cream);color:var(--ink);font-family:'DM Sans',Arial,sans-serif}
+.operations-app .sidebar{width:264px;padding:28px 18px 20px;background:#232920;color:#f6f5ef}
+.operations-app .brand{gap:11px;padding:0 10px;font:600 18px 'DM Sans',Arial,sans-serif;letter-spacing:.15em}
+.operations-app .brand-logo{width:42px;height:42px;border-radius:50%;object-fit:cover}
+.operations-app .brand small{display:block;margin-top:4px;font:600 7px 'DM Sans',Arial,sans-serif;letter-spacing:.19em;color:#d1d3c6}
+.operations-app .workspace{margin:48px 11px 15px;color:#c6b071;font-size:9px;letter-spacing:.16em}
+.operations-app .sidebar nav{gap:4px}
+.operations-app .nav-item{padding:12px 11px;border-radius:3px;color:#d8dacf;font-size:13px}
+.operations-app .nav-item span{width:28px;color:#bca868;font-size:17px}
+.operations-app .nav-item.active,.operations-app .nav-item:hover{background:#3a4234;color:#fff}
+.operations-app .nav-item.active{box-shadow:inset 2px 0 #c4ad6a}
+.operations-app .nav-item.active span{color:#d9c680}
+.operations-app .sidebar-footer{border-color:#545c4a;padding:18px 9px 0}
+.operations-app .avatar{background:#c2ad6e;color:#22291f}
+.operations-app .sidebar-footer small{color:#bfc3b5}
+.operations-app main{margin-left:264px;max-width:1680px;padding:34px 5% 54px}
+.operations-app header{margin-bottom:34px}
+.operations-app #eyebrow,.operations-app .modal-label{color:#88743d;font-size:9px;letter-spacing:.16em}
+.operations-app h1,.operations-app .view-head h2,.operations-app .modal-head h2{font-family:'DM Sans',Arial,sans-serif;font-weight:500;letter-spacing:-.05em}
+.operations-app h1{font-size:35px}
+.operations-app .date{font-size:11px;color:var(--muted)}
+.operations-app .primary{border-radius:3px;background:#242720;color:#fff;padding:13px 18px;font-size:12px;font-weight:600}
+.operations-app .primary:hover{background:#3b4235}
+.operations-app .secondary{border-color:#cfd1c5;border-radius:3px;background:transparent;color:#34372e}
+.operations-app .hero{min-height:232px;padding:36px 42px;border-radius:4px;background:#252b23;color:#f8f7ef;gap:48px}
+.operations-app .hero-label{color:#d4c38b;font-size:9px;letter-spacing:.16em}
+.operations-app .hero h2{font:400 clamp(31px,3vw,44px)/1.06 'DM Sans',Arial,sans-serif;letter-spacing:-.055em;margin:16px 0}
+.operations-app .hero p{color:#c8ccbd;font-size:13px}
+.operations-app .hero-summary{width:270px;align-self:stretch;margin-left:auto;padding:7px 0 7px 28px;border-left:1px solid #5b6351;display:flex;flex-direction:column;justify-content:center}
+.operations-app .hero-summary>span{color:#c6b071;font-size:8px;font-weight:600;letter-spacing:.16em}
+.operations-app .hero-summary strong{max-width:190px;margin:14px 0 18px;font-size:17px;font-weight:500;line-height:1.3}
+.operations-app .hero-summary ul{display:grid;gap:7px;margin:0;padding:0;list-style:none;color:#c8ccbd;font-size:11px}
+.operations-app .hero-summary li::before{content:'↗';display:inline-block;width:17px;color:#c6b071}
+.operations-app .stat-grid{gap:10px;margin:16px 0}
+.operations-app .stat,.operations-app .panel,.operations-app .stock-card,.operations-app .supplier-card,.operations-app .quality-stat{border-color:var(--line);border-radius:3px;background:#fbfaf5;box-shadow:none}
+.operations-app .stat{padding:18px}
+.operations-app .stat .stat-icon,.operations-app .activity-icon{border-radius:50%;background:#e9e5d5;color:#87733d}
+.operations-app .stat strong,.operations-app .stock-number,.operations-app .quality-stat strong,.operations-app .output-card strong{font-family:'DM Sans',Arial,sans-serif;font-weight:500;letter-spacing:-.04em}
+.operations-app .stat strong{font-size:29px}
+.operations-app .stat em{color:#88743d}
+.operations-app .dashboard-grid{gap:12px}
+.operations-app .panel{padding:22px}
+.operations-app .panel h3{font-weight:600}
+.operations-app .panel p,.operations-app .item-note,.operations-app .view-head p{color:var(--muted)}
+.operations-app .text-btn{color:#796735;font-size:11px}
+.operations-app .panel select,.operations-app .filters select,.operations-app .filters input{border-color:#d1d3c7;border-radius:3px;background:#fffefa}
+.operations-app .line{stroke:#aa9351}.operations-app .area{fill:#eee9d5}.operations-app .grid-lines{border-color:#e5e5da;background:repeating-linear-gradient(to bottom,transparent 0,transparent 31%,#e9e9df 31.5%,transparent 32%)}
+.operations-app .output-card{border-color:#b49b53;background:#fdfbf4}.operations-app .output-card em,.operations-app .text-btn{color:#88743d}
+.operations-app .category,.operations-app .supplier-products{border-radius:2px;background:#eee9d9;color:#766233}
+.operations-app .badge{border-radius:2px}.operations-app .badge.ok{background:#e7ece1;color:#536444}.operations-app .badge.low{background:#fbebe2;color:#9f4d37}.operations-app .badge.hold{background:#f7edd7;color:#8b6525}.operations-app .badge.reject{background:#f9e6e2;color:#994638}.operations-app .badge.pending{background:#e8e6d6;color:#69684f}
+.operations-app .production-tip,.operations-app .quality-guide{border:1px solid #d9d2b8;border-radius:3px;background:#f0ede0;color:#3b3c32}.operations-app .production-tip p,.operations-app .quality-guide p{color:#6c6a5b}.operations-app .quality-guide>span{background:#9c884c}
+.operations-app th{background:#f0efe7;color:#64665b}.operations-app td{border-color:#e1e2d9}.operations-app .stock-card,.operations-app .supplier-card{padding:20px}.operations-app .stock-footer{border-color:#e0e1d7}.operations-app .supplier-initial{border-radius:50%;background:#e7e4d3;color:#826e37}
+.operations-app dialog{border-radius:4px;box-shadow:0 24px 80px #1d211766}.operations-app dialog::backdrop{background:#20251cb8}.operations-app .field label{color:#54574d}.operations-app .field input,.operations-app .field select,.operations-app .field textarea{border-color:#d2d4c9;border-radius:3px;background:#fffefa}.operations-app .close{color:#62655a}
+.operations-app button:focus-visible,.operations-app input:focus-visible,.operations-app select:focus-visible,.operations-app textarea:focus-visible{outline-color:#ad9250}
+@media(max-width:900px){.operations-app .sidebar{width:70px}.operations-app .brand-logo{width:38px;height:38px}.operations-app main{margin-left:70px;padding:28px 30px}.operations-app .brand small{display:none}}
+@media(max-width:620px){.operations-app main{margin-left:0;padding:22px 16px 88px}.operations-app .sidebar{background:#232920}.operations-app .nav-item.active{box-shadow:inset 0 -2px #c4ad6a}.operations-app .hero{display:block;padding:28px 24px}.operations-app .hero h2{font-size:34px}.operations-app .hero-summary{width:auto;margin:24px 0 0;padding:18px 0 0;border-left:0;border-top:1px solid #5b6351}.operations-app .hero-summary strong{max-width:none;margin:10px 0 14px}.operations-app .panel{padding:16px}.operations-app .table-panel{padding:0}.operations-app .view-head h2{font-size:30px}}

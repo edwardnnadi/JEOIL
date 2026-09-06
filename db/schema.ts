@@ -1,5 +1,7 @@
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+export * from './operations-schema';
+
 export const operationsState = sqliteTable('operations_state', {
   id: text('id').primaryKey(),
   payload: text('payload').notNull(),

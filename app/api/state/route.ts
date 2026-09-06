@@ -1,15 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
-import { getChatGPTUser } from '../../chatgpt-auth';
+import { authorize } from '../../../lib/auth';
 import { getDb } from '../../../db';
 import { operationsState } from '../../../db/schema';
-
-const OWNERS = new Set(['edward@nnadi.com', 'edward.nnadi@jeanedwards.com']);
-
-async function authorize() {
-  const user = await getChatGPTUser();
-  return user && OWNERS.has(user.email.toLowerCase()) ? user : null;
-}
 
 export async function GET() {
   const user = await authorize();
@@ -30,8 +23,16 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!(await authorize())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-  const body = await request.json();
-  if (typeof body.payload !== 'string' || body.payload.length > 10_000_000) return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
+  const body: unknown = await request.json();
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('payload' in body) ||
+    typeof body.payload !== 'string' ||
+    body.payload.length > 10_000_000
+  ) {
+    return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
+  }
   await getDb().insert(operationsState).values({ id: 'main', payload: body.payload, updatedAt: new Date() }).onConflictDoUpdate({ target: operationsState.id, set: { payload: body.payload, updatedAt: new Date() } });
   return NextResponse.json({ ok: true });
 }
