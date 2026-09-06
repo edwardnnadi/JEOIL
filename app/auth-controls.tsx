@@ -5,6 +5,18 @@ import Link from 'next/link';
 import { Brand } from './brand';
 
 export function AuthControls() {
+  const hasClerk = Boolean(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
+      process.env.VITE_CLERK_PUBLISHABLE_KEY,
+  );
+  if (!hasClerk) {
+    return (
+      <header className="je-header">
+        <Brand />
+        <span className="je-company-link">Local development</span>
+      </header>
+    );
+  }
   return (
     <header className="je-header">
       <Brand />

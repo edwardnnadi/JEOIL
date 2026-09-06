@@ -10,6 +10,19 @@ export type ChatGPTUser = {
 };
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
+  const hasClerk = Boolean(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
+      process.env.VITE_CLERK_PUBLISHABLE_KEY,
+  );
+  if (!hasClerk && process.env.NODE_ENV === 'development') {
+    return {
+      userId: 'local-development-user',
+      displayName: 'Local user',
+      email: 'local@jeoils.test',
+      fullName: 'Local user',
+    };
+  }
+  if (!hasClerk) return null;
   const { userId } = await auth();
   if (!userId) return null;
   const user = await currentUser();
