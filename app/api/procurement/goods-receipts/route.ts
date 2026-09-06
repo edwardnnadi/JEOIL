@@ -101,20 +101,8 @@ export async function POST(request: Request) {
   };
   await db.insert(goodsReceipts).values(receipt);
 
-  const lineReceived = round(line.quantityReceived + quantityReceived);
-  await db
-    .update(purchaseOrderLines)
-    .set({ quantityReceived: lineReceived })
-    .where(eq(purchaseOrderLines.id, line.id));
-
-  const allLines = await db.select().from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, order.id));
-  const fullyReceived = allLines.every((entry) =>
-    round(entry.id === line.id ? lineReceived : entry.quantityReceived) >= round(entry.quantityOrdered),
-  );
-  await db
-    .update(purchaseOrders)
-    .set({ status: fullyReceived ? 'RECEIVED' : 'PARTIALLY_RECEIVED' })
-    .where(eq(purchaseOrders.id, order.id));
+  // The draft receipt reserves no inventory and does not settle the purchase
+  // line. Those updates are made by the accepted QC finish gate instead.
 
   return NextResponse.json({ goodsReceipt: { ...receipt, batch: null } }, { status: 201 });
 }

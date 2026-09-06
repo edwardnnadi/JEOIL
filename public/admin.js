@@ -124,6 +124,9 @@ openModal=(type,pid)=>{
 $('#record-form').addEventListener('submit',event=>{
   if(event.currentTarget.dataset.type!=='purchase-enhanced')return;
   event.stopImmediatePropagation();let values=formData(event.currentTarget),person=data.people.find(entry=>entry.id===+values.purchasedById),operator=currentOperator(),purchase={id:id(),date:values.purchasedDate,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:+values.unitPrice,cost:+values.cost};
-  data.purchases.unshift(purchase);let stock=stockItem(purchase.item);stock?stock.qty+=purchase.qty:data.stock.push({id:id(),name:purchase.item,category:purchase.category,qty:purchase.qty,unit:purchase.unit,reorder:0});
+  // A purchase is a commercial commitment, not inventory. Available stock is
+  // created only when its Goods Inwards receipt is accepted and finished into
+  // a warehouse.
+  data.purchases.unshift(purchase);
   let assessment={id:id(),purchaseId:purchase.id,date:values.qualityDate,goods:purchase.item,supplier:purchase.supplier,batch:values.batch,condition:values.condition,decision:values.decision,inspector:values.inspector,notes:values.notes};['moisture','damaged','foreignMatter','aflatoxin'].forEach(key=>assessment[key]=values[key]===''?'':+values[key]);data.assessments.unshift(assessment);save();render();
 },true);
