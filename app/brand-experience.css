@@ -691,42 +691,6 @@ html {
   color: var(--je-muted);
   font-size: 9px;
 }
-.je-clerk-root,
-.je-clerk-card-box {
-  width: 100% !important;
-  max-width: 100% !important;
-}
-.je-clerk-card-box,
-.je-clerk-card {
-  box-shadow: none !important;
-  border: 0 !important;
-  background: transparent !important;
-}
-.je-clerk-card {
-  padding: 0 !important;
-}
-.je-clerk-header {
-  text-align: left;
-  align-items: flex-start;
-  margin-bottom: 28px;
-}
-.je-clerk-title {
-  font-size: 34px !important;
-  font-weight: 450 !important;
-  letter-spacing: -0.04em;
-}
-.je-clerk-subtitle {
-  font-size: 13px !important;
-  line-height: 1.7 !important;
-}
-.je-clerk-submit {
-  min-height: 48px;
-  text-transform: none !important;
-  box-shadow: none !important;
-}
-.je-clerk-footer {
-  background: transparent !important;
-}
 .je-operations-frame {
   height: calc(100dvh - 96px);
   width: 100%;

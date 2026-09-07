@@ -1,9 +1,25 @@
-const defaultPeople=[{id:101,name:'Edward Nnadi',type:'User',role:'Administrator',email:'edward@nnadi.com',phone:''}];
+const defaultPeople=[
+  {id:101,name:'Edward Nnadi',type:'User',role:'Administrator',email:'edward@nnadi.com',phone:''},
+  {id:102,name:'Daniel Reuben',type:'User',role:'Accounts Manager',email:'daniel.reuben@jeanedwards.com',phone:''},
+  {id:103,name:'Nanfa Binlam',type:'User',role:'Operations Manager',email:'nanfa.binlam@thebodyshop.ng',phone:''},
+  {id:104,name:'Faith Berida',type:'User',role:'Production Manager',email:'faith.berida@jeoils.com',phone:''},
+  {id:105,name:'Benjamin Okereafor',type:'User',role:'Stock Taking',email:'benjamin.okereafor@jeoils.ng',phone:''},
+];
 const defaultItems=[{id:201,name:'Peanut kernels',category:'Peanut kernels',unit:'kg'},{id:202,name:'Caustic soda',category:'Chemicals',unit:'kg'},{id:203,name:'Bleaching earth',category:'Chemicals',unit:'kg'},{id:204,name:'Diesel',category:'Fuel & energy',unit:'L'},{id:205,name:'Charcoal',category:'Fuel & energy',unit:'bags'},{id:206,name:'Firewood',category:'Fuel & energy',unit:'stacks'}];
 const defaultCategories=['Peanut kernels','Chemicals','Fuel & energy','Packaging','Maintenance','Other'];
 const defaultUnits=['kg','g','tonne','L','mL','bag','sack','bale','bundle','stack','drum','jerrycan','carton','box','pack','piece','pallet','roll','cylinder'];
 function adminData(){
-  data.people??=defaultPeople;
+  data.people??=[];
+  // Seed supplied People records once, while retaining any records already
+  // maintained in Admin. Email is the stable key because names can change.
+  let peopleAdded=false;
+  defaultPeople.forEach(person=>{
+    if(!data.people.some(existing=>existing.email?.toLowerCase()===person.email.toLowerCase())){
+      data.people.push({...person});
+      peopleAdded=true;
+    }
+  });
+  if(peopleAdded) save();
   data.items??=defaultItems;
   // Roles are master data: retain both the starter role and any roles entered for people.
   data.roles??=[...new Set(data.people.map(p=>p.role).filter(Boolean))];
@@ -124,6 +140,9 @@ openModal=(type,pid)=>{
 $('#record-form').addEventListener('submit',event=>{
   if(event.currentTarget.dataset.type!=='purchase-enhanced')return;
   event.stopImmediatePropagation();let values=formData(event.currentTarget),person=data.people.find(entry=>entry.id===+values.purchasedById),operator=currentOperator(),purchase={id:id(),date:values.purchasedDate,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:+values.unitPrice,cost:+values.cost};
-  data.purchases.unshift(purchase);let stock=stockItem(purchase.item);stock?stock.qty+=purchase.qty:data.stock.push({id:id(),name:purchase.item,category:purchase.category,qty:purchase.qty,unit:purchase.unit,reorder:0});
+  // A purchase is a commercial commitment, not inventory. Available stock is
+  // created only when its Goods Inwards receipt is accepted and finished into
+  // a warehouse.
+  data.purchases.unshift(purchase);
   let assessment={id:id(),purchaseId:purchase.id,date:values.qualityDate,goods:purchase.item,supplier:purchase.supplier,batch:values.batch,condition:values.condition,decision:values.decision,inspector:values.inspector,notes:values.notes};['moisture','damaged','foreignMatter','aflatoxin'].forEach(key=>assessment[key]=values[key]===''?'':+values[key]);data.assessments.unshift(assessment);save();render();
 },true);

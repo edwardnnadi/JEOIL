@@ -10,7 +10,8 @@ export type SequenceKey =
   | 'SALES_ORDER'
   | 'DISPATCH'
   | 'SUPPLIER'
-  | 'CUSTOMER';
+  | 'CUSTOMER'
+  | 'PRODUCTION_RUN';
 
 const defaults: Record<SequenceKey, { prefix: string; padding: number }> = {
   PURCHASE_ORDER: { prefix: 'PO', padding: 4 },
@@ -21,6 +22,7 @@ const defaults: Record<SequenceKey, { prefix: string; padding: number }> = {
   DISPATCH: { prefix: 'DN', padding: 4 },
   SUPPLIER: { prefix: 'SUP', padding: 3 },
   CUSTOMER: { prefix: 'CUS', padding: 3 },
+  PRODUCTION_RUN: { prefix: 'PR', padding: 4 },
 };
 
 /**

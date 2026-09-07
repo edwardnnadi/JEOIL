@@ -104,7 +104,7 @@ function renderPurchaseLifecycle() {
       <td>${lifecycleWarehouse(lifecycle, purchase)}</td>
       <td>${purchaseQcSelect(purchase)}</td>
       <td><strong>${money(purchase.cost)}</strong></td>
-      <td>${editButton('purchase', purchase.id)}</td>
+      <td>${!purchase.stockReceived&&lifecycle.label!=='Rejected'?`<button class="text-btn receive-purchase" data-purchase-id="${purchase.id}">Receive goods</button> `:''}${editButton('purchase', purchase.id)}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="9">No purchases match your search.</td></tr>';
 }
@@ -188,6 +188,15 @@ document.addEventListener('change', (event) => {
     delete purchase.warehouseId; delete purchase.warehouseName; delete purchase.warehouseAssignedDate;
   }
   save(); render();
+});
+
+// Goods Inwards is deliberately the gateway between purchase and available
+// inventory: this action opens a receipt draft and never posts stock itself.
+document.addEventListener('click', event => {
+  const button = event.target.closest('.receive-purchase');
+  if (!button) return;
+  const purchase = data.purchases.find(entry => entry.id === +button.dataset.purchaseId);
+  if (purchase) openGoodsInward((data.goodsInwards || []).find(receipt => receipt.purchaseId === purchase.id) || receiptForPurchase(purchase));
 });
 
 renderPurchaseLifecycle();

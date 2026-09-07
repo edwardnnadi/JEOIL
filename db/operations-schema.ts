@@ -122,6 +122,49 @@ export const rawMaterialBatches = sqliteTable(
   (table) => [index('raw_material_batch_item_idx').on(table.itemName)],
 );
 
+/** Immutable inventory journal. Balances are calculated from these movements. */
+export const stockMovements = sqliteTable(
+  'stock_movements',
+  {
+    id: text('id').primaryKey(),
+    movementType: text('movement_type').notNull(),
+    itemName: text('item_name').notNull(),
+    unit: text('unit').notNull(),
+    quantity: real('quantity').notNull(),
+    warehouse: text('warehouse'),
+    lotNumber: text('lot_number'),
+    sourceType: text('source_type').notNull(),
+    sourceId: text('source_id').notNull(),
+    note: text('note'),
+    recordedBy: text('recorded_by').notNull(),
+    recordedAt: integer('recorded_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [
+    index('stock_movement_item_warehouse_idx').on(table.itemName, table.warehouse, table.recordedAt),
+    index('stock_movement_source_idx').on(table.sourceType, table.sourceId),
+  ],
+);
+
+export const productionRuns = sqliteTable(
+  'production_runs',
+  {
+    id: text('id').primaryKey(),
+    batchNumber: text('batch_number').notNull().unique(),
+    machine: text('machine').notNull(),
+    sourceWarehouse: text('source_warehouse').notNull(),
+    outputWarehouse: text('output_warehouse').notNull(),
+    staff: text('staff').notNull().default('[]'),
+    status: text('status').notNull().default('IN_PROGRESS'),
+    startedBy: text('started_by').notNull(),
+    startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull(),
+    endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
+    recordedEndedAt: integer('recorded_ended_at', { mode: 'timestamp_ms' }),
+    endTimeConfirmed: integer('end_time_confirmed', { mode: 'boolean' }),
+    notes: text('notes'),
+  },
+  (table) => [index('production_run_status_idx').on(table.status, table.startedAt)],
+);
+
 /**
  * A finished batch starts life in QUARANTINE. Only a FINAL-stage QC PASS moves
  * it to RELEASED, and only a RELEASED batch can be dispatched.

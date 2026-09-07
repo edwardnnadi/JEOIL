@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../../../db';
-import { goodsReceipts, rawMaterialBatches } from '../../../../../db/schema';
+import { goodsReceipts, purchaseOrderLines, purchaseOrders, rawMaterialBatches, stockMovements } from '../../../../../db/schema';
 import { authorize } from '../../../../../lib/auth';
-import { badRequest, conflict, notFound, readBody, text, unauthorized } from '../../../../../lib/http';
+import { badRequest, conflict, notFound, readBody, round, text, unauthorized } from '../../../../../lib/http';
 import { asValues, evaluateAndRecordQc } from '../../../../../lib/qc';
 import { nextRef } from '../../../../../lib/refs';
 
@@ -34,6 +34,12 @@ export async function POST(request: Request) {
       qcStatus: receipt.qcStatus,
       qcTestResultId: receipt.qcTestResultId,
     });
+  }
+  const line = await db.select().from(purchaseOrderLines).where(eq(purchaseOrderLines.id, receipt.purchaseOrderLineId)).get();
+  if (!line) return notFound('Purchase order line not found');
+  const nextReceived = round(line.quantityReceived + receipt.quantityReceived);
+  if (nextReceived > round(line.quantityOrdered)) {
+    return conflict('Accepted quantity would exceed the outstanding purchase-order line quantity');
   }
 
   const evaluation = await evaluateAndRecordQc({
@@ -66,6 +72,25 @@ export async function POST(request: Request) {
     createdAt: now,
   };
   await db.insert(rawMaterialBatches).values(batch);
+  await db.insert(stockMovements).values({
+    id: crypto.randomUUID(),
+    movementType: 'RECEIPT',
+    itemName: receipt.itemName,
+    unit: receipt.unit,
+    quantity: receipt.quantityReceived,
+    warehouse: receipt.warehouse,
+    lotNumber: batch.batchNumber,
+    sourceType: 'GOODS_RECEIPT',
+    sourceId: receipt.id,
+    note: 'Accepted goods receipt',
+    recordedBy: user.email,
+    recordedAt: now,
+  });
+
+  await db.update(purchaseOrderLines).set({ quantityReceived: nextReceived }).where(eq(purchaseOrderLines.id, line.id));
+  const lines = await db.select().from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, receipt.purchaseOrderId));
+  const isComplete = lines.every(entry => round(entry.id === line.id ? nextReceived : entry.quantityReceived) >= round(entry.quantityOrdered));
+  await db.update(purchaseOrders).set({ status: isComplete ? 'RECEIVED' : 'PARTIALLY_RECEIVED' }).where(eq(purchaseOrders.id, receipt.purchaseOrderId));
 
   return NextResponse.json({ qc: evaluation, batch, stockCreated: true });
 }
