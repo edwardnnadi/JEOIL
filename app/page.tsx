@@ -1,11 +1,6 @@
-import { getChatGPTUser } from './chatgpt-auth';
-import { LandingPage } from './landing-page';
-
 export const dynamic = 'force-dynamic';
 
-export default async function Home() {
-  const user = await getChatGPTUser();
-  if (!user) return <LandingPage />;
+export default function Home() {
   return (
     <iframe
       title="JE Oils Operations"

@@ -1,17 +1,21 @@
-import { getChatGPTUser, type ChatGPTUser } from '../app/chatgpt-auth';
+export type OperationsUser = {
+  userId: string;
+  displayName: string;
+  email: string;
+  fullName: string;
+};
 
-const OWNERS = new Set([
-  'edward@nnadi.com',
-  'edward.nnadi@jeanedwards.com',
-  'nnaemeka.ugwokegbe@jeanedwards.com',
-]);
+const LOCAL_OPERATIONS_USER: OperationsUser = {
+  userId: 'local-operations-user',
+  displayName: 'JE Oils Operations',
+  email: 'operations@jeoils.test',
+  fullName: 'JE Oils Operations',
+};
 
 /**
- * Every operations endpoint authorises the same way. Keeping the owner list in
- * one module means adding a QC officer or storekeeper is a single edit rather
- * than a search for copies of the set.
+ * Authentication has been removed. Keep the shared application identity here
+ * so API handlers retain their existing user contract.
  */
-export async function authorize(): Promise<ChatGPTUser | null> {
-  const user = await getChatGPTUser();
-  return user && OWNERS.has(user.email.toLowerCase()) ? user : null;
+export async function authorize(): Promise<OperationsUser> {
+  return LOCAL_OPERATIONS_USER;
 }

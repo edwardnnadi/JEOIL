@@ -49,41 +49,22 @@ export default defineConfig(async () => {
   const { cloudflare } = await import('@cloudflare/vite-plugin');
 
   return {
-    // Workers have no writable Node filesystem. Use Clerk's edge-safe runtime
-    // instead of its CommonJS Node helper when vinext adds the node condition.
     resolve: {
       dedupe: ['react', 'react-dom'],
       alias: {
-        'next/compat/router': fileURLToPath(new URL('./node_modules/vinext/dist/shims/compat-router.js', import.meta.url)),
-        '#safe-node-apis': fileURLToPath(new URL('./node_modules/@clerk/nextjs/dist/esm/runtime/browser/safe-node-apis.js', import.meta.url)),
+        'next/compat/router': fileURLToPath(
+          new URL(
+            './node_modules/vinext/dist/shims/compat-router.js',
+            import.meta.url,
+          ),
+        ),
       },
     },
-    optimizeDeps: { exclude: ['@clerk/nextjs', 'next/compat/router'] },
     css: { postcss: { plugins: [tailwindcss()] } },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
     plugins: [
-      {
-        name: 'clerk-worker-esm',
-        enforce: 'pre',
-        transform(code: string, id: string) {
-          // Clerk's ESM auth helpers retain a CommonJS server-only guard.
-          // Preserve the guard as an import for the Workers module runner.
-          const modulePath = id.replaceAll('\\', '/');
-          if (modulePath.includes('/@clerk/nextjs/dist/esm/client-boundary/hooks/usePathnameWithoutCatchAll.js')) {
-            return {
-              code: 'import { usePathname, useParams } from "next/navigation";\n' + code
-                .replace('const usePathname = require("next/navigation").usePathname;', '')
-                .replace('const useParams = require("next/navigation").useParams;', ''),
-              map: null,
-            };
-          }
-          if (!modulePath.includes('/@clerk/nextjs/dist/esm/app-router/server/')) return;
-          if (!code.includes('require("server-only")')) return;
-          return { code: 'import "server-only";\n' + code.replaceAll('require("server-only");', ''), map: null };
-        },
-      },
       vinext(),
       sites(),
       cloudflare({
