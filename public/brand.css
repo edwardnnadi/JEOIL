@@ -14,6 +14,7 @@
 .operations-app .sidebar-footer{border-color:#545c4a;padding:18px 9px 0}
 .operations-app .avatar{background:#c2ad6e;color:#22291f}
 .operations-app .sidebar-footer small{color:#bfc3b5}
+.operations-app .site-user{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 4px;border-left:1px solid #d9d8cf}.operations-app .site-user .avatar{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;font-size:10px;font-weight:700}.operations-app .site-user strong{display:block;font-size:12px;font-weight:600;line-height:1.2}.operations-app .site-user small{display:block;margin-top:2px;font-size:10px;color:var(--muted);line-height:1.2}
 .operations-app main{margin-left:264px;max-width:1680px;padding:34px 5% 54px}
 .operations-app header{margin-bottom:34px}
 .operations-app #eyebrow,.operations-app .modal-label{color:#88743d;font-size:9px;letter-spacing:.16em}
@@ -53,7 +54,7 @@
 .operations-app th{background:#f0efe7;color:#64665b}.operations-app td{border-color:#e1e2d9}.operations-app .stock-card,.operations-app .supplier-card{padding:20px}.operations-app .stock-footer{border-color:#e0e1d7}.operations-app .supplier-initial{border-radius:50%;background:#e7e4d3;color:#826e37}
 .operations-app dialog{border-radius:4px;box-shadow:0 24px 80px #1d211766}.operations-app dialog::backdrop{background:#20251cb8}.operations-app .field label{color:#54574d}.operations-app .field input,.operations-app .field select,.operations-app .field textarea{border-color:#d2d4c9;border-radius:3px;background:#fffefa}.operations-app .close{color:#62655a}
 .operations-app button:focus-visible,.operations-app input:focus-visible,.operations-app select:focus-visible,.operations-app textarea:focus-visible{outline-color:#ad9250}
-@media(max-width:900px){.operations-app .sidebar{width:70px}.operations-app .brand-logo{width:38px;height:38px}.operations-app main{margin-left:70px;padding:28px 30px}.operations-app .brand small{display:none}}
+@media(max-width:900px){.operations-app .sidebar{width:70px}.operations-app .brand-logo{width:38px;height:38px}.operations-app main{margin-left:70px;padding:28px 30px}.operations-app .brand small{display:none}.operations-app .site-user strong,.operations-app .site-user small{display:none}.operations-app .site-user{padding-right:0}}
 @media(max-width:620px){.operations-app main{margin-left:0;padding:22px 16px 88px}.operations-app .sidebar{background:#232920}.operations-app .nav-item.active{box-shadow:inset 0 -2px #c4ad6a}.operations-app .hero{display:block;padding:28px 24px}.operations-app .hero h2{font-size:34px}.operations-app .hero-summary{width:auto;margin:24px 0 0;padding:18px 0 0;border-left:0;border-top:1px solid #5b6351}.operations-app .hero-summary strong{max-width:none;margin:10px 0 14px}.operations-app .panel{padding:16px}.operations-app .table-panel{padding:0}.operations-app .view-head h2{font-size:30px}}
 
 /* Collapsible, independently scrollable operations navigation. */
