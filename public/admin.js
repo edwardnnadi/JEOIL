@@ -1,5 +1,6 @@
 const defaultPeople=[
   {id:101,name:'Edward Nnadi',type:'User',role:'Administrator',email:'edward@nnadi.com',phone:''},
+  {id:106,name:'Edward Nnadi',type:'User',role:'Administrator',email:'edward.nnadi@jeanedwards.com',phone:''},
   {id:102,name:'Daniel Reuben',type:'User',role:'Accounts Manager',email:'daniel.reuben@jeanedwards.com',phone:''},
   {id:103,name:'Nanfa Binlam',type:'User',role:'Operations Manager',email:'nanfa.binlam@thebodyshop.ng',phone:''},
   {id:104,name:'Faith Berida',type:'User',role:'Production Manager',email:'faith.berida@jeoils.com',phone:''},
