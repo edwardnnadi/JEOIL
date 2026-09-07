@@ -54,11 +54,23 @@ async function cloudflare(path: string, init: RequestInit = {}) {
 
 export async function POST(request: Request) {
   if (!(await requestingAdministrator())) return jsonError('Administrator access is required.', 403);
-  const body = (await request.json()) as { email?: unknown };
+  const body = (await request.json()) as { name?: unknown; email?: unknown; role?: unknown; phone?: unknown };
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const role = typeof body.role === 'string' ? body.role.trim() : '';
   if (!/^\S+@\S+\.\S+$/.test(email)) return jsonError('A valid email address is required.', 400);
+  if (!name || !role) return jsonError('A user name and role are required.', 400);
 
   try {
+    const db = getDb();
+    const stateRow = await db.select().from(operationsState).where(eq(operationsState.id, 'main')).get();
+    if (!stateRow) return jsonError('Operational state is not available.', 500);
+    const state = JSON.parse(stateRow.payload) as { people?: Array<Record<string, unknown>>; roles?: string[] };
+    state.people ??= [];
+    if (state.people.some((person) => typeof person.email === 'string' && person.email.toLowerCase() === email)) {
+      return jsonError('A user with this email already exists.', 409);
+    }
+
     const apps = (await cloudflare('/access/apps')) as AccessApplication[];
     const app = apps.find((candidate) => candidate.domain === APPLICATION_DOMAIN);
     if (!app) return jsonError('The JE Oils Cloudflare Access application was not found.', 500);
@@ -72,7 +84,17 @@ export async function POST(request: Request) {
       }),
     }) as { id: string };
 
-    return NextResponse.json({ ok: true, accessPolicyId: policy.id, email }, { status: 201 });
+    const person = {
+      id: Date.now(), name, type: 'User', role, email,
+      phone: typeof body.phone === 'string' ? body.phone.trim() : '',
+      accessPolicyId: policy.id, accessStatus: 'Active',
+    };
+    state.people.unshift(person);
+    state.roles ??= [];
+    if (!state.roles.includes(role)) state.roles.push(role);
+    await db.update(operationsState).set({ payload: JSON.stringify(state), updatedAt: new Date() }).where(eq(operationsState.id, 'main'));
+
+    return NextResponse.json({ ok: true, person }, { status: 201 });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : 'User access could not be provisioned.', 502);
   }
