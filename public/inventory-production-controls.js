@@ -17,11 +17,20 @@
   function nextBatch() { inventoryData(); return ref(data.productionConfig.batch, data.productionConfig.batch.nextNumber); }
   function warehouseOptions() { return (data.warehouses || []).map(w => `<option value="${w.id}">${esc(w.name)}${w.location ? ` · ${esc(w.location)}` : ''}</option>`).join(''); }
   function materialRows() { return (data.stock || []).filter(s => Number(s.qty) > 0).map(s => `<tr><td><label><input type="checkbox" name="material" value="${esc(s.name)}"> ${esc(s.name)}</label></td><td>${Number(s.qty).toLocaleString()} ${esc(s.unit)}</td><td><input name="qty-${esc(s.name)}" type="number" min="0" step="any" value="0" aria-label="Quantity of ${esc(s.name)}"></td></tr>`).join('') || '<tr><td colspan="3">No available stock. Receive accepted goods first.</td></tr>'; }
+  function showSubmitAction(label) {
+    const actions = document.querySelector('#record-dialog .modal-actions');
+    const submit = $('#save-record');
+    actions.hidden = false;
+    submit.hidden = false;
+    submit.disabled = false;
+    submit.type = 'submit';
+    submit.textContent = label;
+  }
   function openStart() {
     inventoryData();
     $('#modal-label').textContent = 'PRODUCTION RUN'; $('#modal-title').textContent = 'Start production run';
     $('#form-fields').innerHTML = `<div class="form-grid"><div class="field"><label>Production batch no.</label><input name="batch" readonly value="${esc(nextBatch())}"></div><div class="field"><label>Run date</label><input name="date" type="date" required value="${today()}"></div><div class="field"><label>Machine</label><select name="machine" required><option value="">Select machine</option>${data.productionConfig.machines.map(m => `<option>${esc(m)}</option>`).join('')}</select></div><div class="field"><label>Materials warehouse</label><select name="sourceWarehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Output warehouse</label><select name="warehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Factory manager</label><select name="manager" required>${(data.people || []).filter(p => p.type === 'User').map(p => `<option>${esc(p.name)}</option>`).join('')}</select></div><div class="field"><label>Staff / roles</label><input name="staff" required placeholder="Names and roles"></div><div class="field full"><label>Materials and resources to issue</label><table class="run-materials"><thead><tr><th>Material</th><th>Available</th><th>Quantity to issue</th></tr></thead><tbody>${materialRows()}</tbody></table><div class="item-note">Starting the run immediately records consumption from stock. Any correction is recorded later as an adjustment.</div></div></div>`;
-    const form = $('#record-form'); form.dataset.type = 'production-start'; $('#save-record').textContent = 'Start production run'; $('#record-dialog').showModal();
+    const form = $('#record-form'); form.dataset.type = 'production-start'; showSubmitAction('Start production run'); $('#record-dialog').showModal();
   }
   function selectedMaterials(form) { return [...form.querySelectorAll('[name="material"]:checked')].map(box => ({ name: box.value, quantity: Number(form.elements[`qty-${box.value}`].value || 0) })).filter(m => m.quantity > 0); }
   function startRun(form) {
@@ -45,7 +54,7 @@
   function openEnd(run) {
     $('#modal-label').textContent = 'PRODUCTION RUN'; $('#modal-title').textContent = `End ${run.batch}`;
     $('#form-fields').innerHTML = `<div class="form-grid"><div class="field full"><label>Production timing</label><div class="item-note">Started ${new Date(run.startedAt).toLocaleString()}. Confirm the recorded end time, or provide the actual earlier completion time.</div></div><div class="field"><label>End time is correct</label><select name="timeCorrect"><option value="yes">Yes — end now</option><option value="no">No — finished earlier</option></select></div><div class="field"><label>Actual completion time</label><input name="endedAt" type="datetime-local"></div><div class="field"><label>Oil output</label><input name="oil" type="number" min="0" step="any" value="0"></div><div class="field"><label>Cake output</label><input name="cake" type="number" min="0" step="any" value="0"></div><div class="field"><label>Sludge output</label><input name="sludge" type="number" min="0" step="any" value="0"></div><div class="field full"><label>Consumption correction</label><textarea name="adjustment" placeholder="Explain material return, loss, or additional consumption. Use Stock adjustments for quantity corrections."></textarea></div></div>`;
-    const form=$('#record-form'); form.dataset.type='production-end'; form.dataset.runId=run.id; $('#save-record').textContent='End production run'; $('#record-dialog').showModal();
+    const form=$('#record-form'); form.dataset.type='production-end'; form.dataset.runId=run.id; showSubmitAction('End production run'); $('#record-dialog').showModal();
   }
   function endRun(form) {
     const run=data.activeProductionRuns.find(r => String(r.id) === String(form.dataset.runId)); if (!run) return;
