@@ -1,9 +1,25 @@
-const defaultPeople=[{id:101,name:'Edward Nnadi',type:'User',role:'Administrator',email:'edward@nnadi.com',phone:''}];
+const defaultPeople=[
+  {id:101,name:'Edward Nnadi',type:'User',role:'Administrator',email:'edward@nnadi.com',phone:''},
+  {id:102,name:'Daniel Reuben',type:'User',role:'Accounts Manager',email:'daniel.reuben@jeanedwards.com',phone:''},
+  {id:103,name:'Nanfa Binlam',type:'User',role:'Operations Manager',email:'nanfa.binlam@thebodyshop.ng',phone:''},
+  {id:104,name:'Faith Berida',type:'User',role:'Production Manager',email:'faith.berida@jeoils.com',phone:''},
+  {id:105,name:'Benjamin Okereafor',type:'User',role:'Stock Taking',email:'benjamin.okereafor@jeoils.ng',phone:''},
+];
 const defaultItems=[{id:201,name:'Peanut kernels',category:'Peanut kernels',unit:'kg'},{id:202,name:'Caustic soda',category:'Chemicals',unit:'kg'},{id:203,name:'Bleaching earth',category:'Chemicals',unit:'kg'},{id:204,name:'Diesel',category:'Fuel & energy',unit:'L'},{id:205,name:'Charcoal',category:'Fuel & energy',unit:'bags'},{id:206,name:'Firewood',category:'Fuel & energy',unit:'stacks'}];
 const defaultCategories=['Peanut kernels','Chemicals','Fuel & energy','Packaging','Maintenance','Other'];
 const defaultUnits=['kg','g','tonne','L','mL','bag','sack','bale','bundle','stack','drum','jerrycan','carton','box','pack','piece','pallet','roll','cylinder'];
 function adminData(){
-  data.people??=defaultPeople;
+  data.people??=[];
+  // Seed supplied People records once, while retaining any records already
+  // maintained in Admin. Email is the stable key because names can change.
+  let peopleAdded=false;
+  defaultPeople.forEach(person=>{
+    if(!data.people.some(existing=>existing.email?.toLowerCase()===person.email.toLowerCase())){
+      data.people.push({...person});
+      peopleAdded=true;
+    }
+  });
+  if(peopleAdded) save();
   data.items??=defaultItems;
   // Roles are master data: retain both the starter role and any roles entered for people.
   data.roles??=[...new Set(data.people.map(p=>p.role).filter(Boolean))];
