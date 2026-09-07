@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import './brand-experience.css';
-import { Brand } from './brand';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -31,19 +30,6 @@ export default function RootLayout({
         <a className="je-skip" href="#main-content">
           Skip to content
         </a>
-        <header className="je-header">
-          <Brand />
-          <nav aria-label="Main navigation">
-            <a
-              className="je-company-link"
-              href="https://jeoils.com"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Company website ↗
-            </a>
-          </nav>
-        </header>
         {children}
       </body>
     </html>

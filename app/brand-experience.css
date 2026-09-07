@@ -692,7 +692,7 @@ html {
   font-size: 9px;
 }
 .je-operations-frame {
-  height: calc(100dvh - 96px);
+  height: 100dvh;
   width: 100%;
   border: 0;
 }
@@ -893,7 +893,7 @@ html {
     padding: 44px 0;
   }
   .je-operations-frame {
-    height: calc(100dvh - 80px);
+    height: 100dvh;
   }
 }
 @media (max-width: 380px) {
