@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="quality.css?v=settlement-20260904" />
     <link rel="stylesheet" href="production.css" />
-    <link rel="stylesheet" href="brand.css?v=hamburger-left-of-logo-20260907" />
+    <link rel="stylesheet" href="brand.css?v=ai-insights-20260908" />
   </head>
   <body class="operations-app">
     <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Hide navigation menu">
@@ -37,6 +37,13 @@
 
       <section class="view active" id="dashboard-view">
         <section class="hero" aria-labelledby="operations-summary-title"><div><span class="hero-label">OPERATIONS / SEPTEMBER 2026</span><h2 id="operations-summary-title">Everything your team needs<br/>to keep work moving.</h2><p>Purchases, receiving, production, and stock — connected in one clear workspace.</p></div><div class="hero-summary"><span>LIVE OPERATIONS</span><strong>One shared view for every handover.</strong><ul><li>Purchases & suppliers</li><li>Goods inwards & quality</li><li>Production & stock</li></ul></div></section>
+        <section class="panel ai-insights" aria-labelledby="ai-insights-title">
+          <div class="panel-head"><div><p class="ai-kicker">AI INSIGHTS</p><h3 id="ai-insights-title">Ask about your operations</h3><p>Compare production runs, review suppliers, investigate stock risks, or ask for a management summary.</p></div><span class="ai-status" id="ai-status">Ready to analyse</span></div>
+          <div class="ai-prompts" aria-label="Suggested questions"><button type="button" data-ai-prompt="Compare our latest production runs and explain any notable differences.">Compare production runs</button><button type="button" data-ai-prompt="What are the main stock and production risks I should address?">Identify operational risks</button><button type="button" data-ai-prompt="Give me insights into supplier activity and any supplier concentration risks.">Review suppliers</button></div>
+          <form class="ai-question-form" id="ai-question-form"><label class="sr-only" for="ai-question">Ask AI Insights</label><textarea id="ai-question" rows="2" maxlength="1500" placeholder="Ask a question about production, purchases, quality, suppliers, warehouses or stock…" required></textarea><button class="primary" type="submit">Ask AI</button></form>
+          <div class="ai-answer" id="ai-answer" hidden aria-live="polite"></div>
+          <p class="ai-connection-note" id="ai-connection-note">Answers use your live application data. Connect an OpenAI API project to enable this feature.</p>
+        </section>
         <div class="stat-grid" id="stats"></div>
         <section class="panel production-summary"><div class="panel-head"><div><h3>Production output</h3><p>Finished goods recorded from production runs</p></div><button class="text-btn" data-goto="production">Record a run →</button></div><div class="output-summary" id="output-summary"></div></section>
         <div class="dashboard-grid">
@@ -80,6 +87,7 @@
     <script src="inventory-production-controls.js?v=inventory-production-20260906"></script>
     <script src="view-persistence.js?v=20260904"></script>
     <script src="sidebar-navigation.js?v=20260907"></script>
+    <script src="insights.js?v=20260908"></script>
     <script>
       document.querySelectorAll('.nav-item').forEach((item) => {
         item.onclick = () => {
