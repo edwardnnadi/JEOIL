@@ -1,18 +1,19 @@
 (() => {
   const toggle = document.querySelector('#sidebar-toggle');
   const scrim = document.querySelector('#sidebar-scrim');
-  const storageKey = 'je-oils-sidebar-collapsed';
+  const mobile = window.matchMedia('(max-width: 900px)');
 
   if (!toggle || !scrim) return;
 
   const setCollapsed = (collapsed) => {
-    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    document.body.classList.toggle('sidebar-collapsed', mobile.matches && collapsed);
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute('aria-label', collapsed ? 'Show navigation menu' : 'Hide navigation menu');
-    localStorage.setItem(storageKey, String(collapsed));
   };
 
-  setCollapsed(localStorage.getItem(storageKey) === 'true');
+  const applyLayout = () => setCollapsed(mobile.matches);
+  applyLayout();
+  mobile.addEventListener('change', applyLayout);
   toggle.addEventListener('click', () => setCollapsed(!document.body.classList.contains('sidebar-collapsed')));
   scrim.addEventListener('click', () => setCollapsed(true));
   document.addEventListener('keydown', (event) => {

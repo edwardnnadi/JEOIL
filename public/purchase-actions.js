@@ -6,6 +6,7 @@ editModal=(kind,record)=>{
   purchaseActionEdit(kind,record);
   $('#record-form .delete-purchase')?.remove();
   if(kind!=='purchase')return;
+  if(!canDeleteRecords?.())return;
   const form=$('#record-form'),stage=form.elements.status?.closest('.field'),firstStep=form.querySelector('.wizard-step[data-step="0"] .form-grid');
   if(stage&&firstStep){stage.querySelector('label').textContent='Purchase Stage';firstStep.prepend(stage);}
   let remove=form.querySelector('.delete-purchase');
@@ -15,6 +16,7 @@ editModal=(kind,record)=>{
     $('#save-record').parentElement.prepend(remove);
   }
   remove.onclick=()=>{
+    if(!canDeleteRecords?.()){alert('Only Administrators and Operations Managers can delete records.');return;}
     if(!confirm(`Delete purchase ${record.purchaseId||record.item}? This will also remove its linked Goods Inwards record.`))return;
     const linked=(data.goodsInwards||[]).filter(receipt=>receipt.purchaseId===record.id);
     linked.forEach(receipt=>{const posted=+receipt.stockOnHandQty||0,stock=stockItem(receipt.item);if(stock&&posted)stock.qty-=posted;});

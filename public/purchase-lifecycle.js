@@ -81,14 +81,48 @@ function purchaseLifecycleRows() {
   const search = $('#purchase-search')?.value?.toLowerCase() || '';
   const category = $('#purchase-filter')?.value || 'all';
   const status = $('#purchase-status-filter')?.value || 'all';
+  const qc = $('#purchase-qc-filter')?.value || 'all';
+  const warehouse = $('#purchase-warehouse-filter')?.value || 'all';
+  const supplier = $('#purchase-supplier-filter')?.value || 'all';
+  const item = $('#purchase-item-filter')?.value || 'all';
+  const from = $('#purchase-date-from')?.value || '';
+  const to = $('#purchase-date-to')?.value || '';
   return data.purchases.filter((purchase) =>
     (category === 'all' || purchase.category === category)
     && (status === 'all' || lifecycleFor(purchase).label === status)
+    && (qc === 'all' || purchaseQcStage(purchase) === qc)
+    && (warehouse === 'all' || String(lifecycleFor(purchase).receipt?.warehouseId || purchase.warehouseId || '') === warehouse)
+    && (supplier === 'all' || purchase.supplier === supplier)
+    && (item === 'all' || purchase.item === item)
+    && (!from || String(purchase.date) >= from)
+    && (!to || String(purchase.date) <= to)
     && `${purchase.purchaseId || ''} ${purchase.item} ${purchase.supplier}`.toLowerCase().includes(search),
   );
 }
 
+function purchaseFilterOptions(values, label) {
+  return `<option value="all">All ${label}</option>${values.filter(Boolean).map(value => ({ value: typeof value === 'object' ? value.value : value, label: typeof value === 'object' ? value.label : value })).filter((entry, index, entries) => entry.value && entries.findIndex(candidate => String(candidate.value) === String(entry.value)) === index).sort((left, right) => String(left.label).localeCompare(String(right.label))).map(entry => `<option value="${lifecycleEscape(entry.value)}">${lifecycleEscape(entry.label)}</option>`).join('')}`;
+}
+
+function ensurePurchaseFilters() {
+  const base = $('#purchase-filter')?.closest('.filters');
+  if (!base) return;
+  let advanced = $('#purchase-advanced-filters');
+  if (!advanced) {
+    advanced = document.createElement('div');
+    advanced.className = 'filters purchase-advanced-filters';
+    advanced.id = 'purchase-advanced-filters';
+    base.insertAdjacentElement('afterend', advanced);
+  }
+  const selected = Object.fromEntries([...advanced.querySelectorAll('select,input')].map(input => [input.id, input.value]));
+  advanced.innerHTML = `<select id="purchase-qc-filter" aria-label="Filter by QC"><option value="all">All QC results</option><option>Pending</option><option>In progress</option><option>Passed</option><option>Rejected</option></select><select id="purchase-warehouse-filter" aria-label="Filter by warehouse">${purchaseFilterOptions((data.warehouses || []).map(warehouse => ({ value: warehouse.id, label: warehouse.name })), 'warehouses')}</select><select id="purchase-supplier-filter" aria-label="Filter by supplier">${purchaseFilterOptions(data.purchases.map(purchase => purchase.supplier), 'suppliers')}</select><select id="purchase-item-filter" aria-label="Filter by item">${purchaseFilterOptions(data.purchases.map(purchase => purchase.item), 'items')}</select><label class="purchase-date-filter">From <input id="purchase-date-from" type="date" aria-label="Purchases from date"></label><label class="purchase-date-filter">To <input id="purchase-date-to" type="date" aria-label="Purchases to date"></label><button type="button" class="secondary purchase-clear-filters" id="purchase-clear-filters">Clear filters</button>`;
+  Object.entries(selected).forEach(([id, value]) => { const input = advanced.querySelector(`#${id}`); if (input) input.value = value; });
+  advanced.querySelectorAll('select,input').forEach(input => input.addEventListener('change', renderPurchaseLifecycle));
+  $('#purchase-clear-filters').onclick = () => { advanced.querySelectorAll('select').forEach(select => { select.value = 'all'; }); advanced.querySelectorAll('input').forEach(input => { input.value = ''; }); $('#purchase-filter').value = 'all'; $('#purchase-status-filter').value = 'all'; $('#purchase-search').value = ''; renderPurchaseLifecycle(); };
+}
+
 function renderPurchaseLifecycle() {
+  ensurePurchaseFilters();
   const table = $('#purchases-table')?.closest('table');
   if (!table) return;
   table.querySelector('thead').innerHTML = '<tr><th>Date</th><th>Purchase / item</th><th>Supplier</th><th>Quantity</th><th>Logistics status</th><th>Warehouse</th><th>QC</th><th>Total</th><th></th></tr>';
@@ -104,7 +138,7 @@ function renderPurchaseLifecycle() {
       <td>${lifecycleWarehouse(lifecycle, purchase)}</td>
       <td>${purchaseQcSelect(purchase)}</td>
       <td><strong>${money(purchase.cost)}</strong></td>
-      <td>${!purchase.stockReceived&&lifecycle.label!=='Rejected'?`<button class="text-btn receive-purchase" data-purchase-id="${purchase.id}">Receive goods</button> `:''}${editButton('purchase', purchase.id)}</td>
+      <td>${!purchase.stockReceived&&lifecycle.label!=='Rejected'?`<button class="text-btn receive-purchase" data-purchase-id="${purchase.id}">Receive goods</button> `:''}${editButton('purchase', purchase.id)}${canDeleteRecords?.()?` <button class="text-btn delete-purchase-direct" data-purchase-id="${purchase.id}">Delete</button>`:''}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="9">No purchases match your search.</td></tr>';
 }
