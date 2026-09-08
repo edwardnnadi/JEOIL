@@ -2,11 +2,24 @@
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const allowed = () => typeof canDeleteRecords === 'function' && canDeleteRecords();
   const deny = () => alert('Only Administrators and Operations Managers can delete records.');
-  const remove = (collection, id, label) => {
+  const remove = async (collection, id, label) => {
     if (!allowed()) return deny();
     if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
-    data[collection] = (data[collection] || []).filter(record => String(record.id) !== String(id));
-    save(); render();
+    const response = await fetch('/api/state', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection, id }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) return alert(result.error || `Could not delete ${label}.`);
+    try {
+      data = JSON.parse(result.payload);
+      data.assessments ??= [];
+      stateRevision = result.revision ?? null;
+      render();
+    } catch {
+      alert(`Could not refresh records after deleting ${label}.`);
+    }
   };
   const addButtons = () => {
     if (!allowed()) return;
