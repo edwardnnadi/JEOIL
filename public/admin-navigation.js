@@ -5,20 +5,20 @@
   if (!root || !submenu || !parent) return;
 
   const sectionDetails = {
+    home: ['Administration', 'Manage the people and master data used throughout JE Oils Operations.'],
     people: ['Users & People', 'Maintain application users and operational contacts.'],
     roles: ['Roles', 'Maintain the roles that can be assigned to people and users.'],
     items: ['Purchase Items', 'Maintain the approved items that can be selected on purchases.'],
     catalogue: ['Categories & Units', 'Maintain the categories and default units used by purchase items.'],
   };
   const visiblePanels = {
-    people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel'],
+    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel'],
   };
   const storageKey = 'je-oils-admin-submenu-expanded';
 
   const setExpanded = (expanded) => {
-    const shouldShow = expanded && parent.classList.contains('active');
-    submenu.hidden = !shouldShow;
-    parent.setAttribute('aria-expanded', String(shouldShow));
+    submenu.hidden = !expanded;
+    parent.setAttribute('aria-expanded', String(expanded));
     localStorage.setItem(storageKey, String(expanded));
   };
 
@@ -38,6 +38,9 @@
     root.dataset.adminSection = section;
     root.querySelector('#admin-section-title').textContent = detail[0];
     root.querySelector('#admin-section-description').textContent = detail[1];
+    const isHome = section === 'home';
+    root.querySelector('#admin-overview').hidden = !isHome;
+    root.querySelector('.admin-section-grid').hidden = isHome;
     root.querySelectorAll('.admin-section-panel').forEach((panel) => {
       panel.hidden = !(visiblePanels[section] || visiblePanels.people).includes(panel.id);
     });
@@ -47,6 +50,16 @@
       button.classList.toggle('active', button.dataset.adminSection === section);
     });
     setExpanded(true);
+  };
+
+  const renderOverview = () => {
+    adminData();
+    data.warehouses ??= [];
+    root.querySelector('#admin-people-count').textContent = data.people.length.toLocaleString();
+    root.querySelector('#admin-roles-count').textContent = data.roles.length.toLocaleString();
+    root.querySelector('#admin-items-count').textContent = data.items.length.toLocaleString();
+    root.querySelector('#admin-catalogue-count').textContent = `${data.categories.length} / ${data.units.length}`;
+    root.querySelector('#admin-warehouses-count').textContent = data.warehouses.length.toLocaleString();
   };
 
   const addUnitsPanel = () => {
@@ -100,17 +113,19 @@
   render = () => {
     priorRender();
     renderUnits();
+    renderOverview();
     if (root.classList.contains('active') || document.querySelector('#warehouse-view')?.classList.contains('active')) {
       setSection(root.dataset.adminSection || 'people');
     }
   };
   parent.addEventListener('click', () => {
     const alreadyOpen = !submenu.hidden;
-    setSection(root.dataset.adminSection || 'people');
-    if (document.querySelector('#admin-view').classList.contains('active') && alreadyOpen) setExpanded(false);
+    setSection('home');
+    setExpanded(!alreadyOpen);
   });
   submenu.querySelectorAll('[data-admin-section]').forEach((button) => button.addEventListener('click', () => setSection(button.dataset.adminSection)));
+  root.querySelectorAll('#admin-overview [data-admin-section]').forEach((button) => button.addEventListener('click', () => setSection(button.dataset.adminSection)));
   document.querySelectorAll('.nav-item:not(.admin-parent)').forEach((button) => button.addEventListener('click', () => setExpanded(false)));
-  setExpanded(localStorage.getItem(storageKey) === 'true');
+  setExpanded(false);
   render();
 })();
