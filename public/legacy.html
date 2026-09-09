@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="quality.css?v=settlement-20260904" />
     <link rel="stylesheet" href="production.css" />
-    <link rel="stylesheet" href="brand.css?v=ai-insights-20260908" />
+    <link rel="stylesheet" href="brand.css?v=admin-submenu-20260909" />
   </head>
   <body class="operations-app">
     <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Hide navigation menu">
@@ -26,9 +26,15 @@
         <button class="nav-item" data-view="quality" data-title="Goods inwards"><span>✓</span>Goods inwards</button>
         <button class="nav-item" data-view="production" data-title="Production"><span>◒</span>Production</button>
         <button class="nav-item" data-view="stock" data-title="Stock"><span>□</span>Stock</button>
-        <button class="nav-item" data-view="warehouse" data-title="Warehouse"><span>⌂</span>Warehouse</button>
         <button class="nav-item" data-view="suppliers" data-title="Suppliers"><span>♙</span>Suppliers</button>
-        <button class="nav-item" data-view="admin" data-title="Administration"><span>⚙</span>Admin</button>
+        <button class="nav-item admin-parent" data-view="admin" data-title="Administration" aria-controls="admin-submenu" aria-expanded="false"><span>⚙</span>Admin <b aria-hidden="true">⌄</b></button>
+        <div class="admin-submenu" id="admin-submenu" hidden>
+          <button type="button" data-admin-section="people">Users &amp; People</button>
+          <button type="button" data-admin-section="roles">Roles</button>
+          <button type="button" data-admin-section="items">Purchase Items</button>
+          <button type="button" data-admin-section="catalogue">Categories &amp; Units</button>
+          <button type="button" data-admin-section="warehouses">Warehouses</button>
+        </div>
       </nav>
     </aside>
 
@@ -64,7 +70,7 @@
 
       <section class="view" id="suppliers-view"><div class="view-head"><div><h2>Suppliers</h2><p>Keep supplier contacts, products and purchasing details together.</p></div><button class="primary" id="add-supplier">+ Add supplier</button></div><div class="supplier-grid" id="supplier-grid"></div></section>
 
-      <section class="view" id="admin-view"><div class="view-head"><div><h2>People & purchasing items</h2><p>Maintain your users, contacts, roles and approved items for purchasing.</p></div><div class="header-actions"><button class="secondary" id="add-person">+ Add person</button><button class="primary" id="add-item">+ Add purchase item</button></div></div><div class="dashboard-grid"><section class="panel table-panel"><div class="panel-head"><div><h3>People</h3><p>Users can be selected as the purchaser on a purchase record.</p></div></div><table><thead><tr><th>Name</th><th>Type</th><th>Role</th><th>Contact</th></tr></thead><tbody id="people-table"></tbody></table></section><section class="panel table-panel"><div class="panel-head"><div><h3>Purchase items</h3><p>Available in the purchase form.</p></div></div><table><thead><tr><th>Item</th><th>Category</th><th>Default unit</th></tr></thead><tbody id="items-table"></tbody></table></section></div></section>
+      <section class="view" id="admin-view" data-admin-section="people"><div class="view-head"><div><p class="admin-section-label">ADMINISTRATION</p><h2 id="admin-section-title">Users &amp; People</h2><p id="admin-section-description">Maintain application users and operational contacts.</p></div><div class="header-actions"><button class="secondary" id="add-person">+ Add person</button><button class="primary" id="add-item">+ Add purchase item</button></div></div><div class="dashboard-grid admin-section-grid"><section class="panel table-panel admin-section-panel" id="people-panel"><div class="panel-head"><div><h3>Users &amp; People</h3><p>Users can be selected as the purchaser on a purchase record.</p></div></div><table><thead><tr><th>Name</th><th>Type</th><th>Role</th><th>Contact</th></tr></thead><tbody id="people-table"></tbody></table></section><section class="panel table-panel admin-section-panel" id="items-panel"><div class="panel-head"><div><h3>Purchase items</h3><p>Available in the purchase form.</p></div></div><table><thead><tr><th>Item</th><th>Category</th><th>Default unit</th></tr></thead><tbody id="items-table"></tbody></table></section></div></section>
     </main>
 
     <dialog id="record-dialog"><form method="dialog" id="record-form"><div class="modal-head"><div><span class="modal-label" id="modal-label">NEW RECORD</span><h2 id="modal-title">Record purchase</h2></div><button class="close" type="button" data-close>×</button></div><div id="form-fields"></div><div class="modal-actions"><button type="button" data-close class="secondary">Cancel</button><button class="primary" id="save-record" value="default">Save record</button></div></form></dialog>
@@ -89,6 +95,7 @@
     <script src="view-persistence.js?v=20260904"></script>
     <script src="sidebar-navigation.js?v=20260907"></script>
     <script src="insights.js?v=20260908"></script>
+    <script src="admin-navigation.js?v=20260909"></script>
     <script src="record-deletion.js?v=20260908"></script>
     <script>
       document.querySelectorAll('.nav-item').forEach((item) => {
