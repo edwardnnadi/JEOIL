@@ -2,7 +2,26 @@ import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { authorize } from '../../../lib/auth';
 import { getDb } from '../../../db';
-import { operationsState } from '../../../db/schema';
+import { activityLog, operationsState } from '../../../db/schema';
+
+async function appendActivity(action: string, details: string, user: Awaited<ReturnType<typeof authorize>>) {
+  if (!user) return;
+  await getDb().insert(activityLog).values({
+    id: crypto.randomUUID(), userId: user.userId, userName: user.fullName || user.displayName,
+    userEmail: user.email, action, details, occurredAt: new Date(),
+  });
+}
+
+function changedAreas(before: string | null, after: string) {
+  try {
+    const previous = before ? JSON.parse(before) as Record<string, unknown> : {};
+    const next = JSON.parse(after) as Record<string, unknown>;
+    const areas = Object.keys(next).filter((key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]));
+    return areas.slice(0, 6).join(', ') || 'operational data';
+  } catch {
+    return 'operational data';
+  }
+}
 
 export async function GET() {
   const user = await authorize();
@@ -18,6 +37,7 @@ export async function GET() {
       // The stored payload is validated by the client; return it unchanged if legacy data is malformed.
     }
   }
+  await appendActivity('Signed in', 'Opened the JE Oils Operations workspace.', user);
   return NextResponse.json({
     payload,
     revision: row?.updatedAt.getTime() ?? null,
@@ -25,7 +45,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!(await authorize())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  const user = await authorize();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   const body: unknown = await request.json();
   if (
     typeof body !== 'object' ||
@@ -37,10 +58,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
   }
 
-  const revision = 'revision' in body ? body.revision : undefined;
-  if (revision !== null && (!Number.isSafeInteger(revision) || revision < 0)) {
+  const suppliedRevision: unknown = 'revision' in body ? body.revision : undefined;
+  if (suppliedRevision !== null && suppliedRevision !== undefined &&
+    (typeof suppliedRevision !== 'number' || !Number.isSafeInteger(suppliedRevision) || suppliedRevision < 0)) {
     return NextResponse.json({ error: 'Invalid state revision' }, { status: 400 });
   }
+  const revision = suppliedRevision as number | null | undefined;
 
   const db = getDb();
   const current = await db.select().from(operationsState).where(eq(operationsState.id, 'main')).get();
@@ -71,13 +94,16 @@ export async function POST(request: Request) {
     }
   }
 
+  await appendActivity('Updated operations data', `Changed: ${changedAreas(current?.payload ?? null, body.payload)}.`, user);
+
   return NextResponse.json({ ok: true, revision: updatedAt.getTime() });
 }
 
 const deletableCollections = new Set(['stock', 'suppliers', 'production']);
 
 export async function DELETE(request: Request) {
-  if (!(await authorize())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  const user = await authorize();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   const body: unknown = await request.json();
   if (
     typeof body !== 'object' ||
@@ -118,7 +144,10 @@ export async function DELETE(request: Request) {
       .where(and(eq(operationsState.id, 'main'), eq(operationsState.updatedAt, current.updatedAt)))
       .returning({ revision: operationsState.updatedAt })
       .get();
-    if (updated) return NextResponse.json({ ok: true, payload: JSON.stringify(state), revision: updatedAt.getTime() });
+    if (updated) {
+      await appendActivity('Deleted operational record', `Deleted a record from ${body.collection}.`, user);
+      return NextResponse.json({ ok: true, payload: JSON.stringify(state), revision: updatedAt.getTime() });
+    }
   }
 
   return NextResponse.json({ error: 'Could not apply deletion; please try again.' }, { status: 409 });

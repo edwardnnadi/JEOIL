@@ -14,9 +14,10 @@
     production: ['Production', 'Manage production batch numbering and view the machines available to factory managers.'],
     numbering: ['Purchase & lot numbers', 'Configure the automatically generated purchase and lot references.'],
     lab: ['Lab configuration', 'Configure the laboratory tests and result fields available to analysts.'],
+    activity: ['User activity log', 'Immutable sign-in and operational activity history.'],
   };
   const visiblePanels = {
-    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel'], machines: ['machines-panel'], production: ['production-master-panel'], numbering: ['purchase-number-panel'], lab: ['lab-tests-panel'],
+    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel'], machines: ['machines-panel'], production: ['production-master-panel'], numbering: ['purchase-number-panel'], lab: ['lab-tests-panel'], activity: ['activity-log-panel'],
   };
   const storageKey = 'je-oils-admin-submenu-expanded';
   if (!root.querySelector('.admin-breadcrumbs')) root.querySelector('.view-head').insertAdjacentHTML('afterend', '<nav class="admin-breadcrumbs" aria-label="Administration breadcrumb"><button type="button" data-admin-section="home">Administration</button><span aria-hidden="true">/</span><span aria-current="page">Overview</span></nav>');
@@ -32,6 +33,8 @@
   const overview = root.querySelector('#admin-overview');
   if (overview && !overview.querySelector('[data-admin-section="production"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="production"><span>PRODUCTION</span><strong>→</strong><small>Configure batch numbering and view machines</small></button><button type="button" class="admin-overview-card" data-admin-section="numbering"><span>PURCHASE &amp; LOT NUMBERS</span><strong>→</strong><small>Configure generated purchase and lot references</small></button>');
   if (overview && !overview.querySelector('[data-admin-section="lab"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="lab"><span>LAB CONFIGURATION</span><strong id="admin-lab-count">0</strong><small>Manage laboratory tests and result fields</small></button>');
+  if (!submenu.querySelector('[data-admin-section="activity"]')) submenu.insertAdjacentHTML('beforeend', '<button type="button" data-admin-section="activity">User activity log</button>');
+  if (overview && !overview.querySelector('[data-admin-section="activity"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="activity"><span>USER ACTIVITY LOG</span><strong>→</strong><small>Review sign-ins and operational changes</small></button>');
 
   const setExpanded = (expanded) => {
     submenu.hidden = !expanded;

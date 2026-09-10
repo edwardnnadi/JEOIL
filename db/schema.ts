@@ -9,6 +9,25 @@ export const operationsState = sqliteTable('operations_state', {
 });
 
 /**
+ * Append-only security and operations history. This table is deliberately not
+ * exposed through the state API, which prevents normal application edits or
+ * deletes from altering the audit trail.
+ */
+export const activityLog = sqliteTable(
+  'activity_log',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    userName: text('user_name').notNull(),
+    userEmail: text('user_email').notNull(),
+    action: text('action').notNull(),
+    details: text('details').notNull(),
+    occurredAt: integer('occurred_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (table) => [index('activity_log_occurred_at_idx').on(table.occurredAt)],
+);
+
+/**
  * The QC rulebook is intentionally stored as data. New standards and revised
  * limits therefore take effect without moving decision logic into the client.
  */

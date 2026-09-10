@@ -32,7 +32,9 @@
 
   const populateItems = (form, preferred = '') => {
     ensurePurchaseItemCatalogue();
-    const item = form.elements.item;
+    // `HTMLFormControlsCollection` has an `item()` method, so use the named
+    // lookup to obtain this purchase form's `<select name="item">`.
+    const item = form.elements.namedItem('item');
     if (!item) return;
     const available = data.items;
     item.innerHTML = available.length
@@ -48,7 +50,7 @@
     previousOpenModal(type, purchaseId);
     if (type !== 'purchase') return;
     const form = document.querySelector('#record-form');
-    const item = form?.elements.item;
+    const item = form?.elements.namedItem('item');
     if (!form || !item) return;
     populateItems(form, item.value);
     item.addEventListener('change', () => applySelectedItem(form));
