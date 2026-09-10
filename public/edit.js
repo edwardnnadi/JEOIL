@@ -43,6 +43,13 @@ editModal=(kind,record)=>{
   itemSpeciesModal(kind,record);
   if(kind!=='item')return;
   const form=$('#record-form');
+  const escapeOption=value=>String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  [['category',data.categories||[]],['unit',data.units||[]]].forEach(([name,configured])=>{
+    const field=form.elements[name];
+    if(!field)return;
+    const current=field.value,options=[...new Set([...configured,current].filter(Boolean))];
+    field.outerHTML=`<select name="${name}" required>${options.map(option=>`<option value="${escapeOption(option)}" ${option===current?'selected':''}>${escapeOption(option)}</option>`).join('')}</select>`;
+  });
   form.querySelectorAll('#category-parameters,#add-parameter').forEach(element=>element.closest('.field')?.remove());
   form.querySelector('[name="standardName"]')?.closest('.field')?.remove();
   form.querySelectorAll('.item-note').forEach(note=>{if(note.textContent.includes('purchase item'))note.closest('.field')?.remove()});
