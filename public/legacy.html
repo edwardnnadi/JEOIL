@@ -24,6 +24,7 @@
         <button class="nav-item active" data-view="dashboard" data-title="Operations overview"><span>▦</span>Dashboard</button>
         <button class="nav-item" data-view="purchases" data-title="Purchases"><span>↙</span>Purchases</button>
         <button class="nav-item" data-view="quality" data-title="Goods inwards"><span>✓</span>Goods inwards</button>
+        <button class="nav-item" data-view="lab-results" data-title="Lab results"><span>⌁</span>Lab results</button>
         <button class="nav-item" data-view="production" data-title="Production"><span>◒</span>Production</button>
         <button class="nav-item" data-view="stock" data-title="Stock"><span>□</span>Stock</button>
         <button class="nav-item" data-view="suppliers" data-title="Suppliers"><span>♙</span>Suppliers</button>
@@ -34,6 +35,7 @@
           <button type="button" data-admin-section="items">Purchase Items</button>
           <button type="button" data-admin-section="catalogue">Categories &amp; Units</button>
           <button type="button" data-admin-section="warehouses">Warehouses</button>
+          <button type="button" data-admin-section="lab">Lab configuration</button>
         </div>
       </nav>
     </aside>
@@ -68,6 +70,8 @@
       <section class="view" id="stock-view"><div class="view-head"><div><h2>Stock on hand</h2><p>Your current inventory across raw materials, consumables and finished goods.</p></div><button class="primary" id="add-stock">+ Add stock item</button></div><div class="stock-grid" id="stock-grid"></div></section>
       <section class="view" id="warehouse-view"><div class="view-head"><div><h2>Warehouses</h2><p>Maintain the warehouses used to receive, store and issue materials.</p></div><button class="primary" id="add-warehouse">+ Add warehouse</button></div><div class="panel table-panel"><table><thead><tr><th>Warehouse name</th><th>Warehouse location</th><th></th></tr></thead><tbody id="warehouses-table"></tbody></table></div></section>
 
+      <section class="view" id="lab-results-view"><div class="view-head"><div><p class="admin-section-label">LABORATORY</p><h2>Lab results</h2><p>Record and review test results for incoming materials and finished products.</p></div><button class="primary" id="add-lab-result">+ Record result</button></div><div class="quality-guide"><span>⌁</span><div><strong>Traceable laboratory records</strong><p>Select a configured test, enter the batch reference and readings, then record the decision and analyst.</p></div></div><div class="lab-result-stats" id="lab-result-stats"></div><div class="panel table-panel"><table><thead><tr><th>Test date</th><th>Batch / sample</th><th>Test</th><th>Result summary</th><th>Decision</th><th>Analyst</th></tr></thead><tbody id="lab-results-table"></tbody></table></div></section>
+
       <section class="view" id="suppliers-view"><div class="view-head"><div><h2>Suppliers</h2><p>Keep supplier contacts, products and purchasing details together.</p></div><button class="primary" id="add-supplier">+ Add supplier</button></div><div class="supplier-grid" id="supplier-grid"></div></section>
 
       <section class="view" id="admin-view" data-admin-section="home"><div class="view-head"><div><p class="admin-section-label">ADMINISTRATION</p><h2 id="admin-section-title">Administration</h2><p id="admin-section-description">Manage the people and master data used throughout JE Oils Operations.</p></div><div class="header-actions"><button class="secondary" id="add-person" hidden>+ Add person</button><button class="primary" id="add-item" hidden>+ Add purchase item</button></div></div><div class="admin-overview" id="admin-overview"><button type="button" class="admin-overview-card" data-admin-section="people"><span>USERS &amp; PEOPLE</span><strong id="admin-people-count">0</strong><small>Manage application users and operational contacts</small></button><button type="button" class="admin-overview-card" data-admin-section="roles"><span>ROLES</span><strong id="admin-roles-count">0</strong><small>Maintain roles available for people and users</small></button><button type="button" class="admin-overview-card" data-admin-section="items"><span>PURCHASE ITEMS</span><strong id="admin-items-count">0</strong><small>Manage the items available in purchasing</small></button><button type="button" class="admin-overview-card" data-admin-section="catalogue"><span>CATEGORIES &amp; UNITS</span><strong id="admin-catalogue-count">0</strong><small>Maintain purchase categories and default units</small></button><button type="button" class="admin-overview-card" data-admin-section="warehouses"><span>WAREHOUSES</span><strong id="admin-warehouses-count">0</strong><small>Manage warehouse locations and assigned stock</small></button></div><div class="dashboard-grid admin-section-grid" hidden><section class="panel table-panel admin-section-panel" id="people-panel"><div class="panel-head"><div><h3>Users &amp; People</h3><p>Users can be selected as the purchaser on a purchase record.</p></div></div><table><thead><tr><th>Name</th><th>Type</th><th>Role</th><th>Contact</th></tr></thead><tbody id="people-table"></tbody></table></section><section class="panel table-panel admin-section-panel" id="items-panel"><div class="panel-head"><div><h3>Purchase items</h3><p>Available in the purchase form.</p></div></div><table><thead><tr><th>Item</th><th>Category</th><th>Default unit</th></tr></thead><tbody id="items-table"></tbody></table></section></div></section>
@@ -96,6 +100,7 @@
     <script src="sidebar-navigation.js?v=20260907"></script>
     <script src="insights.js?v=20260908"></script>
     <script src="machines-admin.js?v=kurma-expellers-20260910"></script>
+    <script src="lab.js?v=lab-records-20260910"></script>
     <script src="admin-navigation.js?v=20260909"></script>
     <script src="record-deletion.js?v=20260908"></script>
     <script>

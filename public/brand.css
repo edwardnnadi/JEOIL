@@ -154,3 +154,5 @@
   .operations-app #purchases-view>.filters,.operations-app .purchase-advanced-filters{grid-template-columns:1fr}
   .operations-app .purchase-advanced-filters .purchase-clear-filters{grid-column:auto}
 }
+
+.operations-app .admin-overview[hidden]{display:none!important}

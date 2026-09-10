@@ -227,12 +227,28 @@ const traceabilityAdminRender=renderAdmin;
 renderAdmin=()=>{
   traceabilityAdminRender();traceabilityData();
   const grid=$('#admin-view .dashboard-grid');
-  if(!$('#purchase-id-panel')) grid.insertAdjacentHTML('beforeend','<section class="panel table-panel" id="purchase-id-panel"><div class="panel-head"><div><h3>Purchase & lot numbering</h3><p>Configure generated references for new purchase and lot records.</p></div></div><form id="purchase-id-form" class="form-grid"><div class="field"><label>Purchase prefix</label><input name="prefix" placeholder="e.g. PUR-"></div><div class="field"><label>Starting sequence number</label><input name="sequenceStart" type="number" min="1" required></div><div class="field"><label>Purchase suffix</label><input name="suffix" placeholder="e.g. -NG"></div><div class="field"><label>Number padding</label><input name="padding" type="number" min="1" max="12" required></div><div class="field"><label>Lot prefix</label><input name="lotPrefix" placeholder="e.g. LOT-"></div><div class="field"><label>Lot suffix</label><input name="lotSuffix" placeholder="Optional suffix"></div><div class="field full"><div class="item-note" id="purchase-id-preview"></div></div><div class="field"><button class="primary" type="submit">Save numbering rules</button></div></form></section>');
-  const config=data.purchaseIdConfig,form=$('#purchase-id-form');
-  form.elements.prefix.value=config.prefix;form.elements.sequenceStart.value=config.sequenceStart;form.elements.suffix.value=config.suffix;form.elements.padding.value=config.padding;form.elements.lotPrefix.value=data.lotNoConfig.prefix;form.elements.lotSuffix.value=data.lotNoConfig.suffix;
-  $('#purchase-id-preview').textContent=`Next purchase ID: ${purchaseReference()} · Lot No: ${lotReference(purchaseReference())}`;
-  form.onsubmit=event=>{event.preventDefault();const oldStart=Number(config.sequenceStart),next=Number(config.nextNumber),values=formData(form);config.prefix=values.prefix||'';config.suffix=values.suffix||'';config.padding=Math.max(1,Math.min(12,Number(values.padding)||4));config.sequenceStart=Math.max(1,Number(values.sequenceStart)||1);data.lotNoConfig={prefix:values.lotPrefix||'',suffix:values.lotSuffix||'',padding:config.padding};if(next===oldStart||next<config.sequenceStart)config.nextNumber=config.sequenceStart;save();render();};
+  if(!$('#purchase-number-panel'))grid.insertAdjacentHTML('beforeend','<section class="panel table-panel admin-section-panel" id="purchase-number-panel"><div class="panel-head"><div><h3>Purchase &amp; lot numbers</h3><p>Generated references for new purchases and their linked lot records.</p></div></div><div class="form-grid"><div class="field"><label>Purchase numbers</label><p class="item-note" id="purchase-number-preview"></p><button class="primary configure-purchase-number" type="button">Configure purchase numbers</button></div><div class="field"><label>Lot numbers</label><p class="item-note" id="lot-number-preview"></p><button class="primary configure-lot-number" type="button">Configure lot numbers</button></div></div></section>');
+  const config=data.purchaseIdConfig,lotConfig=data.lotNoConfig,nextPurchase=purchaseReference();
+  $('#purchase-number-preview').textContent=`Next purchase No.: ${nextPurchase}`;
+  $('#lot-number-preview').textContent=`Next lot No.: ${lotReference(nextPurchase)}`;
+  $('.configure-purchase-number').onclick=()=>openNumberingModal('purchase');
+  $('.configure-lot-number').onclick=()=>openNumberingModal('lot');
 };
+
+function openNumberingModal(kind){
+  traceabilityData();const purchase=kind==='purchase',config=data.purchaseIdConfig,lotConfig=data.lotNoConfig;
+  $('#modal-label').textContent=purchase?'PURCHASE NUMBER':'LOT NUMBER';$('#modal-title').textContent=purchase?'Configure purchase numbering':'Configure lot numbering';
+  $('#form-fields').innerHTML=purchase?`<div class="form-grid"><div class="field"><label>Prefix</label><input name="prefix" value="${escapeValue(config.prefix)}" placeholder="e.g. PUR-"></div><div class="field"><label>Starting sequence number</label><input name="sequenceStart" type="number" min="1" value="${config.sequenceStart}" required></div><div class="field"><label>Suffix</label><input name="suffix" value="${escapeValue(config.suffix)}" placeholder="Optional suffix"></div><div class="field"><label>Number padding</label><input name="padding" type="number" min="1" max="12" value="${config.padding}" required></div><div class="field full"><div class="item-note">Next purchase No.: ${escapeValue(purchaseReference())}</div></div></div>`:`<div class="form-grid"><div class="field"><label>Prefix</label><input name="prefix" value="${escapeValue(lotConfig.prefix)}" placeholder="e.g. LOT-"></div><div class="field"><label>Suffix</label><input name="suffix" value="${escapeValue(lotConfig.suffix)}" placeholder="Optional suffix"></div><div class="field"><label>Number padding</label><input name="padding" type="number" min="1" max="12" value="${lotConfig.padding}" required></div><div class="field full"><div class="item-note">Next lot No.: ${escapeValue(lotReference(purchaseReference()))}</div></div></div>`;
+  const form=$('#record-form');form.dataset.type=`${kind}-number-config`;$('#save-record').textContent='Save settings';$('#record-dialog').showModal();
+}
+
+$('#record-form').addEventListener('submit',event=>{
+  const form=event.currentTarget,kind=form.dataset.type;if(!['purchase-number-config','lot-number-config'].includes(kind))return;
+  event.preventDefault();event.stopImmediatePropagation();const values=formData(form);
+  if(kind==='purchase-number-config'){const config=data.purchaseIdConfig,oldStart=Number(config.sequenceStart),next=Number(config.nextNumber);config.prefix=values.prefix||'';config.suffix=values.suffix||'';config.padding=Math.max(1,Math.min(12,Number(values.padding)||4));config.sequenceStart=Math.max(1,Number(values.sequenceStart)||1);if(next===oldStart||next<config.sequenceStart)config.nextNumber=config.sequenceStart;}
+  else data.lotNoConfig={...data.lotNoConfig,prefix:values.prefix||'',suffix:values.suffix||'',padding:Math.max(1,Math.min(12,Number(values.padding)||4))};
+  save();$('#record-dialog').close();render();
+},true);
 
 const traceabilityPurchases=purchases;
 purchases=()=>{

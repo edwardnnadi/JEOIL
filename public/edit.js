@@ -28,3 +28,34 @@ $('#record-form').addEventListener('submit',event=>{
   Object.assign(purchase,{date:values.purchasedDate,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:+values.unitPrice,cost:+values.cost});let newStock=stockItem(purchase.item);newStock?newStock.qty+=purchase.qty:data.stock.push({id:id(),name:purchase.item,category:purchase.category,qty:purchase.qty,unit:purchase.unit,reorder:0});
   let assessment=data.assessments.find(entry=>entry.purchaseId===purchase.id)||{id:id(),purchaseId:purchase.id};Object.assign(assessment,{date:values.qualityDate,goods:purchase.item,supplier:purchase.supplier,batch:values.batch,condition:values.condition,decision:values.decision,inspector:values.inspector,notes:values.notes});['moisture','damaged','foreignMatter','aflatoxin'].forEach(key=>assessment[key]=values[key]===''?'':+values[key]);if(!data.assessments.includes(assessment))data.assessments.unshift(assessment);save();render();
 },true);
+
+const speciesParameterRows=(parameters=[])=>standardRows(parameters.length?parameters:[{label:'',operator:'≤',limit:'',unit:''}]);
+const speciesEditorRows=(species,index)=>`<section class="field full species-standard" data-species-row><div class="form-grid"><div class="field"><label>Species / grade</label><input data-species-name value="${species.name||''}" placeholder="e.g. Runner, Virginia, Grade A" required></div><div class="field"><label>Standard specification</label><input data-species-standard-name value="${species.standard?.name||'JE Oils Standard'}" required></div><div class="field"><label>&nbsp;</label><button type="button" class="secondary remove-species" ${index===0?'disabled':''}>Remove species</button></div></div><div class="item-note">Receiving tests and production records use this specification when this species is selected.</div><div data-species-parameters>${speciesParameterRows(species.standard?.parameters)}</div><button type="button" class="secondary add-species-parameter">+ Add parameter</button></section>`;
+function setupSpeciesEditor(species){
+  const host=$('#item-species-editor');
+  host.innerHTML=species.map(speciesEditorRows).join('');
+  const bind=()=>{host.querySelectorAll('.remove-species').forEach(button=>button.onclick=()=>button.closest('[data-species-row]').remove());host.querySelectorAll('.add-species-parameter').forEach(button=>button.onclick=()=>{button.previousElementSibling.insertAdjacentHTML('beforeend',speciesParameterRows());bind()})};
+  $('#add-species').onclick=()=>{host.insertAdjacentHTML('beforeend',speciesEditorRows({name:'',standard:{name:'JE Oils Standard',parameters:[]}},host.children.length));bind()};bind();
+}
+function readSpeciesSpecs(form){return [...form.querySelectorAll('[data-species-row]')].map((row,index)=>{const parameters=[...row.querySelectorAll('[data-parameter-row]')].map((parameterRow,parameterIndex)=>({key:`parameter_${parameterIndex+1}`,label:parameterRow.querySelector('[name="parameterLabel"]').value.trim(),operator:parameterRow.querySelector('[name="parameterOperator"]').value,limit:parameterRow.querySelector('[name="parameterLimit"]').value,unit:parameterRow.querySelector('[name="parameterUnit"]').value.trim()})).filter(parameter=>parameter.label&&parameter.limit!==''&&parameter.unit);return {name:row.querySelector('[data-species-name]').value.trim(),standard:{name:row.querySelector('[data-species-standard-name]').value.trim()||'JE Oils Standard',parameters}}}).filter(species=>species.name)}
+const itemSpeciesModal=editModal;
+editModal=(kind,record)=>{
+  itemSpeciesModal(kind,record);
+  if(kind!=='item')return;
+  const form=$('#record-form');
+  form.querySelectorAll('#category-parameters,#add-parameter').forEach(element=>element.closest('.field')?.remove());
+  form.querySelector('[name="standardName"]')?.closest('.field')?.remove();
+  form.querySelectorAll('.item-note').forEach(note=>{if(note.textContent.includes('purchase item'))note.closest('.field')?.remove()});
+  const inherited=record.qualityStandard||categoryStandard(record.category)||peanutStandard;
+  const species=record.speciesSpecs?.length?record.speciesSpecs:[{name:'Standard',standard:inherited}];
+  $('#form-fields').insertAdjacentHTML('beforeend','<div class="field full"><label>Species / grades and standard specifications</label><div class="item-note">Maintain a separate test and production specification for each species or grade of this purchase item.</div></div><div id="item-species-editor"></div><div class="field"><button type="button" class="secondary" id="add-species">+ Add species / grade</button></div>');
+  setupSpeciesEditor(species);
+  form.dataset.type='item-species-edit';
+};
+$('#record-form').addEventListener('submit',event=>{
+  if(event.currentTarget.dataset.type!=='item-species-edit')return;
+  event.stopImmediatePropagation();event.preventDefault();
+  const form=event.currentTarget,values=formData(form),item=data.items.find(entry=>entry.id===+form.dataset.editId);if(!item)return;
+  const oldName=item.name,speciesSpecs=readSpeciesSpecs(form);Object.assign(item,{name:values.name.trim(),category:values.category.trim(),unit:values.unit.trim(),speciesSpecs,qualityStandard:speciesSpecs[0]?.standard||item.qualityStandard});
+  if(item.category&&!data.categories.includes(item.category))data.categories.push(item.category);if(item.unit&&!data.units.includes(item.unit))data.units.push(item.unit);if(oldName!==item.name){data.purchases.forEach(purchase=>{if(purchase.item===oldName)purchase.item=item.name});data.stock.forEach(stock=>{if(stock.name===oldName)stock.name=item.name})}save();$('#record-dialog').close();render();
+},true);

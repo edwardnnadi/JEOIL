@@ -10,6 +10,27 @@ const defaultPeople=[
 const defaultItems=[{id:201,name:'Peanut kernels',category:'Peanut kernels',unit:'kg'},{id:202,name:'Caustic soda',category:'Chemicals',unit:'kg'},{id:203,name:'Bleaching earth',category:'Chemicals',unit:'kg'},{id:204,name:'Diesel',category:'Fuel & energy',unit:'L'},{id:205,name:'Charcoal',category:'Fuel & energy',unit:'bags'},{id:206,name:'Firewood',category:'Fuel & energy',unit:'stacks'}];
 const defaultCategories=['Peanut kernels','Chemicals','Fuel & energy','Packaging','Maintenance','Other'];
 const defaultUnits=['kg','g','tonne','L','mL','bag','sack','bale','bundle','stack','drum','jerrycan','carton','box','pack','piece','pallet','roll','cylinder'];
+const peanutStandard={name:'JE Oils Standard',parameters:[
+  {key:'oilContent',label:'Oil Content',operator:'≥',limit:'45.0',unit:'%'},
+  {key:'ffa',label:'FFA',operator:'≤',limit:'4.0',unit:'%'},
+  {key:'foreignMatter',label:'Foreign Matter',operator:'≤',limit:'0.2',unit:'%'},
+  {key:'damagedKernels',label:'Damaged/Defective Kernels',operator:'≤',limit:'5.0',unit:'%'},
+  {key:'aflatoxin',label:'Total Aflatoxin',operator:'≤',limit:'10',unit:'ppb'},
+]};
+const categoryStandard=(category)=>data.categoryStandards?.[category];
+const itemStandard=(itemName,category,speciesName='')=>{const item=data.items?.find(entry=>entry.name===itemName);return item?.speciesSpecs?.find(species=>species.name===speciesName)?.standard||item?.speciesSpecs?.[0]?.standard||item?.qualityStandard||categoryStandard(category)};
+const standardSummary=(category)=>{let standard=categoryStandard(category);return standard?.parameters?.length?`${standard.name||'Quality standard'} · ${standard.parameters.length} parameter${standard.parameters.length===1?'':'s'}`:'No quality standard configured'};
+const standardRows=(parameters=[])=>parameters.map((parameter,index)=>`<div class="form-grid category-parameter-row" data-parameter-row><div class="field"><label>Parameter</label><input name="parameterLabel" value="${parameter.label||''}" placeholder="e.g. Oil Content" required></div><div class="field"><label>Limit</label><select name="parameterOperator"><option ${parameter.operator==='≥'?'selected':''}>≥</option><option ${parameter.operator==='>'?'selected':''}>></option><option ${parameter.operator==='≤'?'selected':''}>≤</option><option ${parameter.operator==='<'?'selected':''}><</option><option ${parameter.operator==='='?'selected':''}>=</option></select></div><div class="field"><label>Value</label><input name="parameterLimit" type="number" step="any" min="0" value="${parameter.limit??''}" required></div><div class="field"><label>Unit</label><input name="parameterUnit" value="${parameter.unit||''}" placeholder="%, ppb, etc." required></div><div class="field"><label>&nbsp;</label><button type="button" class="secondary remove-parameter" ${index===0&&parameters.length===1?'disabled':''}>Remove</button></div></div>`).join('');
+function setupStandardEditor(standard=peanutStandard){
+  let form=$('#record-form'),parameters=standard.parameters?.length?standard.parameters:[{label:'',operator:'≤',limit:'',unit:''}];
+  form.querySelector('#category-parameters').innerHTML=standardRows(parameters);
+  form.querySelector('#add-parameter').onclick=()=>{form.querySelector('#category-parameters').insertAdjacentHTML('beforeend',standardRows([{label:'',operator:'≤',limit:'',unit:''}]));bindParameterButtons()};
+  function bindParameterButtons(){form.querySelectorAll('.remove-parameter').forEach(button=>button.onclick=()=>button.closest('[data-parameter-row]').remove())}bindParameterButtons();
+}
+function readStandard(form){
+  let rows=[...form.querySelectorAll('[data-parameter-row]')],parameters=rows.map((row,index)=>({key:`parameter_${index+1}`,label:row.querySelector('[name="parameterLabel"]').value.trim(),operator:row.querySelector('[name="parameterOperator"]').value,limit:row.querySelector('[name="parameterLimit"]').value,unit:row.querySelector('[name="parameterUnit"]').value.trim()})).filter(parameter=>parameter.label&&parameter.limit!==''&&parameter.unit);
+  return {name:form.elements.standardName.value.trim()||'JE Oils Standard',parameters};
+}
 function adminData(){
   data.people??=[];
   // Seed supplied People records once, while retaining any records already
@@ -26,6 +47,8 @@ function adminData(){
   // Roles are master data: retain both the starter role and any roles entered for people.
   data.roles??=[...new Set(data.people.map(p=>p.role).filter(Boolean))];
   data.categories??=[...defaultCategories];
+  data.categoryStandards??={};
+  if(!data.categoryStandards['Peanut kernels']) data.categoryStandards['Peanut kernels']=JSON.parse(JSON.stringify(peanutStandard));
   data.units??=[...defaultUnits];
   data.people.forEach(p=>{if(p.role&&!data.roles.includes(p.role))data.roles.push(p.role)});
   data.items.forEach(i=>{
@@ -96,23 +119,26 @@ renderAdmin=()=>{
   renderAdminWithCategories();
   let grid=$('#admin-view .dashboard-grid');
   if(!$('#categories-panel'))grid.insertAdjacentHTML('beforeend','<section class="panel table-panel" id="categories-panel"><div class="panel-head"><div><h3>Purchase categories</h3><p>Categories available for purchase items and purchase records.</p></div><button class="secondary" id="add-category">+ Add category</button></div><table><thead><tr><th>Category</th><th></th></tr></thead><tbody id="categories-table"></tbody></table></section>');
-  $('#categories-table').innerHTML=data.categories.map((category,index)=>`<tr><td><strong>${category}</strong></td><td><button class="text-btn edit-category" data-category-index="${index}">Edit</button></td></tr>`).join('')||'<tr><td>No categories yet.</td></tr>';
+  $('#categories-table').innerHTML=data.categories.map((category,index)=>`<tr><td><strong>${category}</strong><div class="item-note">${standardSummary(category)}</div></td><td><button class="text-btn edit-category" data-category-index="${index}">Edit</button></td></tr>`).join('')||'<tr><td>No categories yet.</td></tr>';
   $('#add-category').onclick=()=>{
     $('#modal-label').textContent='NEW CATEGORY';$('#modal-title').textContent='Add purchase category';
-    $('#form-fields').innerHTML='<div class="form-grid"><div class="field full"><label>Category name</label><input name="category" placeholder="e.g. Packaging" required></div></div>';
+    $('#form-fields').innerHTML='<div class="form-grid"><div class="field full"><label>Category name</label><input name="category" placeholder="e.g. Packaging" required></div><div class="field full"><label>Quality standard name</label><input name="standardName" value="JE Oils Standard" required></div><div class="field full"><label>Quality parameters</label><div class="item-note">Add the checks and acceptable limits used when receiving this category.</div></div><div class="field full" id="category-parameters"></div><div class="field"><button type="button" class="secondary" id="add-parameter">+ Add parameter</button></div></div>';
+    setupStandardEditor({name:'JE Oils Standard',parameters:[{label:'',operator:'≤',limit:'',unit:''}]});
     $('#record-form').dataset.type='category';$('#record-dialog').showModal();
   };
   document.querySelectorAll('.edit-category').forEach(button=>button.onclick=()=>{
     let index=+button.dataset.categoryIndex,category=data.categories[index];
     $('#modal-label').textContent='EDIT CATEGORY';$('#modal-title').textContent='Edit purchase category';
-    $('#form-fields').innerHTML=`<div class="form-grid"><div class="field full"><label>Category name</label><input name="category" value="${category}" required></div></div>`;
+    let standard=categoryStandard(category)||{name:'JE Oils Standard',parameters:[]};
+    $('#form-fields').innerHTML=`<div class="form-grid"><div class="field full"><label>Category name</label><input name="category" value="${category}" required></div><div class="field full"><label>Quality standard name</label><input name="standardName" value="${standard.name||'JE Oils Standard'}" required></div><div class="field full"><label>Quality parameters</label><div class="item-note">These limits are used on the receiving quality check for this category.</div></div><div class="field full" id="category-parameters"></div><div class="field"><button type="button" class="secondary" id="add-parameter">+ Add parameter</button></div></div>`;
+    setupStandardEditor(standard);
     $('#record-form').dataset.type='category-edit';$('#record-form').dataset.categoryIndex=index;$('#record-dialog').showModal();
   });
 };
 $('#record-form').addEventListener('submit',e=>{
   if(e.currentTarget.dataset.type!=='category')return;
   e.stopImmediatePropagation();let category=formData(e.currentTarget).category?.trim();adminData();
-  if(category&&!data.categories.some(existing=>existing.toLowerCase()===category.toLowerCase()))data.categories.push(category);
+  if(category&&!data.categories.some(existing=>existing.toLowerCase()===category.toLowerCase())){data.categories.push(category);data.categoryStandards[category]=readStandard(e.currentTarget)}
   save();render();
 },true);
 $('#record-form').addEventListener('submit',e=>{
@@ -120,6 +146,8 @@ $('#record-form').addEventListener('submit',e=>{
   e.stopImmediatePropagation();let form=e.currentTarget,newCategory=formData(form).category?.trim(),index=+form.dataset.categoryIndex,oldCategory=data.categories[index];adminData();
   if(newCategory&&(!data.categories.some((category,i)=>i!==index&&category.toLowerCase()===newCategory.toLowerCase()))){
     data.categories[index]=newCategory;
+    data.categoryStandards[newCategory]=readStandard(form);
+    if(oldCategory!==newCategory)delete data.categoryStandards[oldCategory];
     data.items.forEach(item=>{if(item.category===oldCategory)item.category=newCategory});
     data.purchases.forEach(purchase=>{if(purchase.category===oldCategory)purchase.category=newCategory});
     data.stock.forEach(item=>{if(item.category===oldCategory)item.category=newCategory});
@@ -131,14 +159,19 @@ render();
 const standardPurchaseModal=openModal;
 const currentOperator=()=>data.people.find(person=>person.email?.toLowerCase()===data.currentUserEmail?.toLowerCase())||data.people.find(person=>person.type==='User')||data.people[0];
 const canDeleteRecords=()=>['Administrator','Operations Manager'].includes(currentOperator?.()?.role);
-const qualityFields=(values={})=>`<div class="field full"><label>Quality assessment</label><div class="item-note">Record the delivery inspection with the purchase. Update it later from Edit purchase.</div></div><div class="field"><label>Batch / lot number</label><input name="batch" value="${values.batch||''}"></div><div class="field"><label>Assessment date</label><input name="qualityDate" type="date" value="${values.date||new Date().toISOString().slice(0,10)}"></div><div class="field"><label>Moisture (%)</label><input name="moisture" type="number" min="0" step="0.1" value="${values.moisture??''}"></div><div class="field"><label>Damaged kernels (%)</label><input name="damaged" type="number" min="0" step="0.1" value="${values.damaged??''}"></div><div class="field"><label>Foreign matter (%)</label><input name="foreignMatter" type="number" min="0" step="0.1" value="${values.foreignMatter??''}"></div><div class="field"><label>Aflatoxin (ppb)</label><input name="aflatoxin" type="number" min="0" step="0.1" value="${values.aflatoxin??''}"></div><div class="field"><label>Visual condition</label><select name="condition">${['Clean and dry','Minor defects','Contamination observed'].map(value=>`<option ${value===(values.condition||'Clean and dry')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Quality decision</label><select name="decision">${['Accepted','Hold','Rejected'].map(value=>`<option ${value===(values.decision||'Accepted')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Inspector</label><input name="inspector" value="${values.inspector||currentOperator()?.name||''}"></div><div class="field full"><label>Quality notes</label><textarea name="notes">${values.notes||''}</textarea></div>`;
+let qualityFields=(values={},category='Peanut kernels',itemName='',speciesName='')=>{let standard=itemStandard(itemName,category,speciesName),parameters=standard?.parameters||[];let parameterFields=parameters.map((parameter,index)=>`<div class="field"><label>${parameter.label} (${parameter.unit}) <span class="item-note">${parameter.operator} ${parameter.limit} ${parameter.unit}</span></label><input name="qualityParameter_${index}" type="number" min="0" step="any" value="${values.parameters?.[parameter.key]??''}"></div>`).join('');return `<div class="field full"><label>Quality assessment${standard?` · ${standard.name}`:''}</label><div class="item-note">Record the delivery inspection against this purchase item's configured acceptable limits.</div></div><div class="field"><label>Batch / lot number</label><input name="batch" value="${values.batch||''}"></div><div class="field"><label>Assessment date</label><input name="qualityDate" type="date" value="${values.date||new Date().toISOString().slice(0,10)}"></div>${parameterFields}<div class="field"><label>Visual condition</label><select name="condition">${['Clean and dry','Minor defects','Contamination observed'].map(value=>`<option ${value===(values.condition||'Clean and dry')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Quality decision</label><select name="decision">${['Accepted','Hold','Rejected'].map(value=>`<option ${value===(values.decision||'Accepted')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Inspector</label><input name="inspector" value="${values.inspector||currentOperator()?.name||''}"></div><div class="field full"><label>Quality notes</label><textarea name="notes">${values.notes||''}</textarea></div>`};
 openModal=(type,pid)=>{
   if(type!=='purchase')return standardPurchaseModal(type,pid);
   adminData();let operator=currentOperator(),today=new Date().toISOString().slice(0,10);
   $('#modal-label').textContent='NEW PURCHASE';$('#modal-title').textContent='Record purchase and quality check';
-  $('#form-fields').innerHTML=`<div class="form-grid"><div class="field"><label>Purchased date</label><input name="purchasedDate" type="date" required value="${today}"></div><div class="field"><label>Purchased by</label><select name="purchasedById" required>${data.people.map(person=>`<option value="${person.id}">${person.name} · ${person.role}</option>`).join('')}</select></div><div class="field"><label>Created by</label><input value="${operator?.name||'Current user'}" readonly></div><div class="field"><label>Created date</label><input value="${today}" readonly></div><div class="field"><label>Category</label><select name="category" required>${data.categories.map(category=>`<option>${category}</option>`).join('')}</select></div><div class="field"><label>Item purchased</label><select name="item" required>${data.items.map(item=>`<option value="${item.name}">${item.name}</option>`).join('')}</select></div><div class="field"><label>Supplier</label><input name="supplier" list="supplier-list" required><datalist id="supplier-list">${data.suppliers.map(supplier=>`<option value="${supplier.name}">`).join('')}</datalist></div><div class="field"><label>Quantity</label><input name="qty" type="number" min="0" step="any" required></div><div class="field"><label>Unit</label><input name="unit" required></div><div class="field"><label>Unit price (₦)</label><input name="unitPrice" type="number" min="0" step="any" required></div><div class="field"><label>Total (₦)</label><input name="cost" type="number" readonly required></div>${qualityFields()}</div>`;
-  let form=$('#record-form'),item=form.elements.item,category=form.elements.category,unit=form.elements.unit,qty=form.elements.qty,price=form.elements.unitPrice,total=form.elements.cost;
-  function sync(){let selected=data.items.find(entry=>entry.name===item.value);category.value=selected?.category||category.value;unit.value=selected?.unit||unit.value;total.value=((+qty.value||0)*(+price.value||0)).toFixed(2)}item.onchange=sync;qty.oninput=sync;price.oninput=sync;sync();form.dataset.type='purchase-enhanced';$('#record-dialog').showModal();
+  let initialCategory=data.items[0]?.category||data.categories[0];
+  const purchaseFields=()=>`<div class="form-grid"><div class="field"><label>Purchased date</label><input name="purchasedDate" type="date" required value="${today}"></div><div class="field"><label>Purchased by</label><select name="purchasedById" required>${data.people.map(person=>`<option value="${person.id}">${person.name} · ${person.role}</option>`).join('')}</select></div><div class="field"><label>Created by</label><input value="${operator?.name||'Current user'}" readonly></div><div class="field"><label>Created date</label><input value="${today}" readonly></div><div class="field"><label>Category</label><select name="category" required>${data.categories.map(category=>`<option ${category===initialCategory?'selected':''}>${category}</option>`).join('')}</select></div><div class="field"><label>Item purchased</label><select name="item" required>${data.items.map(item=>`<option value="${item.name}">${item.name}</option>`).join('')}</select></div><div class="field"><label>Supplier</label><input name="supplier" list="supplier-list" required><datalist id="supplier-list">${data.suppliers.map(supplier=>`<option value="${supplier.name}">`).join('')}</datalist></div><div class="field"><label>Quantity</label><input name="qty" type="number" min="0" step="any" required></div><div class="field"><label>Unit</label><input name="unit" required></div><div class="field"><label>Unit price (₦)</label><input name="unitPrice" type="number" min="0" step="any" required></div><div class="field"><label>Total (₦)</label><input name="cost" type="number" readonly required></div><div id="configured-quality-fields">${qualityFields({},initialCategory,data.items[0]?.name)}</div></div>`;
+  $('#form-fields').innerHTML=purchaseFields();
+  let form=$('#record-form'),item=form.elements.item,category=form.elements.category,unit=form.elements.unit,qty=form.elements.qty,price=form.elements.unitPrice,total=form.elements.cost,speciesHost=document.createElement('div');speciesHost.className='field';item.closest('.field').insertAdjacentElement('afterend',speciesHost);
+  function sync(){let selected=data.items.find(entry=>entry.name===item.value);category.value=selected?.category||category.value;unit.value=selected?.unit||unit.value;total.value=((+qty.value||0)*(+price.value||0)).toFixed(2)}
+  function syncSpecies(){let selected=data.items.find(entry=>entry.name===item.value),species=selected?.speciesSpecs||[];speciesHost.innerHTML=species.length?`<label>Species / grade</label><select name="species">${species.map(entry=>`<option value="${entry.name}">${entry.name}</option>`).join('')}</select>`:'';speciesHost.hidden=!species.length;if(form.elements.species)form.elements.species.onchange=syncQualityFields}
+  function syncQualityFields(){form.querySelector('#configured-quality-fields').innerHTML=qualityFields({},category.value,item.value,form.elements.species?.value||'')}
+  item.onchange=()=>{sync();syncSpecies();syncQualityFields()};category.onchange=()=>{let selected=data.items.find(entry=>entry.category===category.value);if(selected)item.value=selected.name;sync();syncSpecies();syncQualityFields()};qty.oninput=sync;price.oninput=sync;sync();syncSpecies();syncQualityFields();form.dataset.type='purchase-enhanced';$('#record-dialog').showModal();
 };
 $('#record-form').addEventListener('submit',event=>{
   if(event.currentTarget.dataset.type!=='purchase-enhanced')return;
@@ -147,5 +180,5 @@ $('#record-form').addEventListener('submit',event=>{
   // created only when its Goods Inwards receipt is accepted and finished into
   // a warehouse.
   data.purchases.unshift(purchase);
-  let assessment={id:id(),purchaseId:purchase.id,date:values.qualityDate,goods:purchase.item,supplier:purchase.supplier,batch:values.batch,condition:values.condition,decision:values.decision,inspector:values.inspector,notes:values.notes};['moisture','damaged','foreignMatter','aflatoxin'].forEach(key=>assessment[key]=values[key]===''?'':+values[key]);data.assessments.unshift(assessment);save();render();
+  purchase.species=values.species||'';let standard=itemStandard(purchase.item,purchase.category,purchase.species),assessment={id:id(),purchaseId:purchase.id,date:values.qualityDate,goods:purchase.item,species:purchase.species,supplier:purchase.supplier,batch:values.batch,condition:values.condition,decision:values.decision,inspector:values.inspector,notes:values.notes,parameters:{}};(standard?.parameters||[]).forEach((parameter,index)=>{let value=values[`qualityParameter_${index}`];assessment.parameters[parameter.key]=value===''?'':+value});data.assessments.unshift(assessment);save();render();
 },true);

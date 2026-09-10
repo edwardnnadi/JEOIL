@@ -17,6 +17,13 @@
   const stock = (name) => data.stock.find((item) => item.name.toLowerCase() === name.toLowerCase());
   const personOptions = () => (data.people || []).map((person) => `<option value="${esc(person.name)}">`).join('');
   const warehouseOptions = () => (data.warehouses || []).map((warehouse) => `<option value="${esc(warehouse.id)}">${esc(warehouse.name)}${warehouse.location ? ` · ${esc(warehouse.location)}` : ''}</option>`).join('');
+  const dateTime = (value) => value ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—';
+  const workflowMaterial = (material) => {
+    const item = stock(material.name);
+    return `${Number(material.quantity || 0).toLocaleString()}${item?.unit ? ` ${item.unit}` : ''} ${material.name}`;
+  };
+  const workflowControls = (materials = []) => materials.filter((material) => /^(firewood|diesel)$/i.test(material.name || '')).map((material) => esc(workflowMaterial(material))).join('<br>') || '—';
+  const workflowStatus = (status) => ({ IN_PROGRESS: ['In progress', 'pending'], COMPLETED: ['Completed', 'ok'], ON_HOLD: ['On hold', 'hold'] }[status] || [String(status || '—'), 'pending']);
 
   function productionFields() {
     const kernels = stock('Peanut kernels');
@@ -74,6 +81,14 @@
   window.production = function () {
     const tbody = document.querySelector('#production-table');
     tbody.innerHTML = data.production.map((run) => {
+      if (run.startedAt || run.batch) {
+        const [statusLabel, statusTone] = workflowStatus(run.status);
+        const outputs = displayRecord(run.outputs || []);
+        const actual = run.actualRating || {};
+        const actualRating = [actual.capacity && `Capacity: ${actual.capacity}`, actual.input && `Input: ${actual.input}`, actual.output && `Output: ${actual.output}`].filter(Boolean).join(' · ');
+        const timing = run.endedAt ? `Started: ${dateTime(run.startedAt)}<br>Ended: ${dateTime(run.endedAt)}` : `Started: ${dateTime(run.startedAt)}<br>Running now`;
+        return `<tr><td>${date(run.date)}</td><td><strong>${esc(run.batch || run.reference || 'Production run')}</strong><div class="item-note">Machine: ${esc(run.machine || '—')}</div></td><td>${esc((run.materials || []).map(workflowMaterial).join(' · ') || displayRecord(run.inputs || '—'))}<div class="item-note">${esc(run.sourceWarehouseName || 'Warehouse not recorded')}</div></td><td>${esc(timing.replace(/<br>/g, '\n')).replace(/\n/g, '<br>')}<div class="item-note">Manager: ${esc(run.manager || '—')}<br>Staff: ${esc(run.staff || '—')}</div></td><td>${esc(outputs || '—')}${actualRating ? `<div class="item-note">Actual: ${esc(actualRating)}</div>` : ''}<div class="item-note">${esc(run.warehouseName || 'Warehouse not recorded')}</div></td><td>${workflowControls(run.materials || [])}</td><td><span class="badge ${statusTone}">${esc(statusLabel)}</span><div class="item-note">${run.endedAt ? `Completed ${esc(dateTime(run.endedAt))}` : 'Awaiting completion'}</div></td></tr>`;
+      }
       if (!run.warehouseBalanceBefore && !run.productionStart) return `<tr><td>${date(run.date)}</td><td><strong>${esc(run.reference || 'Production run')}</strong></td><td>${esc(displayRecord(run.inputs || run.materials || '—'))}</td><td>—</td><td>${esc(displayRecord(run.outputs || `${run.output || 0} ${run.unit || ''} ${run.product || ''}`))}</td><td>—</td><td>—</td></tr>`;
       return `<tr><td>${date(run.date)}</td><td><strong>${esc(run.reference)}</strong><div class="item-note">Received: ${esc(run.receivedBy)}</div></td><td>Before: ${quantity(run.warehouseBalanceBefore, 'Mt')}<br>Issued: ${quantity(run.kernels, 'Mt')}<br>After: ${quantity(run.warehouseBalanceAfter, 'Mt')}<div class="item-note">${esc(run.issuedBy)} · authorised by ${esc(run.authorizedBy)}</div></td><td>${esc(run.productionStart)} – ${esc(run.productionEnd)}<div class="item-note">Supervisor: ${esc(run.supervisor)}<br>Operator: ${esc(run.operator)}</div></td><td>Oil: ${quantity(run.oilOutput, 'Mt')}<br>Cake: ${quantity(run.cake, 'Mt')}<br>Sludge: ${quantity(run.sludgeOutput, 'Mt')}<div class="item-note">Yield: ${Number(run.yield || 0).toFixed(2)}% · ${esc(run.outputWarehouseName || 'Warehouse not recorded')}</div></td><td>Firewood: ${Number(run.firewood || 0).toLocaleString()}<br>Diesel: ${Number(run.diesel || 0).toLocaleString()}</td><td>${esc(run.status)}<div class="item-note">Signed by ${esc(run.productionSignOff)}</div></td></tr>`;
     }).join('') || '<tr><td colspan="7">No production records yet.</td></tr>';
