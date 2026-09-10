@@ -243,15 +243,32 @@ function openNumberingModal(kind){
   traceabilityData();const purchase=kind==='purchase',config=data.purchaseIdConfig,lotConfig=data.lotNoConfig;
   $('#modal-label').textContent=purchase?'PURCHASE NUMBER':'LOT NUMBER';$('#modal-title').textContent=purchase?'Configure purchase numbering':'Configure lot numbering';
   $('#form-fields').innerHTML=purchase?`<div class="form-grid"><div class="field"><label>Prefix</label><input name="prefix" value="${escapeValue(config.prefix)}" placeholder="e.g. PUR-"></div><div class="field"><label>Starting sequence number</label><input name="sequenceStart" type="number" min="1" value="${config.sequenceStart}" required></div><div class="field"><label>Suffix</label><input name="suffix" value="${escapeValue(config.suffix)}" placeholder="Optional suffix"></div><div class="field"><label>Number padding</label><input name="padding" type="number" min="1" max="12" value="${config.padding}" required></div><div class="field full"><div class="item-note">Next purchase No.: ${escapeValue(purchaseReference())}</div></div></div>`:`<div class="form-grid"><div class="field"><label>Prefix</label><input name="prefix" value="${escapeValue(lotConfig.prefix)}" placeholder="e.g. LOT-"></div><div class="field"><label>Suffix</label><input name="suffix" value="${escapeValue(lotConfig.suffix)}" placeholder="Optional suffix"></div><div class="field"><label>Number padding</label><input name="padding" type="number" min="1" max="12" value="${lotConfig.padding}" required></div><div class="field full"><div class="item-note">Next lot No.: ${escapeValue(lotReference(purchaseReference()))}</div></div></div>`;
-  const form=$('#record-form');form.dataset.type=`${kind}-number-config`;$('#save-record').textContent='Save settings';$('#record-dialog').showModal();
+  const form=$('#record-form'),saveButton=$('#save-record');
+  form.dataset.type=`${kind}-number-config`;
+  $('#form-fields').insertAdjacentHTML('beforeend','<p class="save-status" id="numbering-save-status" role="status" aria-live="polite"></p>');
+  // The purchase wizard turns this shared button into a regular button. Reset
+  // it when opening an Administration form so this form always submits itself.
+  saveButton.type='submit';saveButton.onclick=null;saveButton.disabled=false;saveButton.hidden=false;
+  saveButton.parentElement.hidden=false;saveButton.textContent='Save settings';
+  $('#record-dialog').showModal();
 }
 
-$('#record-form').addEventListener('submit',event=>{
+$('#record-form').addEventListener('submit',async event=>{
   const form=event.currentTarget,kind=form.dataset.type;if(!['purchase-number-config','lot-number-config'].includes(kind))return;
   event.preventDefault();event.stopImmediatePropagation();const values=formData(form);
   if(kind==='purchase-number-config'){const config=data.purchaseIdConfig,oldStart=Number(config.sequenceStart),next=Number(config.nextNumber);config.prefix=values.prefix||'';config.suffix=values.suffix||'';config.padding=Math.max(1,Math.min(12,Number(values.padding)||4));config.sequenceStart=Math.max(1,Number(values.sequenceStart)||1);if(next===oldStart||next<config.sequenceStart)config.nextNumber=config.sequenceStart;}
   else data.lotNoConfig={...data.lotNoConfig,prefix:values.prefix||'',suffix:values.suffix||'',padding:Math.max(1,Math.min(12,Number(values.padding)||4))};
-  save();$('#record-dialog').close();render();
+  const status=$('#numbering-save-status'),saveButton=$('#save-record');
+  saveButton.disabled=true;if(status)status.textContent='Saving settings…';
+  try{
+    const saved=await save();
+    if(!saved) throw new Error('the settings changed in another session; the latest saved version has been reloaded');
+    if(status)status.textContent='Settings saved.';
+    $('#record-dialog').close();render();
+  }catch(error){
+    if(status)status.textContent=`Could not save settings: ${error.message||'please try again.'}`;
+    console.error(error);
+  }finally{saveButton.disabled=false;}
 },true);
 
 const traceabilityPurchases=purchases;
