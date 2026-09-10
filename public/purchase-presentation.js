@@ -41,5 +41,5 @@ openModal=(type,pid)=>{
   unitField.style.gridColumn='1';priceField.style.gridColumn='2';
   totalField.style.gridColumn='1 / -1';
   let selected=data.items.find(item=>item.name===form.elements.item.value);if(selected&&data.units.includes(selected.unit))unit.value=selected.unit;
-  form.elements.item.onchange=()=>{let item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;if(data.units.includes(item.unit))unit.value=item.unit;if(description)description.value=item.description||''}total.value=((Number(qty.value)||0)*(Number(price.value)||0)).toFixed(2)};
+  form.elements.item.onchange=()=>{let item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){if(data.units.includes(item.unit))unit.value=item.unit;if(description)description.value=item.description||''}total.value=((Number(qty.value)||0)*(Number(price.value)||0)).toFixed(2)};
 };

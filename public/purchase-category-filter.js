@@ -1,8 +1,7 @@
-// Final purchase-wizard binding. This file deliberately runs after every
-// purchase enhancement so Category always controls the Item Purchased list.
+// Final purchase-wizard binding. Item Purchased is deliberately independent
+// of Category: buyers choose from the full approved item catalogue.
 (() => {
   const escapeOption = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-  const categoryKey = (value) => String(value ?? '').trim().toLocaleLowerCase();
 
   // Some existing shared states pre-date the Purchase Items master data and
   // retain an empty array. Recover it here, before the wizard filters, rather
@@ -31,15 +30,14 @@
     if (form.elements.itemDescription) form.elements.itemDescription.value = selected.description || '';
   };
 
-  const filterItems = (form, preferred = '') => {
+  const populateItems = (form, preferred = '') => {
     ensurePurchaseItemCatalogue();
-    const category = form.elements.category;
     const item = form.elements.item;
-    if (!category || !item) return;
-    const available = data.items.filter((entry) => categoryKey(entry.category) === categoryKey(category.value));
+    if (!item) return;
+    const available = data.items;
     item.innerHTML = available.length
       ? available.map((entry) => `<option value="${escapeOption(entry.name)}">${escapeOption(entry.name)}</option>`).join('')
-      : '<option value="">No Purchase Items in this category</option>';
+      : '<option value="">No Purchase Items available</option>';
     item.disabled = !available.length;
     item.value = available.some((entry) => entry.name === preferred) ? preferred : (available[0]?.name || '');
     applySelectedItem(form);
@@ -50,11 +48,9 @@
     previousOpenModal(type, purchaseId);
     if (type !== 'purchase') return;
     const form = document.querySelector('#record-form');
-    const category = form?.elements.category;
     const item = form?.elements.item;
-    if (!form || !category || !item) return;
-    filterItems(form, item.value);
-    category.addEventListener('change', () => filterItems(form));
+    if (!form || !item) return;
+    populateItems(form, item.value);
     item.addEventListener('change', () => applySelectedItem(form));
   };
 })();
