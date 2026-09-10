@@ -31,7 +31,7 @@ const populatedUnitsPurchaseModal=openModal;
 openModal=(type,pid)=>{
   populatedUnitsPurchaseModal(type,pid);
   if(type!=='purchase')return;
-  let form=$('#record-form'),unit=form.elements.unit,qty=form.elements.qty,price=form.elements.unitPrice,total=form.elements.cost;
+  let form=$('#record-form'),unit=form.elements.unit,qty=form.elements.qty,price=form.elements.unitPrice,total=form.elements.cost,description=form.elements.itemDescription;
   unit.outerHTML=`<select name="unit" required>${data.units.map(value=>`<option value="${value}">${value}</option>`).join('')}</select>`;
   unit=form.elements.unit;
   let quantityField=qty.closest('.field'),unitField=unit.closest('.field'),priceField=price.closest('.field'),totalField=total.closest('.field');
@@ -41,5 +41,5 @@ openModal=(type,pid)=>{
   unitField.style.gridColumn='1';priceField.style.gridColumn='2';
   totalField.style.gridColumn='1 / -1';
   let selected=data.items.find(item=>item.name===form.elements.item.value);if(selected&&data.units.includes(selected.unit))unit.value=selected.unit;
-  form.elements.item.onchange=()=>{let item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;if(data.units.includes(item.unit))unit.value=item.unit}total.value=((Number(qty.value)||0)*(Number(price.value)||0)).toFixed(2)};
+  form.elements.item.onchange=()=>{let item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;if(data.units.includes(item.unit))unit.value=item.unit;if(description)description.value=item.description||''}total.value=((Number(qty.value)||0)*(Number(price.value)||0)).toFixed(2)};
 };
