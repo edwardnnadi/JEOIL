@@ -42,8 +42,14 @@ function adminData(){
       peopleAdded=true;
     }
   });
-  if(peopleAdded) save();
-  data.items??=defaultItems;
+  let itemsSeeded=false;
+  if(data.items===undefined||data.items===null){data.items=[...defaultItems];data.purchaseItemsInitialized=true;itemsSeeded=true;}
+  // Older saved states could contain an empty catalogue before Purchase Items
+  // existed in Administration. Restore the starter catalogue once only; after
+  // that an intentionally empty catalogue remains empty and is not recreated.
+  else if(!data.items.length&&!data.purchaseItemsInitialized){data.items=defaultItems.map(item=>({...item}));data.purchaseItemsInitialized=true;itemsSeeded=true;}
+  else if(data.items.length)data.purchaseItemsInitialized=true;
+  if(peopleAdded||itemsSeeded) save();
   // Roles are master data: retain both the starter role and any roles entered for people.
   data.roles??=[...new Set(data.people.map(p=>p.role).filter(Boolean))];
   data.categories??=[...defaultCategories];
