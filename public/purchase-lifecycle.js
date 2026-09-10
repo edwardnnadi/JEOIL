@@ -70,6 +70,7 @@ function purchaseLifecycleRows() {
   const search = $('#purchase-search')?.value?.toLowerCase() || '';
   const category = $('#purchase-filter')?.value || 'all';
   const status = $('#purchase-status-filter')?.value || 'all';
+  const receipt = $('#purchase-receipt-filter')?.value || 'all';
   const qc = $('#purchase-qc-filter')?.value || 'all';
   const warehouse = $('#purchase-warehouse-filter')?.value || 'all';
   const supplier = $('#purchase-supplier-filter')?.value || 'all';
@@ -79,6 +80,7 @@ function purchaseLifecycleRows() {
   return data.purchases.filter((purchase) =>
     (category === 'all' || purchase.category === category)
     && (status === 'all' || lifecycleFor(purchase).label === status)
+    && (receipt === 'all' || Boolean(lifecycleReceiptFor(purchase)))
     && (qc === 'all' || purchaseQcStage(purchase) === qc)
     && (warehouse === 'all' || String(lifecycleFor(purchase).receipt?.warehouseId || purchase.warehouseId || '') === warehouse)
     && (supplier === 'all' || purchase.supplier === supplier)
@@ -104,7 +106,7 @@ function ensurePurchaseFilters() {
     base.insertAdjacentElement('afterend', advanced);
   }
   const selected = Object.fromEntries([...advanced.querySelectorAll('select,input')].map(input => [input.id, input.value]));
-  advanced.innerHTML = `<select id="purchase-qc-filter" aria-label="Filter by QC"><option value="all">All QC results</option><option>Pending</option><option>In progress</option><option>Passed</option><option>Rejected</option></select><select id="purchase-warehouse-filter" aria-label="Filter by warehouse">${purchaseFilterOptions((data.warehouses || []).map(warehouse => ({ value: warehouse.id, label: warehouse.name })), 'warehouses')}</select><select id="purchase-supplier-filter" aria-label="Filter by supplier">${purchaseFilterOptions(data.purchases.map(purchase => purchase.supplier), 'suppliers')}</select><select id="purchase-item-filter" aria-label="Filter by item">${purchaseFilterOptions(data.purchases.map(purchase => purchase.item), 'items')}</select><label class="purchase-date-filter">From <input id="purchase-date-from" type="date" aria-label="Purchases from date"></label><label class="purchase-date-filter">To <input id="purchase-date-to" type="date" aria-label="Purchases to date"></label><button type="button" class="secondary purchase-clear-filters" id="purchase-clear-filters">Clear filters</button>`;
+  advanced.innerHTML = `<select id="purchase-receipt-filter" aria-label="Filter by receipt status"><option value="all">All purchased</option><option value="received">Received</option></select><select id="purchase-qc-filter" aria-label="Filter by QC"><option value="all">All QC results</option><option>Pending</option><option>In progress</option><option>Passed</option><option>Rejected</option></select><select id="purchase-warehouse-filter" aria-label="Filter by warehouse">${purchaseFilterOptions((data.warehouses || []).map(warehouse => ({ value: warehouse.id, label: warehouse.name })), 'warehouses')}</select><select id="purchase-supplier-filter" aria-label="Filter by supplier">${purchaseFilterOptions(data.purchases.map(purchase => purchase.supplier), 'suppliers')}</select><select id="purchase-item-filter" aria-label="Filter by item">${purchaseFilterOptions(data.purchases.map(purchase => purchase.item), 'items')}</select><label class="purchase-date-filter">From <input id="purchase-date-from" type="date" aria-label="Purchases from date"></label><label class="purchase-date-filter">To <input id="purchase-date-to" type="date" aria-label="Purchases to date"></label><button type="button" class="secondary purchase-clear-filters" id="purchase-clear-filters">Clear filters</button>`;
   Object.entries(selected).forEach(([id, value]) => { const input = advanced.querySelector(`#${id}`); if (input) input.value = value; });
   advanced.querySelectorAll('select,input').forEach(input => input.addEventListener('change', renderPurchaseLifecycle));
   $('#purchase-clear-filters').onclick = () => { advanced.querySelectorAll('select').forEach(select => { select.value = 'all'; }); advanced.querySelectorAll('input').forEach(input => { input.value = ''; }); $('#purchase-filter').value = 'all'; $('#purchase-status-filter').value = 'all'; $('#purchase-search').value = ''; renderPurchaseLifecycle(); };
