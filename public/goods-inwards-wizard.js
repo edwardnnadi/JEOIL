@@ -7,7 +7,7 @@ function buildGoodsInwardsWizard(form,receipt){
   if(form.dataset.goodsWizard==='ready'&&area.querySelector('.goods-inwards-wizard'))return;
   if(!allFields.length)return;
   const groups=[
-    {title:'Select goods to receive',help:'Choose the purchase being received. Its supplier, item and ordered quantity will be brought through automatically.',names:['purchaseId','receivedDate','quantityOrdered','supplier','item','category','unit','receivedBy']},
+    {title:'Select goods to receive',help:'Choose the purchase being received. Its supplier, item and ordered quantity will be brought through automatically.',names:['goodsInwardsId','purchaseId','receivedDate','quantityOrdered','supplier','item','category','unit','receivedBy']},
     {title:'Inspect quality',help:'Enter the factory findings, then review the collection-versus-factory comparison below.',names:['batch','qualityDate','qty','oilContent','ffa','moisture','damaged','foreignMatter','aflatoxin','qualityCheckOfficerId']},
     {title:'Accept, hold or reject',help:'Record the final receiving decision and any observations.',names:['condition','decision','notes']},
     {title:'Assign to warehouse',help:'Assign accepted goods to a warehouse. This posts the quantity to Stock on Hand.',names:['warehouseId','warehouseAssignedById','warehouseAssignedDate']}
