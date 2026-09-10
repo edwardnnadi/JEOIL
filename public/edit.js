@@ -40,6 +40,7 @@ function setupSpeciesEditor(species){
 function readSpeciesSpecs(form){return [...form.querySelectorAll('[data-species-row]')].map((row,index)=>{const parameters=[...row.querySelectorAll('[data-parameter-row]')].map((parameterRow,parameterIndex)=>({key:`parameter_${parameterIndex+1}`,label:parameterRow.querySelector('[name="parameterLabel"]').value.trim(),operator:parameterRow.querySelector('[name="parameterOperator"]').value,limit:parameterRow.querySelector('[name="parameterLimit"]').value,unit:parameterRow.querySelector('[name="parameterUnit"]').value.trim()})).filter(parameter=>parameter.label&&parameter.limit!==''&&parameter.unit);return {name:row.querySelector('[data-species-name]').value.trim(),standard:{name:row.querySelector('[data-species-standard-name]').value.trim()||'JE Oils Standard',parameters}}}).filter(species=>species.name)}
 const itemSpeciesModal=editModal;
 editModal=(kind,record)=>{
+  adminData();
   itemSpeciesModal(kind,record);
   if(kind!=='item')return;
   const form=$('#record-form');
@@ -47,8 +48,9 @@ editModal=(kind,record)=>{
   [['category',data.categories||[]],['unit',data.units||[]]].forEach(([name,configured])=>{
     const field=form.elements[name];
     if(!field)return;
-    const current=field.value,options=[...new Set([...configured,current].filter(Boolean))];
-    field.outerHTML=`<select name="${name}" required>${options.map(option=>`<option value="${escapeOption(option)}" ${option===current?'selected':''}>${escapeOption(option)}</option>`).join('')}</select>`;
+    const current=field.value,options=[...new Set(configured.filter(Boolean))];
+    const label=name==='category'?'Select a category':'Select a unit';
+    field.outerHTML=`<select name="${name}" required><option value="" ${options.includes(current)?'':'selected'}>${label}</option>${options.map(option=>`<option value="${escapeOption(option)}" ${option===current?'selected':''}>${escapeOption(option)}</option>`).join('')}</select>`;
   });
   form.querySelectorAll('#category-parameters,#add-parameter').forEach(element=>element.closest('.field')?.remove());
   form.querySelector('[name="standardName"]')?.closest('.field')?.remove();
@@ -64,5 +66,5 @@ $('#record-form').addEventListener('submit',event=>{
   event.stopImmediatePropagation();event.preventDefault();
   const form=event.currentTarget,values=formData(form),item=data.items.find(entry=>entry.id===+form.dataset.editId);if(!item)return;
   const oldName=item.name,speciesSpecs=readSpeciesSpecs(form);Object.assign(item,{name:values.name.trim(),category:values.category.trim(),unit:values.unit.trim(),speciesSpecs,qualityStandard:speciesSpecs[0]?.standard||item.qualityStandard});
-  if(item.category&&!data.categories.includes(item.category))data.categories.push(item.category);if(item.unit&&!data.units.includes(item.unit))data.units.push(item.unit);if(oldName!==item.name){data.purchases.forEach(purchase=>{if(purchase.item===oldName)purchase.item=item.name});data.stock.forEach(stock=>{if(stock.name===oldName)stock.name=item.name})}save();$('#record-dialog').close();render();
+  if(oldName!==item.name){data.purchases.forEach(purchase=>{if(purchase.item===oldName)purchase.item=item.name});data.stock.forEach(stock=>{if(stock.name===oldName)stock.name=item.name})}save();$('#record-dialog').close();render();
 },true);
