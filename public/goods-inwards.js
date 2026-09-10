@@ -169,7 +169,14 @@ function openGoodsInward(receipt){
   }
   const createdByField=[...form.querySelectorAll('.field')].find(field=>field.querySelector('label')?.textContent==='Created by');
   if(createdByField){const createdBy=receipt?.createdBy||currentOperator?.()?.name||'';createdByField.innerHTML=`<label>Created by</label><select name="createdBy" required><option value="">Select a staff member</option>${data.people.filter(person=>person.name).map(person=>`<option value="${goodsEscape(person.name)}" ${person.name===createdBy?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||person.type||'Staff')}</option>`).join('')}</select>`;}
-  form.elements.purchaseId.onchange=()=>fillGoodsFromPurchase(form,data.purchases.find(purchase=>purchase.id===+form.elements.purchaseId.value));
+  form.elements.purchaseId.onchange=()=>{
+    const purchase=data.purchases.find(entry=>entry.id===+form.elements.purchaseId.value);
+    const linkedReceipt=purchase&&data.goodsInwards.find(record=>record.purchaseId===purchase.id);
+    // Every purchase has one controlled Goods Inwards record. Selecting the
+    // purchase must update that record rather than create a second receipt.
+    form.dataset.receiptId=linkedReceipt?.id||'';
+    fillGoodsFromPurchase(form,purchase);
+  };
   form.elements.item.onchange=()=>{const item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;form.elements.unit.value=item.unit}};
   receivingComparisonFields.forEach(([key])=>form.elements[key]?.addEventListener('input',()=>refreshInitialQualityComparison(form)));
   refreshInitialQualityComparison(form);
@@ -216,8 +223,8 @@ function adjustStockForWarehouseAssignment(previousItem,previousQty,record,isPre
 $('#record-form').addEventListener('submit',event=>{
   if(event.currentTarget.dataset.type!=='goods-inward')return;
   event.stopImmediatePropagation();
-  const form=event.currentTarget,values=formData(form),receiptId=form.dataset.receiptId,existing=receiptId?data.goodsInwards.find(record=>String(record.id)===receiptId):null,operator=currentOperator?.()||data.people.find(person=>person.type==='User'),previousItem=existing?.item||'',previousQty=existing?.stockOnHandQty,isPreviouslyPosted=!!(existing?.linkedPurchase&&data.purchases.find(purchase=>purchase.id===existing.purchaseId)?.stockReceived);
-  const purchase=data.purchases.find(record=>record.id===+values.purchaseId),record=existing||{id:id(),createdBy:operator?.name||'Current user',createdAt:new Date().toISOString()};
+  const form=event.currentTarget,values=formData(form),receiptId=form.dataset.receiptId,purchase=data.purchases.find(record=>record.id===+values.purchaseId),existing=(receiptId?data.goodsInwards.find(record=>String(record.id)===receiptId):null)||(purchase?data.goodsInwards.find(record=>record.purchaseId===purchase.id):null),operator=currentOperator?.()||data.people.find(person=>person.type==='User'),previousItem=existing?.item||'',previousQty=existing?.stockOnHandQty,isPreviouslyPosted=!!(existing?.linkedPurchase&&data.purchases.find(purchase=>purchase.id===existing.purchaseId)?.stockReceived);
+  const record=existing||{id:id(),createdBy:operator?.name||'Current user',createdAt:new Date().toISOString()};
   const warehouse=(data.warehouses||[]).find(entry=>entry.id===+values.warehouseId),warehouseAssignee=data.people.find(person=>person.id===+values.warehouseAssignedById);
   record.goodsInwardsId=existing?.goodsInwardsId||nextGoodsInwardsReference();
   Object.assign(record,{purchaseId:purchase?.id||null,linkedPurchase:!!purchase,receivedDate:values.receivedDate,arrivedAt:existing?.arrivedAt||new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,receivedBy:values.receivedBy,warehouseId:warehouse?.id||null,warehouseName:warehouse?.name||'',warehouseAssignedById:warehouseAssignee?.id||null,warehouseAssignedBy:warehouseAssignee?.name||'',warehouseAssignedDate:warehouse?values.warehouseAssignedDate||new Date().toISOString().slice(0,10):'',batch:values.batch,qualityDate:values.qualityDate,condition:values.condition,decision:values.decision,notes:values.notes});
