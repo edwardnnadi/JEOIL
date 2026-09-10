@@ -13,15 +13,22 @@
     if (!numberField || form.elements.purchaseNumberChoice) return;
     numberField.innerHTML = '<label>Purchase number</label><select name="purchaseNumberChoice"></select><div class="item-note">Use the next generated number, or add this item to an undelivered purchase for the selected supplier.</div>';
     const selector = form.elements.purchaseNumberChoice;
+    const syncLotNumber = () => {
+      const purchaseId = selector.value === '__auto__' ? purchaseReference() : selector.value;
+      const lotNo = form.elements.namedItem('lotNo');
+      if (lotNo) lotNo.value = lotReference(purchaseId);
+    };
     const refresh = () => {
       const previous = selector.value || '__auto__';
       const supplier = form.elements.supplier?.value.trim() || '';
       const open = openPurchaseNumbers(supplier);
       selector.innerHTML = `<option value="__auto__">Use next generated number (${escapeHtml(purchaseReference())})</option>${open.map((purchase) => `<option value="${escapeHtml(purchase.purchaseId)}">Add to ${escapeHtml(purchase.purchaseId)} · ${escapeHtml(purchase.status || 'Quote')}</option>`).join('')}`;
       selector.value = [...selector.options].some((option) => option.value === previous) ? previous : '__auto__';
+      syncLotNumber();
     };
     form.elements.supplier?.addEventListener('input', refresh);
     form.elements.supplier?.addEventListener('change', refresh);
+    selector.addEventListener('change', syncLotNumber);
     refresh();
   };
   const previousOpenModal = openModal;

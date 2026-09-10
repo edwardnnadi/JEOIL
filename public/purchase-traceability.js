@@ -206,7 +206,8 @@ $('#record-form').addEventListener('submit',event=>{
   event.stopImmediatePropagation();
   const values=formData(form),person=data.people.find(entry=>entry.id===+values.purchasedById),operator=currentOperator?.()||data.people.find(entry=>entry.type==='User');
   const attachments=form.__traceAttachments||[];
-  const purchaseId=nextPurchaseReference();
+  const chosenPurchaseId=values.purchaseNumberChoice;
+  const purchaseId=chosenPurchaseId&&chosenPurchaseId!=='__auto__'?chosenPurchaseId:nextPurchaseReference();
   const purchaseQuality=purchaseQualityFromForm(values);
   const purchase={id:id(),purchaseId,date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:values.createdBy||operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),lotNo:values.lotNo?.trim()||lotReference(purchaseId),originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,attachments,stockReceived:false,qualityStatus:purchaseQuality.decision};
   data.purchases.unshift(purchase);save();render();$('#record-dialog').close();
