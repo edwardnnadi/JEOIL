@@ -156,3 +156,4 @@
 }
 
 .operations-app .admin-overview[hidden]{display:none!important}
+.operations-app .delete-purchase-item,.operations-app .delete-purchase-category,.operations-app .delete-purchase-unit{color:#9b3326}.operations-app .delete-purchase-item:hover,.operations-app .delete-purchase-category:hover,.operations-app .delete-purchase-unit:hover{background:#f8e8e4;color:#7d241a}
