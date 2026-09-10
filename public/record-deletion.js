@@ -21,6 +21,25 @@
       alert(`Could not refresh records after deleting ${label}.`);
     }
   };
+  window.deletePurchaseRecord = async (purchase) => {
+    if (!allowed()) return deny();
+    const response = await fetch('/api/state', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection: 'purchases', id: purchase.id }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) return alert(result.error || `Could not delete purchase ${purchase.purchaseId || purchase.item}.`);
+    try {
+      data = JSON.parse(result.payload);
+      data.assessments ??= [];
+      stateRevision = result.revision ?? null;
+      render();
+      $('#record-dialog').close();
+    } catch {
+      alert('Could not refresh records after deleting the purchase.');
+    }
+  };
   const addButtons = () => {
     if (!allowed()) return;
     document.querySelectorAll('.stock-card').forEach((card, index) => {
@@ -42,12 +61,7 @@
       if (!allowed()) return deny();
       const purchase = data.purchases?.find(record => String(record.id) === purchaseButton.dataset.purchaseId);
       if (!purchase || !confirm(`Delete purchase ${purchase.purchaseId || purchase.item}? This also removes its linked Goods Inwards record.`)) return;
-      const receipts = (data.goodsInwards || []).filter(receipt => String(receipt.purchaseId) === String(purchase.id));
-      receipts.forEach(receipt => { const stock = stockItem(receipt.item); const posted = Number(receipt.stockOnHandQty || 0); if (stock && posted) stock.qty -= posted; });
-      data.goodsInwards = (data.goodsInwards || []).filter(receipt => String(receipt.purchaseId) !== String(purchase.id));
-      data.assessments = (data.assessments || []).filter(assessment => String(assessment.purchaseId) !== String(purchase.id));
-      data.purchases = data.purchases.filter(record => String(record.id) !== String(purchase.id));
-      save(); render();
+      window.deletePurchaseRecord(purchase);
       return;
     }
     const button = event.target.closest('.delete-record'); if (!button) return;

@@ -99,7 +99,7 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true, revision: updatedAt.getTime() });
 }
 
-const deletableCollections = new Set(['stock', 'suppliers', 'production']);
+const deletableCollections = new Set(['stock', 'suppliers', 'production', 'purchases']);
 
 export async function DELETE(request: Request) {
   const user = await authorize();
@@ -134,9 +134,35 @@ export async function DELETE(request: Request) {
     const records = state[body.collection];
     if (!Array.isArray(records)) return NextResponse.json({ error: 'Record collection is unavailable' }, { status: 404 });
 
+    const deletedRecords = records.filter(record =>
+      typeof record === 'object' && record !== null && 'id' in record && String(record.id) === String(body.id),
+    );
     state[body.collection] = records.filter(record =>
       !(typeof record === 'object' && record !== null && 'id' in record && String(record.id) === String(body.id)),
     );
+    if (body.collection === 'purchases') {
+      const purchaseIds = new Set(deletedRecords.map(record => String((record as { id: string | number }).id)));
+      const receipts = Array.isArray(state.goodsInwards) ? state.goodsInwards : [];
+      const linkedReceipts = receipts.filter(receipt =>
+        typeof receipt === 'object' && receipt !== null && 'purchaseId' in receipt && purchaseIds.has(String(receipt.purchaseId)),
+      ) as Array<{ item?: unknown; stockOnHandQty?: unknown }>;
+      state.goodsInwards = receipts.filter(receipt =>
+        !(typeof receipt === 'object' && receipt !== null && 'purchaseId' in receipt && purchaseIds.has(String(receipt.purchaseId))),
+      );
+      if (Array.isArray(state.assessments)) {
+        state.assessments = state.assessments.filter(assessment =>
+          !(typeof assessment === 'object' && assessment !== null && 'purchaseId' in assessment && purchaseIds.has(String(assessment.purchaseId))),
+        );
+      }
+      if (Array.isArray(state.stock)) {
+        linkedReceipts.forEach(receipt => {
+          const quantity = Number(receipt.stockOnHandQty || 0);
+          const stock = state.stock as Array<{ name?: unknown; qty?: unknown }>;
+          const item = stock.find(entry => String(entry.name || '').toLowerCase() === String(receipt.item || '').toLowerCase());
+          if (item && quantity) item.qty = Number(item.qty || 0) - quantity;
+        });
+      }
+    }
     const updatedAt = new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1));
     const updated = await db
       .update(operationsState)

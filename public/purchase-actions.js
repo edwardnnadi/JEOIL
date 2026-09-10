@@ -18,11 +18,6 @@ editModal=(kind,record)=>{
   remove.onclick=()=>{
     if(!canDeleteRecords?.()){alert('Only Administrators and Operations Managers can delete records.');return;}
     if(!confirm(`Delete purchase ${record.purchaseId||record.item}? This will also remove its linked Goods Inwards record.`))return;
-    const linked=(data.goodsInwards||[]).filter(receipt=>receipt.purchaseId===record.id);
-    linked.forEach(receipt=>{const posted=+receipt.stockOnHandQty||0,stock=stockItem(receipt.item);if(stock&&posted)stock.qty-=posted;});
-    data.goodsInwards=(data.goodsInwards||[]).filter(receipt=>receipt.purchaseId!==record.id);
-    data.assessments=(data.assessments||[]).filter(assessment=>assessment.purchaseId!==record.id);
-    data.purchases=data.purchases.filter(purchase=>purchase.id!==record.id);
-    save();render();$('#record-dialog').close();
+    window.deletePurchaseRecord?.(record);
   };
 };
