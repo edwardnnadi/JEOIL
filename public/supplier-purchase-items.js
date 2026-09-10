@@ -8,8 +8,11 @@
     const names = String(supplier.products || '').split(',').map((name) => name.trim().toLowerCase()).filter(Boolean);
     return new Set(data.items.filter((item) => names.includes(item.name.toLowerCase())).map((item) => String(item.id)));
   };
-  const productChoices = (selected = new Set()) => data.items.map((item) => `<label class="supplier-product-choice"><input type="checkbox" name="supplierProductItem" value="${item.id}" ${selected.has(String(item.id)) ? 'checked' : ''}><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.category)} · ${escapeHtml(item.unit)}</small></span></label>`).join('');
-  const supplierForm = (supplier = {}) => `<div class="form-grid"><div class="field full"><label>Supplier / company name</label><input name="name" value="${escapeHtml(supplier.name)}" required></div><div class="field"><label>Contact person</label><input name="contact" value="${escapeHtml(supplier.contact)}" required></div><div class="field"><label>Phone</label><input name="phone" value="${escapeHtml(supplier.phone)}" required></div><div class="field"><label>Email</label><input name="email" type="email" value="${escapeHtml(supplier.email)}"></div><div class="field full"><label>Products supplied</label><div class="item-note">Select one or more items from Administration → Purchase Items.</div><div class="supplier-product-choices">${productChoices(selectedItemIds(supplier))}</div></div></div>`;
+  const productChoices = (selected = new Set()) => data.items.map((item) => `<label class="supplier-product-choice" data-category="${escapeHtml(item.category)}"><input type="checkbox" name="supplierProductItem" value="${item.id}" ${selected.has(String(item.id)) ? 'checked' : ''}><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.category)} · ${escapeHtml(item.unit)}</small></span></label>`).join('');
+  const supplierForm = (supplier = {}) => {
+    const categories = [...new Set(data.items.map((item) => item.category).filter(Boolean))];
+    return `<div class="form-grid"><div class="field full"><label>Supplier / company name</label><input name="name" value="${escapeHtml(supplier.name)}" required></div><div class="field"><label>Contact person</label><input name="contact" value="${escapeHtml(supplier.contact)}" required></div><div class="field"><label>Phone</label><input name="phone" value="${escapeHtml(supplier.phone)}" required></div><div class="field"><label>Email</label><input name="email" type="email" value="${escapeHtml(supplier.email)}"></div><div class="field"><label>Filter products by category</label><select id="supplier-product-category-filter"><option value="">All categories</option>${categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join('')}</select></div><div class="field full"><label>Products supplied</label><div class="item-note">Select one or more items from Administration → Purchase Items.</div><div class="supplier-product-choices">${productChoices(selectedItemIds(supplier))}</div></div></div>`;
+  };
 
   const openSupplierModal = (supplier) => {
     adminData();
@@ -18,6 +21,10 @@
     document.querySelector('#modal-title').textContent = supplier ? 'Update supplier' : 'Add supplier';
     document.querySelector('#form-fields').innerHTML = supplierForm(supplier);
     const form = document.querySelector('#record-form');
+    const categoryFilter = form.querySelector('#supplier-product-category-filter');
+    categoryFilter.onchange = () => form.querySelectorAll('.supplier-product-choice').forEach((choice) => {
+      choice.hidden = Boolean(categoryFilter.value) && choice.dataset.category !== categoryFilter.value;
+    });
     form.dataset.type = supplier ? 'supplier-purchase-items-edit' : 'supplier-purchase-items-new';
     form.dataset.supplierId = supplier?.id || '';
     document.querySelector('#record-dialog').showModal();
