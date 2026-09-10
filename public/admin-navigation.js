@@ -12,7 +12,7 @@
     catalogue: ['Categories & Units', 'Maintain the categories and default units used by purchase items.'],
     machines: ['Machines', 'Configure production equipment, service intervals and hour-meter readings.'],
     production: ['Production', 'Manage production batch numbering and view the machines available to factory managers.'],
-    numbering: ['Purchase & lot numbers', 'Configure the automatically generated purchase and lot references.'],
+    numbering: ['Purchase, lot & Goods Inwards numbers', 'Configure the automatically generated purchase, lot and Goods Inwards references.'],
     lab: ['Lab configuration', 'Configure the laboratory tests and result fields available to analysts.'],
     activity: ['User activity log', 'Immutable sign-in and operational activity history.'],
   };
@@ -29,9 +29,9 @@
   };
   breadcrumbs.querySelector('button').onclick = () => setSection('home');
 
-  if (!submenu.querySelector('[data-admin-section="production"]')) submenu.insertAdjacentHTML('beforeend', '<button type="button" data-admin-section="production">Production</button><button type="button" data-admin-section="numbering">Purchase & lot numbers</button>');
+  if (!submenu.querySelector('[data-admin-section="production"]')) submenu.insertAdjacentHTML('beforeend', '<button type="button" data-admin-section="production">Production</button><button type="button" data-admin-section="numbering">Purchase, lot &amp; Goods Inwards numbers</button>');
   const overview = root.querySelector('#admin-overview');
-  if (overview && !overview.querySelector('[data-admin-section="production"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="production"><span>PRODUCTION</span><strong>→</strong><small>Configure batch numbering and view machines</small></button><button type="button" class="admin-overview-card" data-admin-section="numbering"><span>PURCHASE &amp; LOT NUMBERS</span><strong>→</strong><small>Configure generated purchase and lot references</small></button>');
+  if (overview && !overview.querySelector('[data-admin-section="production"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="production"><span>PRODUCTION</span><strong>→</strong><small>Configure batch numbering and view machines</small></button><button type="button" class="admin-overview-card" data-admin-section="numbering"><span>PURCHASE, LOT &amp; GOODS INWARDS NUMBERS</span><strong>→</strong><small>Configure generated purchase, lot and Goods Inwards references</small></button>');
   if (overview && !overview.querySelector('[data-admin-section="lab"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="lab"><span>LAB CONFIGURATION</span><strong id="admin-lab-count">0</strong><small>Manage laboratory tests and result fields</small></button>');
   if (!submenu.querySelector('[data-admin-section="activity"]')) submenu.insertAdjacentHTML('beforeend', '<button type="button" data-admin-section="activity">User activity log</button>');
   if (overview && !overview.querySelector('[data-admin-section="activity"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="activity"><span>USER ACTIVITY LOG</span><strong>→</strong><small>Review sign-ins and operational changes</small></button>');

@@ -8,6 +8,7 @@ function escapeValue(value=''){return String(value).replace(/[&<>'"]/g, characte
 function traceabilityData(){
   data.purchaseIdConfig ??= {prefix:'PUR-',sequenceStart:1001,nextNumber:1001,padding:4,suffix:''};
   data.lotNoConfig ??= {prefix:'LOT-',suffix:'',padding:4};
+  data.goodsInwardsIdConfig ??= {prefix:'GIN-',sequenceStart:1001,nextNumber:1001,padding:4,suffix:''};
   data.purchaseIdConfig.prefix ??= '';
   data.purchaseIdConfig.suffix ??= '';
   data.purchaseIdConfig.sequenceStart ??= 1001;
@@ -16,6 +17,11 @@ function traceabilityData(){
   data.lotNoConfig.prefix ??= 'LOT-';
   data.lotNoConfig.suffix ??= '';
   data.lotNoConfig.padding ??= data.purchaseIdConfig.padding;
+  data.goodsInwardsIdConfig.prefix ??= 'GIN-';
+  data.goodsInwardsIdConfig.suffix ??= '';
+  data.goodsInwardsIdConfig.sequenceStart ??= 1001;
+  data.goodsInwardsIdConfig.nextNumber ??= data.goodsInwardsIdConfig.sequenceStart;
+  data.goodsInwardsIdConfig.padding ??= 4;
   data.purchases.forEach(purchase=>purchase.attachments ??= []);
 }
 function purchaseReference(number=data.purchaseIdConfig.nextNumber){
@@ -29,6 +35,8 @@ function nextPurchaseReference(){
   return reference;
 }
 function lotReference(purchaseId){traceabilityData();return `${data.lotNoConfig.prefix}${String(purchaseId).replace(/[^A-Za-z0-9]/g,'').slice(-data.lotNoConfig.padding).padStart(data.lotNoConfig.padding,'0')}${data.lotNoConfig.suffix}`;}
+function goodsInwardsReference(number){traceabilityData();const next=number??data.goodsInwardsIdConfig.nextNumber;return `${data.goodsInwardsIdConfig.prefix}${String(next).padStart(data.goodsInwardsIdConfig.padding,'0')}${data.goodsInwardsIdConfig.suffix}`;}
+function nextGoodsInwardsReference(){traceabilityData();const reference=goodsInwardsReference();data.goodsInwardsIdConfig.nextNumber=Number(data.goodsInwardsIdConfig.nextNumber)+1;return reference;}
 function normalizeLgas(value){
   if(Array.isArray(value)) return value.map(item=>typeof item==='string'?item:(item.name||item.lga||item.LGA||'')).filter(Boolean);
   if(value&&typeof value==='object') return Object.values(value).flatMap(normalizeLgas);
@@ -230,13 +238,20 @@ renderAdmin=()=>{
   const grid=$('#admin-view .dashboard-grid');
   if(!$('#purchase-number-panel'))grid.insertAdjacentHTML('beforeend','<section class="panel admin-section-panel" id="purchase-number-panel"><div class="panel-head"><div><h3>Purchase &amp; lot numbers</h3><p>Generated references for new purchases and their linked lot records.</p></div></div><div class="form-grid"><form class="field" id="purchase-number-config-form"><label>Purchase numbers</label><p class="item-note" id="purchase-number-preview"></p><div class="form-grid"><div class="field"><label>Prefix</label><input name="prefix" placeholder="e.g. PUR-"></div><div class="field"><label>Starting sequence</label><input name="sequenceStart" type="number" min="1" required></div><div class="field"><label>Suffix</label><input name="suffix" placeholder="Optional suffix"></div><div class="field"><label>Number padding</label><input name="padding" type="number" min="1" max="12" required></div></div><button class="primary" type="submit">Save purchase number settings</button></form><form class="field" id="lot-number-config-form"><label>Lot numbers</label><p class="item-note" id="lot-number-preview"></p><div class="form-grid"><div class="field"><label>Prefix</label><input name="prefix" placeholder="e.g. LOT-"></div><div class="field"><label>Suffix</label><input name="suffix" placeholder="Optional suffix"></div><div class="field"><label>Number padding</label><input name="padding" type="number" min="1" max="12" required></div></div><button class="primary" type="submit">Save lot number settings</button></form></div></section>');
   const config=data.purchaseIdConfig,lotConfig=data.lotNoConfig,nextPurchase=purchaseReference();
+  const goodsInwardsConfig=data.goodsInwardsIdConfig;
+  $('#purchase-number-panel h3').textContent='Purchase, lot & Goods Inwards numbers';
+  $('#purchase-number-panel .panel-head p').textContent='Configure automatically generated purchase, lot and Goods Inwards references.';
+  if(!$('#goods-inwards-number-config-form'))$('#lot-number-config-form').insertAdjacentHTML('afterend','<form class="field" id="goods-inwards-number-config-form"><label>Goods Inwards IDs</label><p class="item-note" id="goods-inwards-number-preview"></p><div class="form-grid"><div class="field"><label>Prefix</label><input name="prefix" placeholder="e.g. GIN-"></div><div class="field"><label>Starting sequence</label><input name="sequenceStart" type="number" min="1" required></div><div class="field"><label>Suffix</label><input name="suffix" placeholder="Optional suffix"></div><div class="field"><label>Number padding</label><input name="padding" type="number" min="1" max="12" required></div></div><button class="primary" type="submit">Save Goods Inwards ID settings</button><p class="save-status" role="status" aria-live="polite"></p></form>');
   $('#purchase-number-preview').textContent=`Next purchase No.: ${nextPurchase}`;
   $('#lot-number-preview').textContent=`Next lot No.: ${lotReference(nextPurchase)}`;
-  const purchaseForm=$('#purchase-number-config-form'),lotForm=$('#lot-number-config-form');
+  const purchaseForm=$('#purchase-number-config-form'),lotForm=$('#lot-number-config-form'),goodsInwardsForm=$('#goods-inwards-number-config-form');
   purchaseForm.elements.prefix.value=config.prefix;purchaseForm.elements.sequenceStart.value=config.sequenceStart;purchaseForm.elements.suffix.value=config.suffix;purchaseForm.elements.padding.value=config.padding;
   lotForm.elements.prefix.value=lotConfig.prefix;lotForm.elements.suffix.value=lotConfig.suffix;lotForm.elements.padding.value=lotConfig.padding;
+  $('#goods-inwards-number-preview').textContent=`Next Goods Inwards ID: ${goodsInwardsReference()}`;
+  goodsInwardsForm.elements.prefix.value=goodsInwardsConfig.prefix;goodsInwardsForm.elements.sequenceStart.value=goodsInwardsConfig.sequenceStart;goodsInwardsForm.elements.suffix.value=goodsInwardsConfig.suffix;goodsInwardsForm.elements.padding.value=goodsInwardsConfig.padding;
   purchaseForm.onsubmit=event=>{event.preventDefault();const values=formData(purchaseForm),oldStart=Number(config.sequenceStart),next=Number(config.nextNumber);config.prefix=values.prefix||'';config.suffix=values.suffix||'';config.padding=Math.max(1,Math.min(12,Number(values.padding)||4));config.sequenceStart=Math.max(1,Number(values.sequenceStart)||1);if(next===oldStart||next<config.sequenceStart)config.nextNumber=config.sequenceStart;save();render();};
   lotForm.onsubmit=event=>{event.preventDefault();const values=formData(lotForm);data.lotNoConfig={...data.lotNoConfig,prefix:values.prefix||'',suffix:values.suffix||'',padding:Math.max(1,Math.min(12,Number(values.padding)||4))};save();render();};
+  goodsInwardsForm.onsubmit=async event=>{event.preventDefault();const values=formData(goodsInwardsForm),oldStart=Number(goodsInwardsConfig.sequenceStart),next=Number(goodsInwardsConfig.nextNumber),status=goodsInwardsForm.querySelector('.save-status'),button=goodsInwardsForm.querySelector('button');goodsInwardsConfig.prefix=values.prefix||'';goodsInwardsConfig.suffix=values.suffix||'';goodsInwardsConfig.padding=Math.max(1,Math.min(12,Number(values.padding)||4));goodsInwardsConfig.sequenceStart=Math.max(1,Number(values.sequenceStart)||1);if(next===oldStart||next<goodsInwardsConfig.sequenceStart)goodsInwardsConfig.nextNumber=goodsInwardsConfig.sequenceStart;button.disabled=true;status.textContent='Saving…';try{if(!await save())throw new Error('the latest saved settings have been reloaded');status.textContent='Saved.';render();}catch(error){status.textContent=`Could not save: ${error.message||'please try again.'}`;}finally{button.disabled=false;}};
 };
 
 function openNumberingModal(kind){
