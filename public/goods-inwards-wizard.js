@@ -38,7 +38,7 @@ function buildGoodsInwardsWizard(form,receipt){
     render();return {card,render};
   };
   const selectStandard=standardCard(),inspectStandard=standardCard();
-  const panels=groups.map((group,index)=>{const panel=document.createElement('section');panel.className='wizard-step';panel.dataset.step=index;panel.innerHTML=`<header><h3>${group.title}</h3><p>${group.help}</p></header><div class="form-grid"></div>`;const grid=panel.querySelector('.form-grid');if(index===0)grid.append(selectStandard.card);if(index===1){grid.classList.add('receiving-inspection-grid');grid.append(inspectStandard.card)}buckets[index].forEach(field=>grid.append(field));wizard.append(panel);return panel});
+  const panels=groups.map((group,index)=>{const panel=document.createElement('section');panel.className='wizard-step';panel.dataset.step=index;const active=index===0;panel.hidden=!active;panel.style.setProperty('display',active?'block':'none','important');panel.innerHTML=`<header><h3>${group.title}</h3><p>${group.help}</p></header><div class="form-grid"></div>`;const grid=panel.querySelector('.form-grid');if(index===0)grid.append(selectStandard.card);if(index===1){grid.classList.add('receiving-inspection-grid');grid.append(inspectStandard.card)}buckets[index].forEach(field=>grid.append(field));wizard.append(panel);return panel});
   const refreshStandards=()=>{selectStandard.render();inspectStandard.render();refreshReceivingDecision(form);};
   addReceivingDecisionPanel(form,panels[2],standardFor,receipt);
   const qualityOfficer=form.elements.qualityCheckOfficerId?.closest('.field');if(qualityOfficer)qualityOfficer.querySelector('label').textContent='Inspection officer';
