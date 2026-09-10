@@ -5,6 +5,15 @@
 
   const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
   const quantity = (value, unit) => `${Number(value || 0).toLocaleString()} ${unit}`;
+  const displayRecord = (value) => {
+    if (Array.isArray(value)) return value.map(displayRecord).filter(Boolean).join(' · ');
+    if (value && typeof value === 'object') {
+      const amount = value.qty ?? value.quantity ?? value.amount ?? value.output ?? '';
+      const name = value.item ?? value.name ?? value.product ?? value.material ?? value.label ?? '';
+      return `${amount}${value.unit ? ` ${value.unit}` : ''}${name ? ` ${name}` : ''}`.trim() || '—';
+    }
+    return String(value ?? '—');
+  };
   const stock = (name) => data.stock.find((item) => item.name.toLowerCase() === name.toLowerCase());
   const personOptions = () => (data.people || []).map((person) => `<option value="${esc(person.name)}">`).join('');
   const warehouseOptions = () => (data.warehouses || []).map((warehouse) => `<option value="${esc(warehouse.id)}">${esc(warehouse.name)}${warehouse.location ? ` · ${esc(warehouse.location)}` : ''}</option>`).join('');
@@ -65,7 +74,7 @@
   window.production = function () {
     const tbody = document.querySelector('#production-table');
     tbody.innerHTML = data.production.map((run) => {
-      if (!run.warehouseBalanceBefore && !run.productionStart) return `<tr><td>${date(run.date)}</td><td><strong>${esc(run.reference || 'Production run')}</strong></td><td>${esc(run.inputs || run.materials || '—')}</td><td>—</td><td>${esc(run.outputs || `${run.output || 0} ${run.unit || ''} ${run.product || ''}`)}</td><td>—</td><td>—</td></tr>`;
+      if (!run.warehouseBalanceBefore && !run.productionStart) return `<tr><td>${date(run.date)}</td><td><strong>${esc(run.reference || 'Production run')}</strong></td><td>${esc(displayRecord(run.inputs || run.materials || '—'))}</td><td>—</td><td>${esc(displayRecord(run.outputs || `${run.output || 0} ${run.unit || ''} ${run.product || ''}`))}</td><td>—</td><td>—</td></tr>`;
       return `<tr><td>${date(run.date)}</td><td><strong>${esc(run.reference)}</strong><div class="item-note">Received: ${esc(run.receivedBy)}</div></td><td>Before: ${quantity(run.warehouseBalanceBefore, 'Mt')}<br>Issued: ${quantity(run.kernels, 'Mt')}<br>After: ${quantity(run.warehouseBalanceAfter, 'Mt')}<div class="item-note">${esc(run.issuedBy)} · authorised by ${esc(run.authorizedBy)}</div></td><td>${esc(run.productionStart)} – ${esc(run.productionEnd)}<div class="item-note">Supervisor: ${esc(run.supervisor)}<br>Operator: ${esc(run.operator)}</div></td><td>Oil: ${quantity(run.oilOutput, 'Mt')}<br>Cake: ${quantity(run.cake, 'Mt')}<br>Sludge: ${quantity(run.sludgeOutput, 'Mt')}<div class="item-note">Yield: ${Number(run.yield || 0).toFixed(2)}% · ${esc(run.outputWarehouseName || 'Warehouse not recorded')}</div></td><td>Firewood: ${Number(run.firewood || 0).toLocaleString()}<br>Diesel: ${Number(run.diesel || 0).toLocaleString()}</td><td>${esc(run.status)}<div class="item-note">Signed by ${esc(run.productionSignOff)}</div></td></tr>`;
     }).join('') || '<tr><td colspan="7">No production records yet.</td></tr>';
   };

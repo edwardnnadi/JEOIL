@@ -10,9 +10,10 @@
     roles: ['Roles', 'Maintain the roles that can be assigned to people and users.'],
     items: ['Purchase Items', 'Maintain the approved items that can be selected on purchases.'],
     catalogue: ['Categories & Units', 'Maintain the categories and default units used by purchase items.'],
+    machines: ['Machines', 'Configure production equipment, service intervals and hour-meter readings.'],
   };
   const visiblePanels = {
-    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel'],
+    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel'], machines: ['machines-panel'],
   };
   const storageKey = 'je-oils-admin-submenu-expanded';
 
@@ -27,6 +28,9 @@
       root.dataset.adminSection = section;
       document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
       parent.classList.add('active');
+      submenu.querySelectorAll('[data-admin-section]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.adminSection === section);
+      });
       document.querySelectorAll('.view').forEach((view) => view.classList.remove('active'));
       document.querySelector('#warehouse-view')?.classList.add('active');
       document.querySelector('#page-title').textContent = 'Warehouses';
@@ -34,14 +38,27 @@
       setExpanded(true);
       return;
     }
+    // Warehouses is rendered as a separate view. Returning to any other Admin
+    // item must explicitly restore the Admin view before updating its panel.
+    document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+    parent.classList.add('active');
+    document.querySelectorAll('.view').forEach((view) => view.classList.remove('active'));
+    root.classList.add('active');
+    document.querySelector('#page-title').textContent = 'Administration';
+    document.querySelector('#eyebrow').textContent = 'JE OILS OPERATIONS';
     const detail = sectionDetails[section] || sectionDetails.people;
     root.dataset.adminSection = section;
     root.querySelector('#admin-section-title').textContent = detail[0];
     root.querySelector('#admin-section-description').textContent = detail[1];
     const isHome = section === 'home';
-    root.querySelector('#admin-overview').hidden = !isHome;
+    // Users remains in the Administration context: retain the overview cards
+    // above its table, while every other submenu item remains focused.
+    root.querySelector('#admin-overview').hidden = !(isHome || section === 'people');
     root.querySelector('.admin-section-grid').hidden = isHome;
-    root.querySelectorAll('.admin-section-panel').forEach((panel) => {
+    // Admin panels are added by a few independent feature modules. Select the
+    // grid's direct panels rather than relying on each module to remember a
+    // presentation class, otherwise a selected section can expose every panel.
+    root.querySelectorAll('.admin-section-grid > .panel').forEach((panel) => {
       panel.hidden = !(visiblePanels[section] || visiblePanels.people).includes(panel.id);
     });
     root.querySelector('#add-person').hidden = section !== 'people';
@@ -55,11 +72,14 @@
   const renderOverview = () => {
     adminData();
     data.warehouses ??= [];
+    data.machines ??= [];
     root.querySelector('#admin-people-count').textContent = data.people.length.toLocaleString();
     root.querySelector('#admin-roles-count').textContent = data.roles.length.toLocaleString();
     root.querySelector('#admin-items-count').textContent = data.items.length.toLocaleString();
     root.querySelector('#admin-catalogue-count').textContent = `${data.categories.length} / ${data.units.length}`;
     root.querySelector('#admin-warehouses-count').textContent = data.warehouses.length.toLocaleString();
+    const machinesCount = root.querySelector('#admin-machines-count');
+    if (machinesCount) machinesCount.textContent = data.machines.length.toLocaleString();
   };
 
   const addUnitsPanel = () => {
@@ -120,6 +140,12 @@
   };
   parent.addEventListener('click', () => {
     const alreadyOpen = !submenu.hidden;
+    document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+    parent.classList.add('active');
+    document.querySelectorAll('.view').forEach((view) => view.classList.remove('active'));
+    root.classList.add('active');
+    document.querySelector('#page-title').textContent = 'Administration';
+    document.querySelector('#eyebrow').textContent = 'JE OILS OPERATIONS';
     setSection('home');
     setExpanded(!alreadyOpen);
   });

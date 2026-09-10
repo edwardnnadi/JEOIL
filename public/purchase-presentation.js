@@ -35,8 +35,11 @@ openModal=(type,pid)=>{
   unit.outerHTML=`<select name="unit" required>${data.units.map(value=>`<option value="${value}">${value}</option>`).join('')}</select>`;
   unit=form.elements.unit;
   let quantityField=qty.closest('.field'),unitField=unit.closest('.field'),priceField=price.closest('.field'),totalField=total.closest('.field');
-  quantityField.after(unitField); // Quantity and Units are a pair.
-  priceField.style.gridColumn='1';totalField.style.gridColumn='2'; // Price fields remain a pair.
+  quantityField.after(unitField);
+  // Keep the commercial pair together: the selected unit sits directly beside
+  // its unit price, while the calculated total occupies the next full row.
+  unitField.style.gridColumn='1';priceField.style.gridColumn='2';
+  totalField.style.gridColumn='1 / -1';
   let selected=data.items.find(item=>item.name===form.elements.item.value);if(selected&&data.units.includes(selected.unit))unit.value=selected.unit;
   form.elements.item.onchange=()=>{let item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;if(data.units.includes(item.unit))unit.value=item.unit}total.value=((Number(qty.value)||0)*(Number(price.value)||0)).toFixed(2)};
 };

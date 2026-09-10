@@ -14,7 +14,7 @@ const purchaseLabel=purchase=>`${purchase.purchaseId||`Purchase ${purchase.id}`}
 // must be free to differ from the quantity ordered. Re-syncing it would erase
 // the very variance the receiving screen exists to show.
 const linkedPurchaseFields=['purchaseId','purchaseReference','purchaseDate','purchaseStatus','item','supplier','category','orderedQty','unit','unitPrice','cost','purchasedById','purchasedBy','createdBy','createdAt','lotNo','originState','originLga','collectionSite','originCode','supplierReceiptId','purchaseQuality','attachments'];
-const purchaseStageOrder=['Ordered','QC inspection','QC accepted','In transit','Arrived at factory','Moved to warehouse','Rejected'];
+const purchaseStageOrder=['Quote','Ordered','QC inspection','QC accepted','In transit','Arrived at factory','Moved to warehouse','Rejected'];
 const DEFAULT_BASE_MOISTURE=8;
 function baseMoisture(){const configured=Number(data.settings?.baseMoisture);return Number.isFinite(configured)&&configured>=0&&configured<100?configured:DEFAULT_BASE_MOISTURE;}
 
@@ -106,6 +106,10 @@ const receivingComparisonFields=[
   ['foreignMatter','Foreign matter','%'],
   ['aflatoxin','Aflatoxin','ppb']
 ];
+// More material and oil are favourable; every quality contaminant is better
+// when lower. The comparison table uses this instead of treating every rise
+// as good or every fall as bad.
+const favourableDirection={qty:'higher',oilContent:'higher',ffa:'lower',moisture:'lower',damaged:'lower',foreignMatter:'lower',aflatoxin:'lower'};
 function comparisonNumber(value){return value===''||value===null||value===undefined||!Number.isFinite(Number(value))?null:Number(value);}
 function comparisonValue(value,unit=''){const number=comparisonNumber(value);return number===null?'—':`${number.toLocaleString(undefined,{maximumFractionDigits:2})}${unit?' '+unit:''}`;}
 function initialQualityComparisonRows(receipt,assessment){
@@ -119,19 +123,23 @@ function initialQualityCard(receipt={}){
   if(!assessment)return '<div class="field full initial-quality-card"><label>Initial purchase quality assessment</label><div class="item-note">No purchase-time assessment was recorded for this legacy purchase.</div></div>';
   const result=`Oil Content ${goodsNumber(assessment.oilContent)===''?'—':goodsNumber(assessment.oilContent)+'%'} · FFA ${goodsNumber(assessment.ffa)===''?'—':goodsNumber(assessment.ffa)+'%'}<br>Moisture ${goodsNumber(assessment.moisture)===''?'—':goodsNumber(assessment.moisture)+'%'} · Damaged ${goodsNumber(assessment.damaged)===''?'—':goodsNumber(assessment.damaged)+'%'} · Foreign matter ${goodsNumber(assessment.foreignMatter)===''?'—':goodsNumber(assessment.foreignMatter)+'%'} · Aflatoxin ${goodsNumber(assessment.aflatoxin)===''?'—':goodsNumber(assessment.aflatoxin)+' ppb'}`;
   const statusHistory=(assessment.statusHistory||[]).map(entry=>`${goodsEscape(entry.from||'—')} → ${goodsEscape(entry.to||'—')} · ${goodsEscape(entry.changedAt||'—')} · ${goodsEscape(entry.changedBy||'—')}: ${goodsEscape(entry.reason||'—')}`).join('<br>')||'No field QC status changes recorded.';
-  return `<div class="field full initial-quality-card"><label>Field QC baseline and receiving comparison</label><div class="item-note">${result}<br>Test reference: ${goodsEscape(assessment.testReference||'—')} · Inspected: ${goodsEscape(assessment.testedAt||'—')}<br>Inspector: ${goodsEscape(assessment.inspector||'—')} · Condition: ${goodsEscape(assessment.condition||'—')} · Field QC status: ${goodsEscape(assessment.status||assessment.decision||'Assess')}<br>Status history: ${statusHistory}<br>Notes: ${goodsEscape(assessment.notes||'—')}</div><div class="receiving-comparison-wrap"><table class="receiving-comparison"><thead><tr><th>Measure</th><th>At collection</th><th>At factory</th><th>Change</th></tr></thead><tbody>${initialQualityComparisonRows(receipt,assessment)}</tbody></table></div></div>`;
+  return `<div class="field full initial-quality-card"><label>Quality checks: purchase and delivery</label><div class="item-note">${result}<br>Test reference: ${goodsEscape(assessment.testReference||'—')} · Inspected: ${goodsEscape(assessment.testedAt||'—')}<br>Inspector: ${goodsEscape(assessment.inspector||'—')} · Condition: ${goodsEscape(assessment.condition||'—')} · Field QC status: ${goodsEscape(assessment.status||assessment.decision||'Assess')}<br>Status history: ${statusHistory}<br>Notes: ${goodsEscape(assessment.notes||'—')}</div><div class="receiving-comparison-wrap"><table class="receiving-comparison"><thead><tr><th>Measure</th><th>Quality check at purchase</th><th>Quality check at delivery</th><th>Change</th></tr></thead><tbody>${initialQualityComparisonRows(receipt,assessment)}</tbody></table></div></div>`;
 }
 
 function refreshInitialQualityComparison(form){
   form.querySelectorAll('[data-qc-comparison]').forEach(row=>{
     const key=row.dataset.qcComparison,unit=row.dataset.qcUnit||'',baseline=comparisonNumber(row.dataset.qcBaseline),received=comparisonNumber(form.elements[key]?.value);
     const receivedCell=row.querySelector('.qc-received-value'),changeCell=row.querySelector('.qc-change-value');
-    if(received===null){receivedCell.textContent='Not recorded';changeCell.textContent='—';return;}
+    if(received===null){receivedCell.textContent='Not recorded';changeCell.textContent='—';changeCell.className='qc-change-value is-unavailable';changeCell.style.removeProperty('--qc-heat');return;}
     receivedCell.textContent=comparisonValue(received,unit);
-    if(baseline===null){changeCell.textContent='No baseline';return;}
+    if(baseline===null){changeCell.textContent='No baseline';changeCell.className='qc-change-value is-unavailable';changeCell.style.removeProperty('--qc-heat');return;}
     const difference=received-baseline,sign=difference>0?'+':'';
-    changeCell.textContent=`${sign}${difference.toLocaleString(undefined,{maximumFractionDigits:2})}${unit?' '+unit:''}`;
-    changeCell.className=`qc-change-value ${difference===0?'is-same':difference>0?'is-up':'is-down'}`;
+    if(difference===0){changeCell.textContent=`0${unit?' '+unit:''} · No change`;changeCell.className='qc-change-value is-same';changeCell.style.setProperty('--qc-heat','.08');return;}
+    const better=(difference>0)===((favourableDirection[key]||'lower')==='higher');
+    const heat=Math.min(.52,Math.max(.12,Math.abs(difference)/(Math.abs(baseline)||Math.abs(received)||1)*.65+.12)).toFixed(2);
+    changeCell.textContent=`${sign}${difference.toLocaleString(undefined,{maximumFractionDigits:2})}${unit?' '+unit:''} · ${better?'Better':'Worse'}`;
+    changeCell.className=`qc-change-value ${better?'is-better':'is-worse'}`;
+    changeCell.style.setProperty('--qc-heat',heat);
   });
 }
 
@@ -142,7 +150,7 @@ function receiptFields(receipt={}){
 
 function fillGoodsFromPurchase(form,purchase){
   if(!purchase)return;
-  form.elements.item.value=purchase.item;form.elements.supplier.value=purchase.supplier;form.elements.category.value=purchase.category;form.elements.qty.value=purchase.qty;form.elements.unit.value=purchase.unit;
+  form.elements.item.value=purchase.item;form.elements.supplier.value=purchase.supplier;form.elements.category.value=purchase.category;form.elements.qty.value=purchase.qty;form.elements.unit.value=purchase.unit;if(form.elements.quantityOrdered)form.elements.quantityOrdered.value=`${purchase.qty} ${purchase.unit||''}`.trim();
   const current={purchaseId:purchase.id};syncReceiptFromPurchase(current,purchase);
   form.querySelector('.purchase-trace-card')?.replaceWith(document.createRange().createContextualFragment(purchaseTraceCard(current)));
   form.querySelector('.initial-quality-card')?.replaceWith(document.createRange().createContextualFragment(initialQualityCard(current)));
@@ -153,6 +161,13 @@ function fillGoodsFromPurchase(form,purchase){
 function openGoodsInward(receipt){
   ensureGoodsInwards();$('#modal-label').textContent=receipt?'EDIT GOODS RECEIVED':'GOODS RECEIVED';$('#modal-title').textContent=receipt?'Update goods inward record':'Receive goods and complete quality check';$('#form-fields').innerHTML=receiptFields(receipt);
   const form=$('#record-form');form.dataset.type='goods-inward';form.dataset.receiptId=receipt?.id||'';
+  const purchaseField=form.elements.purchaseId?.closest('.field');
+  if(purchaseField){
+    const ordered=document.createElement('div');ordered.className='field';ordered.innerHTML=`<label>Quantity ordered</label><input name="quantityOrdered" value="${goodsEscape(receipt?.orderedQty??'')} ${goodsEscape(receipt?.unit||'')}" readonly>`;
+    purchaseField.insertAdjacentElement('afterend',ordered);
+  }
+  const createdByField=[...form.querySelectorAll('.field')].find(field=>field.querySelector('label')?.textContent==='Created by');
+  if(createdByField)createdByField.innerHTML=`<label>Created by</label><input name="createdBy" list="goods-inwards-people" value="${goodsEscape(receipt?.createdBy||currentOperator?.()?.name||'')}" placeholder="Select or type station officer"><datalist id="goods-inwards-people">${data.people.map(person=>`<option value="${goodsEscape(person.name)}">`).join('')}</datalist>`;
   form.elements.purchaseId.onchange=()=>fillGoodsFromPurchase(form,data.purchases.find(purchase=>purchase.id===+form.elements.purchaseId.value));
   form.elements.item.onchange=()=>{const item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;form.elements.unit.value=item.unit}};
   receivingComparisonFields.forEach(([key])=>form.elements[key]?.addEventListener('input',()=>refreshInitialQualityComparison(form)));
@@ -164,8 +179,8 @@ function renderGoodsInwards(){
   ensureGoodsInwards();const view=$('#quality-view');view.querySelector('.view-head h2').textContent='Goods inwards';view.querySelector('.view-head p').textContent='Receive goods, assess quality, and retain complete purchase traceability.';
   const add=$('#add-quality');add.textContent='+ Record goods received';add.onclick=()=>openGoodsInward();
   $('#quality-stats').innerHTML=[['Receipts',data.goodsInwards.length],['Accepted',data.goodsInwards.filter(record=>record.decision==='Accepted').length],['Assess / hold / rejected',data.goodsInwards.filter(record=>['Assess','Hold','Rejected'].includes(record.decision)).length]].map(item=>`<div class="quality-stat"><small>${item[0]}</small><strong>${item[1]}</strong></div>`).join('');
-  $('#quality-table').parentElement.querySelector('thead').innerHTML='<tr><th>Received</th><th>Goods / lot</th><th>Supplier / origin</th><th>Quantity</th><th>Warehouse</th><th>Inspection</th><th>Decision</th><th>Officer</th><th></th></tr>';
-  $('#quality-table').innerHTML=[...data.goodsInwards].sort((a,b)=>String(b.receivedDate).localeCompare(String(a.receivedDate))).map(receipt=>{const origin=[receipt.originLga,receipt.originState].filter(Boolean).join(', '),warehouse=(data.warehouses||[]).find(entry=>entry.id===receipt.warehouseId),warehouseText=warehouse?warehouse.name:'Not assigned';const result=`Oil ${goodsNumber(receipt.oilContent)===''?'—':goodsNumber(receipt.oilContent)+'%'} · FFA ${goodsNumber(receipt.ffa)===''?'—':goodsNumber(receipt.ffa)+'%'}<br>Moisture ${goodsNumber(receipt.moisture)===''?'—':goodsNumber(receipt.moisture)+'%'} · Damaged ${goodsNumber(receipt.damaged)===''?'—':goodsNumber(receipt.damaged)+'%'}<br>Foreign matter ${goodsNumber(receipt.foreignMatter)===''?'—':goodsNumber(receipt.foreignMatter)+'%'} · Aflatoxin ${goodsNumber(receipt.aflatoxin)===''?'—':goodsNumber(receipt.aflatoxin)+' ppb'}`;return `<tr><td>${date(receipt.receivedDate)}</td><td><strong>${goodsEscape(receipt.item)}</strong><div class="item-note">${goodsEscape(receipt.purchaseReference||'Standalone receipt')} · Lot: ${goodsEscape(receipt.lotNo||receipt.batch||'—')}</div></td><td>${goodsEscape(receipt.supplier)}<div class="item-note">${goodsEscape(origin||'Origin not recorded')}</div></td><td>${(+receipt.qty).toLocaleString()} ${goodsEscape(receipt.unit)}${settlementNote(receipt)}</td><td>${goodsEscape(warehouseText)}<div class="item-note">${goodsEscape(receipt.warehouseAssignedBy||'—')} · ${receipt.warehouseAssignedDate?date(receipt.warehouseAssignedDate):'—'}</div></td><td class="quality-result">${result}</td><td>${receiptBadge(receipt.decision)}</td><td>${goodsEscape(receipt.qualityCheckOfficer||'—')}</td><td><button class="text-btn edit-receipt" data-receipt-id="${goodsEscape(receipt.id)}">Edit</button><!-- Legacy receipt delete intentionally disabled: deleting a receipt can invalidate linked purchase and stock history. --></td></tr>`;}).join('')||'<tr><td colspan="9">No goods received yet.</td></tr>';
+  $('#quality-table').parentElement.querySelector('thead').innerHTML='<tr><th>Received</th><th>Completed at</th><th>Goods / lot</th><th>Supplier / origin</th><th>Quantity</th><th>Warehouse</th><th>Inspection</th><th>Decision</th><th>Officer</th><th></th></tr>';
+  $('#quality-table').innerHTML=[...data.goodsInwards].sort((a,b)=>String(b.receivedDate).localeCompare(String(a.receivedDate))).map(receipt=>{const origin=[receipt.originLga,receipt.originState].filter(Boolean).join(', '),warehouse=(data.warehouses||[]).find(entry=>entry.id===receipt.warehouseId),warehouseText=warehouse?warehouse.name:'Not assigned',completed=receipt.finalizedAt||receipt.arrivedAt||receipt.createdAt;const result=`Oil ${goodsNumber(receipt.oilContent)===''?'—':goodsNumber(receipt.oilContent)+'%'} · FFA ${goodsNumber(receipt.ffa)===''?'—':goodsNumber(receipt.ffa)+'%'}<br>Moisture ${goodsNumber(receipt.moisture)===''?'—':goodsNumber(receipt.moisture)+'%'} · Damaged ${goodsNumber(receipt.damaged)===''?'—':goodsNumber(receipt.damaged)+'%'}<br>Foreign matter ${goodsNumber(receipt.foreignMatter)===''?'—':goodsNumber(receipt.foreignMatter)+'%'} · Aflatoxin ${goodsNumber(receipt.aflatoxin)===''?'—':goodsNumber(receipt.aflatoxin)+' ppb'}`;return `<tr><td>${date(receipt.receivedDate)}</td><td>${completed?new Date(completed).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'Not recorded'}</td><td><strong>${goodsEscape(receipt.item)}</strong><div class="item-note">${goodsEscape(receipt.purchaseReference||'Standalone receipt')} · Lot: ${goodsEscape(receipt.lotNo||receipt.batch||'—')}</div></td><td>${goodsEscape(receipt.supplier)}<div class="item-note">${goodsEscape(origin||'Origin not recorded')}</div></td><td>${(+receipt.qty).toLocaleString()} ${goodsEscape(receipt.unit)}${settlementNote(receipt)}</td><td>${goodsEscape(warehouseText)}<div class="item-note">${goodsEscape(receipt.warehouseAssignedBy||'—')} · ${receipt.warehouseAssignedDate?date(receipt.warehouseAssignedDate):'—'}</div></td><td class="quality-result">${result}</td><td>${receiptBadge(receipt.decision)}</td><td>${goodsEscape(receipt.qualityCheckOfficer||'—')}</td><td><button class="text-btn edit-receipt" data-receipt-id="${goodsEscape(receipt.id)}">Edit</button></td></tr>`;}).join('')||'<tr><td colspan="10">No goods received yet.</td></tr>';
   document.querySelectorAll('.edit-receipt').forEach(button=>button.onclick=()=>openGoodsInward(data.goodsInwards.find(receipt=>String(receipt.id)===button.dataset.receiptId)));
   // Legacy receipt deletion intentionally disabled. Goods Inwards records are retained for traceability.
   // document.querySelectorAll('.delete-receipt').forEach(button=>button.onclick=()=>deleteReceipt(data.goodsInwards.find(receipt=>String(receipt.id)===button.dataset.receiptId)));
@@ -201,6 +216,7 @@ $('#record-form').addEventListener('submit',event=>{
   const warehouse=(data.warehouses||[]).find(entry=>entry.id===+values.warehouseId),warehouseAssignee=data.people.find(person=>person.id===+values.warehouseAssignedById);
   Object.assign(record,{purchaseId:purchase?.id||null,linkedPurchase:!!purchase,receivedDate:values.receivedDate,arrivedAt:existing?.arrivedAt||new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,receivedBy:values.receivedBy,warehouseId:warehouse?.id||null,warehouseName:warehouse?.name||'',warehouseAssignedById:warehouseAssignee?.id||null,warehouseAssignedBy:warehouseAssignee?.name||'',warehouseAssignedDate:warehouse?values.warehouseAssignedDate||new Date().toISOString().slice(0,10):'',batch:values.batch,qualityDate:values.qualityDate,condition:values.condition,decision:values.decision,notes:values.notes});
   ['moisture','damaged','foreignMatter','aflatoxin','oilContent','ffa'].forEach(field=>record[field]=values[field]===''?'':Number(Number(values[field]).toFixed(2)));
+  record.createdBy=values.createdBy?.trim()||record.createdBy;
   const officer=data.people.find(person=>person.id===+values.qualityCheckOfficerId);record.qualityCheckOfficerId=officer?.id||null;record.qualityCheckOfficer=officer?.name||'';record.inspector=record.qualityCheckOfficer;
   record.decisionReason=values.decisionReason||'';
   if(purchase)syncReceiptFromPurchase(record,purchase);

@@ -7,13 +7,13 @@ function warehouseItems(warehouse){
     &&receipt.decision==='Accepted'
     &&+(receipt.stockOnHandQty??receipt.qty)>0
   );
-  const productionItems=(data.finishedGoodsWarehouseEntries||[]).filter(entry=>
+  const productionItems=[...(data.finishedGoodsWarehouseEntries||[]),...(data.stockMovements||[]).filter(entry=>entry.type==='PRODUCTION_OUTPUT'||entry.sourceType==='PRODUCTION_OUTPUT')].filter(entry=>
     String(entry.warehouseId)===String(warehouse.id)
-    &&+entry.qty>0
+    &&+(entry.qty??entry.quantity)>0
   );
   return [...receivedItems,...productionItems];
 }
-function warehouseQuantity(receipt){return +(receipt.stockOnHandQty??receipt.qty)||0;}
+function warehouseQuantity(receipt){return +(receipt.stockOnHandQty??receipt.qty??receipt.quantity)||0;}
 function warehouseItemRows(warehouse){
   const items=warehouseItems(warehouse);
   if(!items.length)return '<tr class="warehouse-items-empty"><td colspan="5">No accepted items have been posted to this warehouse yet.</td></tr>';

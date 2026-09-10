@@ -1,7 +1,5 @@
-// Receiving comparison: what was ordered and claimed at purchase, against what
-// was actually found on site. This file only presents and gates; the quality
-// verdict comes from the server QC engine and the moisture settlement maths
-// lives in goods-inwards.js.
+// Receiving settlement and warehouse gating. The single collection-versus-
+// factory comparison is rendered by goods-inwards.js beside the quality form.
 const receivingEscape = (value) => goodsEscape(value);
 const receivingParameters = [
   ['moisture', 'Moisture', '%'],
@@ -144,9 +142,7 @@ function receivingRefresh(form, receipt) {
     foreignMatter: form.elements.foreignMatter?.value,
     aflatoxin: form.elements.aflatoxin?.value,
   };
-  const comparison = form.querySelector('.receiving-comparison');
   const settlement = form.querySelector('.receiving-settlement');
-  if (comparison) comparison.outerHTML = receivingComparisonCard(receipt, live);
   if (settlement) {
     const focused = document.activeElement?.id === 'rv-base-input';
     settlement.outerHTML = receivingSettlementCard(receipt, live);
@@ -176,8 +172,10 @@ openGoodsInward = (receipt) => {
   const inspect = form.querySelector('.wizard-step[data-step="1"] .form-grid');
   if (!inspect) return;
   const current = receipt || {};
-  inspect.insertAdjacentHTML('afterbegin', receivingComparisonCard(current) + receivingSettlementCard(current));
-  receivingBindBase(form, current);
+  // Temporarily disabled at the user's request. Keep the settlement card and
+  // its calculation code above for a future supplier-payment workflow.
+  // inspect.insertAdjacentHTML('beforeend', receivingSettlementCard(current));
+  // receivingBindBase(form, current);
   receivingDecisionReason(form, current);
   receivingApplyGate(form);
 
@@ -230,6 +228,7 @@ receivingStyle.textContent =
   '.rv-gate{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.45}' +
   '.rv-gate-wait{background:#fbf1dc;border:1px solid #e6cf9a;color:#6b5417}' +
   '.rv-gate-reject{background:#fbe9e7;border:1px solid #e3b3ac;color:#8c2b21}' +
+  '.qc-change-value{transition:background-color .15s ease}.qc-change-value.is-better{color:#285f32;background:rgb(126 185 117 / var(--qc-heat,.12));font-weight:700}.qc-change-value.is-worse{color:#8d3029;background:rgb(211 115 103 / var(--qc-heat,.12));font-weight:700}.qc-change-value.is-same{color:#5d625b;background:rgb(157 164 152 / var(--qc-heat,.08))}.qc-change-value.is-unavailable{color:#6d6e64}' +
   '.receiving-comparison,.receiving-settlement{margin-bottom:6px}'+
   '.rv-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'+
   '.rv-table{min-width:420px}';

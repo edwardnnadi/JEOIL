@@ -938,6 +938,84 @@ html {
     font-size: 35px;
   }
 }
+@media (max-width: 480px) {
+  .je-header {
+    height: 72px;
+    padding-inline: 16px;
+  }
+  .je-brand {
+    gap: 8px;
+  }
+  .je-brand img {
+    width: 34px;
+    height: 34px;
+  }
+  .je-brand > span {
+    font-size: 14px;
+    letter-spacing: 0.1em;
+  }
+  .je-brand small {
+    display: none;
+  }
+  .je-header nav {
+    gap: 8px;
+  }
+  .je-button-small {
+    min-height: 38px;
+    padding: 9px 12px;
+    gap: 10px;
+    font-size: 11px;
+  }
+  .je-hero {
+    padding-inline: 16px;
+  }
+  .je-hero h1 {
+    font-size: clamp(54px, 16vw, 72px);
+  }
+  .je-hero-actions {
+    align-items:stretch;
+  }
+  .je-hero-actions .je-button {
+    flex: 1;
+    gap: 12px;
+    padding-inline: 16px;
+  }
+  .je-hero-photo {
+    min-height: 400px;
+  }
+  .je-photo-caption p {
+    font-size: 28px;
+  }
+  .je-module-buttons {
+    grid-template-columns: 1fr;
+  }
+  .je-module-buttons button {
+    min-height: 48px;
+  }
+  .je-module-detail {
+    padding: 20px;
+  }
+  .je-workflow li > svg {
+    display: none;
+  }
+  .je-bottom-cta {
+    margin-inline: 8px;
+    padding-inline: 20px;
+  }
+  .je-bottom-cta h2 {
+    font-size: clamp(52px, 17vw, 65px);
+  }
+  .je-cta-bottom .je-button {
+    width: 100%;
+    min-width: 0;
+  }
+  .je-auth {
+    min-height: calc(100dvh - 72px);
+  }
+  .je-auth-form {
+    padding-inline: 20px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
