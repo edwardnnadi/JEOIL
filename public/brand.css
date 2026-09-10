@@ -93,3 +93,64 @@
 .operations-app #roles-panel,.operations-app #categories-panel{min-height:260px}
 @media(max-width:1050px){.operations-app #admin-view .dashboard-grid{grid-template-columns:1fr}.operations-app #admin-view .panel{min-width:0}}
 @media(max-width:620px){.operations-app #admin-view .view-head{display:block;padding:20px;margin-bottom:12px}.operations-app #admin-view .header-actions{margin-top:16px;display:grid;grid-template-columns:1fr 1fr}.operations-app #admin-view .header-actions button{width:100%}.operations-app #admin-view .panel-head{padding:16px}.operations-app #admin-view table{min-width:640px}.operations-app #admin-view .table-panel{margin:0;border-radius:3px}}
+
+/* Focused Administration sections, reached from the expandable Admin navigation. */
+.operations-app .admin-parent{justify-content:flex-start;gap:0}.operations-app .admin-parent b{margin-left:auto;font-size:14px;transition:transform .18s ease}.operations-app .admin-parent[aria-expanded="true"] b{transform:rotate(180deg)}.operations-app .admin-submenu{display:grid;gap:2px;margin:2px 0 8px;padding:4px 0 4px 28px;border-left:1px solid #555d4d}.operations-app .admin-submenu[hidden]{display:none!important}.operations-app .admin-submenu button{border:0;background:transparent;color:#cdd0c3;padding:8px 10px;border-radius:3px;text-align:left;font:500 12px 'DM Sans',Arial,sans-serif;cursor:pointer}.operations-app .admin-submenu button:hover,.operations-app .admin-submenu button.active{background:#3a4234;color:#fff}.operations-app .admin-section-label{margin:0 0 5px;color:#88743d;font-size:10px;font-weight:700;letter-spacing:.14em}.operations-app .admin-section-panel[hidden],.operations-app #admin-view .admin-section-grid[hidden]{display:none!important}.operations-app #admin-view .admin-section-grid{display:block}.operations-app #admin-view .admin-section-grid>.admin-section-panel{max-width:1040px}.operations-app #admin-view .admin-section-grid>.admin-section-panel+.admin-section-panel{margin-top:16px}.operations-app .admin-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;row-gap:24px}.operations-app .admin-overview-card{min-height:164px;padding:20px;border:1px solid #d8d7ca;border-radius:4px;background:#fbfaf5;color:#252b24;text-align:left;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}.operations-app .admin-overview-card:hover{transform:translateY(-2px);border-color:#bca868;box-shadow:0 7px 18px #2c30241a}.operations-app .admin-overview-card span{display:block;color:#88743d;font-size:10px;font-weight:700;letter-spacing:.12em}.operations-app .admin-overview-card strong{display:block;margin:17px 0 9px;font-size:31px;letter-spacing:-.05em}.operations-app .admin-overview-card small{display:block;color:#6a6d62;font-size:12px;line-height:1.45}.operations-app #admin-view[data-admin-section="catalogue"] .admin-section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.operations-app #admin-view[data-admin-section="catalogue"] .admin-section-grid>.admin-section-panel+.admin-section-panel{margin-top:0}@media(max-width:900px){.operations-app .admin-submenu{padding-left:28px}.operations-app .admin-parent b{display:inline}.operations-app .admin-submenu button{font-size:12px}.operations-app .admin-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.operations-app .admin-submenu{padding-left:22px}.operations-app .admin-overview{grid-template-columns:1fr}.operations-app #admin-view[data-admin-section="catalogue"] .admin-section-grid{display:block}.operations-app #admin-view[data-admin-section="catalogue"] .admin-section-grid>.admin-section-panel+.admin-section-panel{margin-top:12px}}
+.operations-app .admin-parent{justify-content:flex-start;gap:0}.operations-app .admin-parent b{margin-left:auto;font-size:14px;transition:transform .18s ease}.operations-app .admin-parent[aria-expanded="true"] b{transform:rotate(180deg)}.operations-app .admin-submenu{display:grid;gap:2px;margin:2px 0 8px;padding:4px 0 4px 28px;border-left:1px solid #555d4d}.operations-app .admin-submenu[hidden]{display:none!important}.operations-app .admin-submenu button{border:0;background:transparent;color:#cdd0c3;padding:8px 10px;border-radius:3px;text-align:left;font:500 12px 'DM Sans',Arial,sans-serif;cursor:pointer}.operations-app .admin-submenu button:hover,.operations-app .admin-submenu button.active{background:#3a4234;color:#fff}.operations-app .admin-section-label{margin:0 0 5px;color:#88743d;font-size:10px;font-weight:700;letter-spacing:.14em}.operations-app .admin-section-panel[hidden],.operations-app #admin-view .admin-section-grid[hidden]{display:none!important}.operations-app #admin-view .admin-section-grid{display:block}.operations-app #admin-view .admin-section-grid>.admin-section-panel{max-width:1040px}.operations-app #admin-view .admin-section-grid>.admin-section-panel+.admin-section-panel{margin-top:16px}.operations-app .admin-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;row-gap:24px;margin-bottom:24px}.operations-app .admin-overview-card{min-height:164px;padding:20px;border:1px solid #d8d7ca;border-radius:4px;background:#fbfaf5;color:#252b24;text-align:left;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}.operations-app .admin-overview-card:hover{transform:translateY(-2px);border-color:#bca868;box-shadow:0 7px 18px #2c30241a}.operations-app .admin-overview-card span{display:block;color:#88743d;font-size:10px;font-weight:700;letter-spacing:.12em}.operations-app .admin-overview-card strong{display:block;margin:17px 0 9px;font-size:31px;letter-spacing:-.05em}.operations-app .admin-overview-card small{display:block;color:#6a6d62;font-size:12px;line-height:1.45}.operations-app #admin-view[data-admin-section="catalogue"] .admin-section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.operations-app #admin-view[data-admin-section="catalogue"] .admin-section-grid>.admin-section-panel+.admin-section-panel{margin-top:0}@media(max-width:900px){.operations-app .admin-submenu{padding-left:28px}.operations-app .admin-parent b{display:inline}.operations-app .admin-submenu button{font-size:12px}.operations-app .admin-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.operations-app .admin-submenu{padding-left:22px}.operations-app .admin-overview{grid-template-columns:1fr}.operations-app #admin-view[data-admin-section="catalogue"] .admin-section-grid{display:block}.operations-app #admin-view[data-admin-section="catalogue"] .admin-section-grid>.admin-section-panel+.admin-section-panel{margin-top:12px}}
+
+/* Responsive hardening for dense operational screens and touch devices. */
+.operations-app{min-width:0;overflow-x:hidden}
+.operations-app main,.operations-app .view,.operations-app .panel,.operations-app .field,.operations-app .dashboard-grid{min-width:0}
+.operations-app :is(input,select,textarea,button){max-width:100%}
+.operations-app .filters input{min-width:0}
+.operations-app .attention-item,.operations-app .activity-item{gap:12px}
+.operations-app .item-name,.operations-app .item-note,.operations-app .stock-card p,.operations-app .supplier-card p{overflow-wrap:anywhere}
+.operations-app dialog{overscroll-behavior:contain}
+@media(max-width:760px){
+  .operations-app .view-head,.operations-app header,.operations-app .panel-head{align-items:flex-start;gap:12px}
+  .operations-app .view-head,.operations-app header{flex-wrap:wrap}
+  .operations-app .header-actions{width:100%;flex-wrap:wrap;gap:10px}
+  .operations-app .header-actions .primary{margin-left:auto}
+  .operations-app .filters{display:grid;grid-template-columns:1fr 1fr}
+  .operations-app .filters input{grid-column:1/-1;width:100%}
+  .operations-app .filters select{width:100%;min-height:42px}
+  .operations-app .production-tip,.operations-app .quality-guide{align-items:flex-start}
+  .operations-app .stock-footer{gap:10px;flex-wrap:wrap}
+  .operations-app .ai-question-form{flex-direction:column}
+  .operations-app .ai-question-form .primary{width:100%;min-height:44px}
+}
+@media(max-width:480px){
+  .operations-app main{padding:72px 12px 28px}
+  .operations-app .hero{padding:22px 18px}
+  .operations-app .hero h2{font-size:clamp(28px,9vw,34px)}
+  .operations-app .panel{padding:14px}
+  .operations-app .view-head h2{font-size:clamp(26px,9vw,30px)}
+  .operations-app .view-head .primary,.operations-app .header-actions .primary{width:100%;margin-left:0;min-height:44px}
+  .operations-app .filters{grid-template-columns:1fr}
+  .operations-app .filters select{min-height:44px}
+  .operations-app .attention-item,.operations-app .activity-item{align-items:flex-start;flex-wrap:wrap}
+  .operations-app .attention-item .badge,.operations-app .activity-item time{margin-left:auto}
+  .operations-app .table-panel{margin-inline:-12px}
+  .operations-app dialog{width:calc(100% - 16px);max-height:calc(100dvh - 16px)}
+  .operations-app form{padding:16px}
+  .operations-app .modal-actions{gap:8px;flex-wrap:wrap}
+  .operations-app .modal-actions button{flex:1;min-height:44px}
+}
+
+/* Purchases filters keep their fields in a readable order as the viewport narrows. */
+.operations-app #purchases-view>.filters{display:grid;grid-template-columns:minmax(220px,1.5fr) repeat(2,minmax(150px,1fr));align-items:stretch;gap:10px}
+.operations-app #purchases-view>.filters input{grid-column:auto;width:100%}
+.operations-app .purchase-advanced-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch;gap:10px}
+.operations-app .purchase-date-filter{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;min-width:0;color:#4f534b;font-size:13px}
+.operations-app .purchase-advanced-filters .purchase-date-filter input{grid-column:auto;width:100%;min-width:0}
+.operations-app .purchase-clear-filters{min-height:42px;white-space:nowrap}
+@media(max-width:1000px){
+  .operations-app #purchases-view>.filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .operations-app #purchases-view>.filters input{grid-column:1/-1}
+  .operations-app .purchase-advanced-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .operations-app .purchase-clear-filters{grid-column:1/-1}
+}
+@media(max-width:560px){
+  .operations-app #purchases-view>.filters,.operations-app .purchase-advanced-filters{grid-template-columns:1fr}
+  .operations-app .purchase-advanced-filters .purchase-clear-filters{grid-column:auto}
+}

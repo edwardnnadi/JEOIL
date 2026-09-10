@@ -7,8 +7,8 @@ function buildGoodsInwardsWizard(form,receipt){
   if(form.dataset.goodsWizard==='ready'&&area.querySelector('.goods-inwards-wizard'))return;
   if(!allFields.length)return;
   const groups=[
-    {title:'Select goods to receive',help:'Choose the purchase being received. Its supplier, item and quantity will be brought through automatically.',names:['purchaseId','receivedDate','supplier','item','category','qty','unit','receivedBy']},
-    {title:'Inspect quality',help:'Compare the purchase-time assessment with the inspection completed at receipt.',names:['batch','qualityDate','oilContent','ffa','moisture','damaged','foreignMatter','aflatoxin','qualityCheckOfficerId']},
+    {title:'Select goods to receive',help:'Choose the purchase being received. Its supplier, item and ordered quantity will be brought through automatically.',names:['purchaseId','receivedDate','quantityOrdered','supplier','item','category','unit','receivedBy']},
+    {title:'Inspect quality',help:'Enter the factory findings, then review the collection-versus-factory comparison below.',names:['batch','qualityDate','qty','oilContent','ffa','moisture','damaged','foreignMatter','aflatoxin','qualityCheckOfficerId']},
     {title:'Accept, hold or reject',help:'Record the final receiving decision and any observations.',names:['condition','decision','notes']},
     {title:'Assign to warehouse',help:'Assign accepted goods to a warehouse. This posts the quantity to Stock on Hand.',names:['warehouseId','warehouseAssignedById','warehouseAssignedDate']}
   ];
@@ -20,6 +20,10 @@ function buildGoodsInwardsWizard(form,receipt){
     return index<0?0:index;
   };
   const buckets=groups.map(()=>[]);allFields.forEach(field=>buckets[groupFor(field)].push(field));
+  // In the inspection step, officers enter factory findings before reviewing
+  // the collection-versus-factory Measure table those values update.
+  const qualityCards=buckets[1].filter(field=>field.classList.contains('initial-quality-card'));
+  buckets[1]=[...buckets[1].filter(field=>!field.classList.contains('initial-quality-card')),...qualityCards];
   area.innerHTML='';
   const wizard=document.createElement('div');wizard.className='goods-inwards-wizard';
   const progress=document.createElement('div');progress.className='wizard-progress';

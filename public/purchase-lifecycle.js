@@ -10,6 +10,7 @@ function lifecycleReceiptFor(purchase) {
 
 function lifecycleFor(purchase) {
   const receipt = lifecycleReceiptFor(purchase);
+  if (purchase.status === 'Quote') return { label: 'Quote', detail: 'Supplier quote recorded; awaiting selection', tone: 'quote', receipt };
   if (receipt?.decision === 'Rejected' || purchase.status === 'Rejected') {
     return { label: 'Rejected', detail: 'Not collected; no warehouse stock', tone: 'rejected', receipt };
   }
@@ -40,33 +41,21 @@ function lifecycleWarehouse(lifecycle, purchase) {
 }
 
 function purchaseQcStage(purchase) {
-  const status = purchase.purchaseQuality?.status || purchase.qualityStatus;
-  if (!status || status === 'Assess') {
-    return {
-      'QC inspection': 'In progress',
-      'QC accepted': 'Passed',
-      'In transit': 'Passed',
-      'Arrived at factory': 'Passed',
-      'Moved to warehouse': 'Passed',
-      Rejected: 'Rejected',
-    }[purchase.status] || 'Pending';
-  }
-  return {
-    Pending: 'Pending',
-    'Inspection in progress': 'In progress',
-    Accepted: 'Passed',
-    Rejected: 'Rejected',
-    'Hold / retest': 'In progress',
-    Hold: 'In progress',
-  }[status] || 'Pending';
+  const receipt = lifecycleReceiptFor(purchase);
+  if (!receipt) return 'Pending';
+  if (receipt.decision === 'Accepted') return 'Passed';
+  if (receipt.decision === 'Rejected') return 'Rejected';
+  return 'In progress';
 }
 
 function purchaseQcSelect(purchase) {
   const stage = purchaseQcStage(purchase);
-  return `<select class="purchase-qc-select" data-purchase-id="${purchase.id}" aria-label="Field QC status for ${lifecycleEscape(purchase.purchaseId || purchase.item)}">${['Pending','In progress','Passed','Rejected'].map((option) => `<option ${option === stage ? 'selected' : ''}>${option}</option>`).join('')}</select>`;
+  const tone = { Pending: 'pending', 'In progress': 'hold', Passed: 'ok', Rejected: 'reject' }[stage];
+  return `<span class="badge ${tone}">${stage}</span><div class="item-note">Goods-inwards QC</div>`;
 }
 
 function purchaseLogisticsStage(purchase) {
+  if (purchase.status === 'Quote') return 'Quote';
   if (purchase.status === 'In transit') return 'In transit';
   if (purchase.status === 'Delivered' || purchase.status === 'Arrived at factory' || purchase.status === 'Moved to warehouse') return 'Delivered';
   return 'Ordered';
@@ -74,7 +63,7 @@ function purchaseLogisticsStage(purchase) {
 
 function purchaseLogisticsSelect(purchase) {
   const stage = purchaseLogisticsStage(purchase);
-  return `<select class="purchase-logistics-select" data-purchase-id="${purchase.id}" aria-label="Logistics status for ${lifecycleEscape(purchase.purchaseId || purchase.item)}">${['Ordered','In transit','Delivered'].map((option) => `<option ${option === stage ? 'selected' : ''}>${option}</option>`).join('')}</select>`;
+  return `<select class="purchase-logistics-select" data-purchase-id="${purchase.id}" aria-label="Logistics status for ${lifecycleEscape(purchase.purchaseId || purchase.item)}">${['Quote','Ordered','In transit','Delivered'].map((option) => `<option ${option === stage ? 'selected' : ''}>${option}</option>`).join('')}</select>`;
 }
 
 function purchaseLifecycleRows() {
@@ -123,14 +112,17 @@ function ensurePurchaseFilters() {
 
 function renderPurchaseLifecycle() {
   ensurePurchaseFilters();
+  const statusFilter = $('#purchase-status-filter');
+  if (statusFilter && ![...statusFilter.options].some((option) => option.value === 'Quote')) statusFilter.insertAdjacentHTML('afterbegin', '<option>Quote</option>');
   const table = $('#purchases-table')?.closest('table');
   if (!table) return;
-  table.querySelector('thead').innerHTML = '<tr><th>Date</th><th>Purchase / item</th><th>Supplier</th><th>Quantity</th><th>Logistics status</th><th>Warehouse</th><th>QC</th><th>Total</th><th></th></tr>';
+  table.querySelector('thead').innerHTML = '<tr><th>Date</th><th>Ordered at</th><th>Purchase / item</th><th>Supplier</th><th>Quantity</th><th>Logistics status</th><th>Warehouse</th><th>QC</th><th>Total</th><th></th></tr>';
   const rows = purchaseLifecycleRows();
   $('#purchases-table').innerHTML = rows.map((purchase) => {
     const lifecycle = lifecycleFor(purchase);
     return `<tr>
       <td>${date(purchase.date)}</td>
+      <td>${purchase.createdAt ? new Date(purchase.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '<span class="purchase-muted">Not recorded</span>'}</td>
       <td><strong>${lifecycleEscape(purchase.item)}</strong><div class="item-note">${lifecycleEscape(purchase.purchaseId || `Purchase ${purchase.id}`)}${purchase.lotNo ? ` · Lot: ${lifecycleEscape(purchase.lotNo)}` : ''}</div></td>
       <td>${lifecycleEscape(purchase.supplier)}</td>
       <td>${Number(purchase.qty || 0).toLocaleString()} ${lifecycleEscape(purchase.unit)}</td>
@@ -138,9 +130,9 @@ function renderPurchaseLifecycle() {
       <td>${lifecycleWarehouse(lifecycle, purchase)}</td>
       <td>${purchaseQcSelect(purchase)}</td>
       <td><strong>${money(purchase.cost)}</strong></td>
-      <td>${!purchase.stockReceived&&lifecycle.label!=='Rejected'?`<button class="text-btn receive-purchase" data-purchase-id="${purchase.id}">Receive goods</button> `:''}${editButton('purchase', purchase.id)}${canDeleteRecords?.()?` <button class="text-btn delete-purchase-direct" data-purchase-id="${purchase.id}">Delete</button>`:''}</td>
+      <td>${!purchase.stockReceived&&!['Quote','Rejected'].includes(lifecycle.label)?`<button class="text-btn receive-purchase" data-purchase-id="${purchase.id}">Receive goods</button> `:''}${editButton('purchase', purchase.id)}${canDeleteRecords?.()?` <button class="text-btn delete-purchase-direct" data-purchase-id="${purchase.id}">Delete</button>`:''}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="9">No purchases match your search.</td></tr>';
+  }).join('') || '<tr><td colspan="10">No purchases match your search.</td></tr>';
 }
 
 const lifecycleRender = render;
@@ -150,7 +142,7 @@ render = () => {
 };
 
 const lifecycleStyle = document.createElement('style');
-lifecycleStyle.textContent = '.purchase-lifecycle{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}.purchase-lifecycle-ordered{background:#f1eee8;color:#5d5445}.purchase-lifecycle-inspection{background:#fff3d8;color:#815b16}.purchase-lifecycle-accepted{background:#e9f2db;color:#476e32}.purchase-lifecycle-transit{background:#e7f0fb;color:#245981}.purchase-lifecycle-arrived{background:#e7f4eb;color:#277143}.purchase-lifecycle-stored{background:#dfeee4;color:#1f653a}.purchase-lifecycle-rejected{background:#fbe8e6;color:#983329}.purchase-muted{color:#887c68;font-size:13px}.purchase-qc-select,.purchase-logistics-select{min-width:116px;padding:6px 28px 6px 8px;border:1px solid #d5d6ca;border-radius:3px;background:#fff;color:#41443b;font-size:11px;font-weight:600;cursor:pointer}.purchase-qc-select:focus,.purchase-logistics-select:focus{outline:2px solid #c89b3c;outline-offset:2px}';
+lifecycleStyle.textContent = '.purchase-lifecycle{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}.purchase-lifecycle-quote{background:#edf0f3;color:#4c5a68}.purchase-lifecycle-ordered{background:#f1eee8;color:#5d5445}.purchase-lifecycle-inspection{background:#fff3d8;color:#815b16}.purchase-lifecycle-accepted{background:#e9f2db;color:#476e32}.purchase-lifecycle-transit{background:#e7f0fb;color:#245981}.purchase-lifecycle-arrived{background:#e7f4eb;color:#277143}.purchase-lifecycle-stored{background:#dfeee4;color:#1f653a}.purchase-lifecycle-rejected{background:#fbe8e6;color:#983329}.purchase-muted{color:#887c68;font-size:13px}.purchase-qc-select,.purchase-logistics-select{min-width:116px;padding:6px 28px 6px 8px;border:1px solid #d5d6ca;border-radius:3px;background:#fff;color:#41443b;font-size:11px;font-weight:600;cursor:pointer}.purchase-qc-select:focus,.purchase-logistics-select:focus{outline:2px solid #c89b3c;outline-offset:2px}';
 document.head.append(lifecycleStyle);
 
 function closeLifecycleDialog(overlay, focusTarget) {

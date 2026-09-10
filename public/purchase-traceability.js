@@ -134,7 +134,7 @@ function bindPurchaseQcStatus(form,{auditChanges=false}={}){
       historyInput.value=JSON.stringify(history);
       select.value=to;select.dataset.confirmedStatus=to;
       const purchaseStage=form.elements.status,stage=stageForFieldQcStatus(to);
-      if(purchaseStage&&stage)purchaseStage.value=stage;
+      if(purchaseStage&&stage&&purchaseStage.value!=='Quote')purchaseStage.value=stage;
       close(overlay);
     };
     reasonInput.focus();
@@ -145,7 +145,7 @@ function bindPurchaseQcStatus(form,{auditChanges=false}={}){
     if(!auditChanges){
       select.dataset.confirmedStatus=to;
       const purchaseStage=form.elements.status,stage=stageForFieldQcStatus(to);
-      if(purchaseStage&&stage)purchaseStage.value=stage;
+      if(purchaseStage&&stage&&purchaseStage.value!=='Quote')purchaseStage.value=stage;
       return;
     }
     select.value=from;
@@ -160,6 +160,13 @@ openModal=(type,pid)=>{
   traceabilityData();
   const form=$('#record-form');
   form.querySelector('#form-fields').insertAdjacentHTML('afterbegin',traceabilityFields({},true));
+  const createdByField=[...form.querySelectorAll('.field')].find(field=>field.querySelector('label')?.textContent==='Created by');
+  if(createdByField){
+    const operator=currentOperator?.()||data.people.find(person=>person.type==='User');
+    createdByField.innerHTML=`<label>Created by</label><select name="createdBy" required>${data.people.filter(person=>person.type==='User').map(person=>`<option value="${escapeValue(person.name)}" ${person.name===operator?.name?'selected':''}>${escapeValue(person.name)} · ${escapeValue(person.role||'User')}</option>`).join('')}</select>`;
+  }
+  // A quote stays a quote until the purchaser explicitly advances it to Ordered.
+  if(form.elements.status)form.elements.status.value='Quote';
   form.dataset.type='purchase-traceability';
   form.__traceAttachments=[];
   attachmentList(form,form.__traceAttachments);
@@ -201,7 +208,7 @@ $('#record-form').addEventListener('submit',event=>{
   const attachments=form.__traceAttachments||[];
   const purchaseId=nextPurchaseReference();
   const purchaseQuality=purchaseQualityFromForm(values);
-  const purchase={id:id(),purchaseId,date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),lotNo:values.lotNo?.trim()||lotReference(purchaseId),originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,attachments,stockReceived:false,qualityStatus:purchaseQuality.decision};
+  const purchase={id:id(),purchaseId,date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:values.createdBy||operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),lotNo:values.lotNo?.trim()||lotReference(purchaseId),originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,attachments,stockReceived:false,qualityStatus:purchaseQuality.decision};
   data.purchases.unshift(purchase);save();render();$('#record-dialog').close();
 },true);
 

@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="quality.css?v=settlement-20260904" />
+    <link rel="stylesheet" href="quality.css?v=quality-direction-20260910" />
     <link rel="stylesheet" href="production.css" />
-    <link rel="stylesheet" href="brand.css?v=ai-insights-20260908" />
+    <link rel="stylesheet" href="brand.css?v=purchase-filter-layout-20260909" />
   </head>
   <body class="operations-app">
     <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Hide navigation menu">
@@ -26,9 +26,15 @@
         <button class="nav-item" data-view="quality" data-title="Goods inwards"><span>✓</span>Goods inwards</button>
         <button class="nav-item" data-view="production" data-title="Production"><span>◒</span>Production</button>
         <button class="nav-item" data-view="stock" data-title="Stock"><span>□</span>Stock</button>
-        <button class="nav-item" data-view="warehouse" data-title="Warehouse"><span>⌂</span>Warehouse</button>
         <button class="nav-item" data-view="suppliers" data-title="Suppliers"><span>♙</span>Suppliers</button>
-        <button class="nav-item" data-view="admin" data-title="Administration"><span>⚙</span>Admin</button>
+        <button class="nav-item admin-parent" data-view="admin" data-title="Administration" aria-controls="admin-submenu" aria-expanded="false"><span>⚙</span>Admin <b aria-hidden="true">⌄</b></button>
+        <div class="admin-submenu" id="admin-submenu" hidden>
+          <button type="button" data-admin-section="people">Users &amp; People</button>
+          <button type="button" data-admin-section="roles">Roles</button>
+          <button type="button" data-admin-section="items">Purchase Items</button>
+          <button type="button" data-admin-section="catalogue">Categories &amp; Units</button>
+          <button type="button" data-admin-section="warehouses">Warehouses</button>
+        </div>
       </nav>
     </aside>
 
@@ -64,34 +70,36 @@
 
       <section class="view" id="suppliers-view"><div class="view-head"><div><h2>Suppliers</h2><p>Keep supplier contacts, products and purchasing details together.</p></div><button class="primary" id="add-supplier">+ Add supplier</button></div><div class="supplier-grid" id="supplier-grid"></div></section>
 
-      <section class="view" id="admin-view"><div class="view-head"><div><h2>People & purchasing items</h2><p>Maintain your users, contacts, roles and approved items for purchasing.</p></div><div class="header-actions"><button class="secondary" id="add-person">+ Add person</button><button class="primary" id="add-item">+ Add purchase item</button></div></div><div class="dashboard-grid"><section class="panel table-panel"><div class="panel-head"><div><h3>People</h3><p>Users can be selected as the purchaser on a purchase record.</p></div></div><table><thead><tr><th>Name</th><th>Type</th><th>Role</th><th>Contact</th></tr></thead><tbody id="people-table"></tbody></table></section><section class="panel table-panel"><div class="panel-head"><div><h3>Purchase items</h3><p>Available in the purchase form.</p></div></div><table><thead><tr><th>Item</th><th>Category</th><th>Default unit</th></tr></thead><tbody id="items-table"></tbody></table></section></div></section>
+      <section class="view" id="admin-view" data-admin-section="home"><div class="view-head"><div><p class="admin-section-label">ADMINISTRATION</p><h2 id="admin-section-title">Administration</h2><p id="admin-section-description">Manage the people and master data used throughout JE Oils Operations.</p></div><div class="header-actions"><button class="secondary" id="add-person" hidden>+ Add person</button><button class="primary" id="add-item" hidden>+ Add purchase item</button></div></div><div class="admin-overview" id="admin-overview"><button type="button" class="admin-overview-card" data-admin-section="people"><span>USERS &amp; PEOPLE</span><strong id="admin-people-count">0</strong><small>Manage application users and operational contacts</small></button><button type="button" class="admin-overview-card" data-admin-section="roles"><span>ROLES</span><strong id="admin-roles-count">0</strong><small>Maintain roles available for people and users</small></button><button type="button" class="admin-overview-card" data-admin-section="items"><span>PURCHASE ITEMS</span><strong id="admin-items-count">0</strong><small>Manage the items available in purchasing</small></button><button type="button" class="admin-overview-card" data-admin-section="catalogue"><span>CATEGORIES &amp; UNITS</span><strong id="admin-catalogue-count">0</strong><small>Maintain purchase categories and default units</small></button><button type="button" class="admin-overview-card" data-admin-section="warehouses"><span>WAREHOUSES</span><strong id="admin-warehouses-count">0</strong><small>Manage warehouse locations and assigned stock</small></button></div><div class="dashboard-grid admin-section-grid" hidden><section class="panel table-panel admin-section-panel" id="people-panel"><div class="panel-head"><div><h3>Users &amp; People</h3><p>Users can be selected as the purchaser on a purchase record.</p></div></div><table><thead><tr><th>Name</th><th>Type</th><th>Role</th><th>Contact</th></tr></thead><tbody id="people-table"></tbody></table></section><section class="panel table-panel admin-section-panel" id="items-panel"><div class="panel-head"><div><h3>Purchase items</h3><p>Available in the purchase form.</p></div></div><table><thead><tr><th>Item</th><th>Category</th><th>Default unit</th></tr></thead><tbody id="items-table"></tbody></table></section></div></section>
     </main>
 
     <dialog id="record-dialog"><form method="dialog" id="record-form"><div class="modal-head"><div><span class="modal-label" id="modal-label">NEW RECORD</span><h2 id="modal-title">Record purchase</h2></div><button class="close" type="button" data-close>×</button></div><div id="form-fields"></div><div class="modal-actions"><button type="button" data-close class="secondary">Cancel</button><button class="primary" id="save-record" value="default">Save record</button></div></form></dialog>
     <script src="app.js?v=state-save-20260909"></script>
-    <script src="production-flow.js?v=20260905"></script>
+    <script src="production-flow.js?v=restored-register-20260909"></script>
     <script src="fixes.js"></script>
     <script src="admin.js"></script>
     <script src="edit.js?v=goods-inwards-single-edit-20260905"></script>
-    <script src="goods-inwards.js?v=settlement-favourable-qc-20260905"></script>
-    <script src="purchase-workflow.js"></script>
-    <script src="purchase-presentation.js"></script>
-    <script src="purchase-traceability.js?v=purchase-edit-lock-20260905"></script>
-    <script src="warehouse.js?v=warehouse-items-20260905"></script>
+    <script src="goods-inwards.js?v=ordered-quantity-quality-checks-20260910"></script>
+    <script src="purchase-workflow.js?v=quote-stage-20260909"></script>
+    <script src="purchase-presentation.js?v=unit-price-row-20260909"></script>
+    <script src="purchase-traceability.js?v=quote-stage-lock-20260909"></script>
+    <script src="warehouse.js?v=production-output-ledger-20260909"></script>
     <script src="goods-inwards-receiving.js?v=receiving-quality-20260903"></script>
     <script src="purchase-wizard.js?v=purchase-edit-status-lock-20260905"></script>
     <script src="purchase-actions.js?v=purchase-actions-20260903"></script>
-    <script src="goods-inwards-wizard.js?v=warehouse-gate-20260905"></script>
-    <script src="receiving-assessment.js?v=settlement-favourable-qc-20260905"></script>
-    <script src="purchase-lifecycle.js?v=purchase-list-controls-20260905"></script>
+    <script src="goods-inwards-wizard.js?v=ordered-quantity-quality-checks-20260910"></script>
+    <script src="receiving-assessment.js?v=settlement-disabled-20260910"></script>
+    <script src="purchase-lifecycle.js?v=quote-stage-20260909"></script>
     <script src="inventory-production-controls.js?v=inventory-production-20260909"></script>
     <script src="stock-locations.js?v=stock-locations-20260908"></script>
     <script src="view-persistence.js?v=20260904"></script>
     <script src="sidebar-navigation.js?v=20260907"></script>
     <script src="insights.js?v=20260908"></script>
+    <script src="machines-admin.js?v=kurma-expellers-20260910"></script>
+    <script src="admin-navigation.js?v=20260909"></script>
     <script src="record-deletion.js?v=20260908"></script>
     <script>
-      document.querySelectorAll('.nav-item').forEach((item) => {
+      document.querySelectorAll('.nav-item:not(.admin-parent)').forEach((item) => {
         item.onclick = () => {
           document.querySelectorAll('.nav-item').forEach((navItem) =>
             navItem.classList.remove('active'),

@@ -1,0 +1,157 @@
+(() => {
+  const root = document.querySelector('#admin-view');
+  const submenu = document.querySelector('#admin-submenu');
+  const parent = document.querySelector('.admin-parent');
+  if (!root || !submenu || !parent) return;
+
+  const sectionDetails = {
+    home: ['Administration', 'Manage the people and master data used throughout JE Oils Operations.'],
+    people: ['Users & People', 'Maintain application users and operational contacts.'],
+    roles: ['Roles', 'Maintain the roles that can be assigned to people and users.'],
+    items: ['Purchase Items', 'Maintain the approved items that can be selected on purchases.'],
+    catalogue: ['Categories & Units', 'Maintain the categories and default units used by purchase items.'],
+    machines: ['Machines', 'Configure production equipment, service intervals and hour-meter readings.'],
+  };
+  const visiblePanels = {
+    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel'], machines: ['machines-panel'],
+  };
+  const storageKey = 'je-oils-admin-submenu-expanded';
+
+  const setExpanded = (expanded) => {
+    submenu.hidden = !expanded;
+    parent.setAttribute('aria-expanded', String(expanded));
+    localStorage.setItem(storageKey, String(expanded));
+  };
+
+  const setSection = (section) => {
+    if (section === 'warehouses') {
+      root.dataset.adminSection = section;
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      parent.classList.add('active');
+      submenu.querySelectorAll('[data-admin-section]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.adminSection === section);
+      });
+      document.querySelectorAll('.view').forEach((view) => view.classList.remove('active'));
+      document.querySelector('#warehouse-view')?.classList.add('active');
+      document.querySelector('#page-title').textContent = 'Warehouses';
+      document.querySelector('#eyebrow').textContent = 'ADMINISTRATION';
+      setExpanded(true);
+      return;
+    }
+    // Warehouses is rendered as a separate view. Returning to any other Admin
+    // item must explicitly restore the Admin view before updating its panel.
+    document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+    parent.classList.add('active');
+    document.querySelectorAll('.view').forEach((view) => view.classList.remove('active'));
+    root.classList.add('active');
+    document.querySelector('#page-title').textContent = 'Administration';
+    document.querySelector('#eyebrow').textContent = 'JE OILS OPERATIONS';
+    const detail = sectionDetails[section] || sectionDetails.people;
+    root.dataset.adminSection = section;
+    root.querySelector('#admin-section-title').textContent = detail[0];
+    root.querySelector('#admin-section-description').textContent = detail[1];
+    const isHome = section === 'home';
+    // Users remains in the Administration context: retain the overview cards
+    // above its table, while every other submenu item remains focused.
+    root.querySelector('#admin-overview').hidden = !(isHome || section === 'people');
+    root.querySelector('.admin-section-grid').hidden = isHome;
+    // Admin panels are added by a few independent feature modules. Select the
+    // grid's direct panels rather than relying on each module to remember a
+    // presentation class, otherwise a selected section can expose every panel.
+    root.querySelectorAll('.admin-section-grid > .panel').forEach((panel) => {
+      panel.hidden = !(visiblePanels[section] || visiblePanels.people).includes(panel.id);
+    });
+    root.querySelector('#add-person').hidden = section !== 'people';
+    root.querySelector('#add-item').hidden = section !== 'items';
+    submenu.querySelectorAll('[data-admin-section]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.adminSection === section);
+    });
+    setExpanded(true);
+  };
+
+  const renderOverview = () => {
+    adminData();
+    data.warehouses ??= [];
+    data.machines ??= [];
+    root.querySelector('#admin-people-count').textContent = data.people.length.toLocaleString();
+    root.querySelector('#admin-roles-count').textContent = data.roles.length.toLocaleString();
+    root.querySelector('#admin-items-count').textContent = data.items.length.toLocaleString();
+    root.querySelector('#admin-catalogue-count').textContent = `${data.categories.length} / ${data.units.length}`;
+    root.querySelector('#admin-warehouses-count').textContent = data.warehouses.length.toLocaleString();
+    const machinesCount = root.querySelector('#admin-machines-count');
+    if (machinesCount) machinesCount.textContent = data.machines.length.toLocaleString();
+  };
+
+  const addUnitsPanel = () => {
+    if (document.querySelector('#units-panel')) return;
+    const grid = root.querySelector('.admin-section-grid');
+    grid.insertAdjacentHTML('beforeend', '<section class="panel table-panel admin-section-panel" id="units-panel"><div class="panel-head"><div><h3>Default units</h3><p>Units available for purchase items and stock records.</p></div><button class="secondary" id="add-unit">+ Add unit</button></div><table><thead><tr><th>Unit</th><th></th></tr></thead><tbody id="units-table"></tbody></table></section>');
+  };
+  const renderUnits = () => {
+    addUnitsPanel();
+    adminData();
+    const table = document.querySelector('#units-table');
+    table.innerHTML = data.units.map((unit, index) => `<tr><td><strong>${unit}</strong></td><td><button class="text-btn edit-unit" data-unit-index="${index}">Edit</button></td></tr>`).join('') || '<tr><td>No units yet.</td><td></td></tr>';
+    document.querySelector('#add-unit').onclick = () => openUnitModal();
+    document.querySelectorAll('.edit-unit').forEach((button) => button.onclick = () => openUnitModal(+button.dataset.unitIndex));
+  };
+  const openUnitModal = (index) => {
+    const unit = index === undefined ? '' : data.units[index];
+    const escapedUnit = String(unit || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+    document.querySelector('#modal-label').textContent = unit ? 'EDIT UNIT' : 'NEW UNIT';
+    document.querySelector('#modal-title').textContent = unit ? 'Edit default unit' : 'Add default unit';
+    document.querySelector('#form-fields').innerHTML = `<div class="form-grid"><div class="field full"><label>Unit name</label><input name="unit" value="${escapedUnit}" placeholder="e.g. kg, litre, bag" required></div></div>`;
+    const form = document.querySelector('#record-form');
+    form.dataset.type = 'unit-admin';
+    form.dataset.unitIndex = index === undefined ? '' : String(index);
+    document.querySelector('#record-dialog').showModal();
+  };
+  document.querySelector('#record-form').addEventListener('submit', (event) => {
+    const form = event.currentTarget;
+    if (form.dataset.type !== 'unit-admin') return;
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    const unit = formData(form).unit.trim();
+    const index = form.dataset.unitIndex;
+    adminData();
+    if (!unit) return;
+    if (index === '') {
+      if (!data.units.some((value) => value.toLowerCase() === unit.toLowerCase())) data.units.push(unit);
+    } else {
+      const oldUnit = data.units[+index];
+      if (!data.units.some((value, valueIndex) => valueIndex !== +index && value.toLowerCase() === unit.toLowerCase())) {
+        data.units[+index] = unit;
+        data.items.forEach((item) => { if (item.unit === oldUnit) item.unit = unit; });
+      }
+    }
+    save();
+    document.querySelector('#record-dialog').close();
+    render();
+  }, true);
+
+  const priorRender = render;
+  render = () => {
+    priorRender();
+    renderUnits();
+    renderOverview();
+    if (root.classList.contains('active') || document.querySelector('#warehouse-view')?.classList.contains('active')) {
+      setSection(root.dataset.adminSection || 'people');
+    }
+  };
+  parent.addEventListener('click', () => {
+    const alreadyOpen = !submenu.hidden;
+    document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+    parent.classList.add('active');
+    document.querySelectorAll('.view').forEach((view) => view.classList.remove('active'));
+    root.classList.add('active');
+    document.querySelector('#page-title').textContent = 'Administration';
+    document.querySelector('#eyebrow').textContent = 'JE OILS OPERATIONS';
+    setSection('home');
+    setExpanded(!alreadyOpen);
+  });
+  submenu.querySelectorAll('[data-admin-section]').forEach((button) => button.addEventListener('click', () => setSection(button.dataset.adminSection)));
+  root.querySelectorAll('#admin-overview [data-admin-section]').forEach((button) => button.addEventListener('click', () => setSection(button.dataset.adminSection)));
+  document.querySelectorAll('.nav-item:not(.admin-parent)').forEach((button) => button.addEventListener('click', () => setExpanded(false)));
+  setExpanded(false);
+  render();
+})();
