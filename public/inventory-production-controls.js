@@ -18,13 +18,19 @@
   function warehouseOptions() { return (data.warehouses || []).map(w => `<option value="${w.id}">${esc(w.name)}${w.location ? ` · ${esc(w.location)}` : ''}</option>`).join(''); }
   function machineOptions() {
     const machines = (data.machines || []).filter(machine => machine.name);
-    return `<option value="">${machines.length ? 'Select machine' : 'Add a machine in Admin'}</option>${machines.map(machine => `<option value="${esc(machine.name)}">${esc(machine.name)}${machine.type ? ` · ${esc(machine.type)}` : ''}</option>`).join('')}`;
+    return machines.map(machine => `<option value="${esc(machine.name)}">${esc(machine.name)}${machine.type ? ` · ${esc(machine.type)}` : ''}</option>`).join('');
   }
   function staffOptions() {
     const people = (data.people || []).filter(person => person.name);
     return `<option value="">${people.length ? 'Select staff' : 'No staff have been added in Admin'}</option>${people.map(person => `<option value="${esc(person.name)}">${esc(person.name)} · ${esc(person.role || person.type || 'Staff')}</option>`).join('')}`;
   }
-  function materialRows() { return (data.stock || []).filter(s => Number(s.qty) > 0).map(s => `<tr><td><label><input type="checkbox" name="material" value="${esc(s.name)}"> ${esc(s.name)}</label></td><td>${Number(s.qty).toLocaleString()} ${esc(s.unit)}</td><td><input name="qty-${esc(s.name)}" type="number" min="0" step="any" value="0" aria-label="Quantity of ${esc(s.name)}"></td></tr>`).join('') || '<tr><td colspan="3">No available stock. Receive accepted goods first.</td></tr>'; }
+  function warehouseAvailable(itemName,warehouseId) {
+    if (!warehouseId) return 0;
+    const matchingMovements=(data.stockMovements||[]).filter(m=>String(m.warehouseId)===String(warehouseId)&&(m.item===itemName||m.itemName===itemName));
+    const receiptQuantity=(data.goodsInwards||[]).filter(receipt=>receipt.decision==='Accepted'&&String(receipt.warehouseId)===String(warehouseId)&&receipt.item===itemName&&!matchingMovements.some(m=>m.sourceType==='GOODS_RECEIPT'&&String(m.sourceId)===String(receipt.id))).reduce((sum,receipt)=>sum+Number(receipt.qty||0),0);
+    return matchingMovements.reduce((sum,movement)=>sum+Number(movement.quantity||0),receiptQuantity);
+  }
+  function materialRows(warehouseId='') { return (data.stock || []).map(s => ({...s,available:warehouseAvailable(s.name,warehouseId)})).filter(s => s.available > 0).map(s => `<tr><td><label><input type="checkbox" name="material" value="${esc(s.name)}"> ${esc(s.name)}</label></td><td>${Number(s.available).toLocaleString()} ${esc(s.unit)}</td><td><input name="qty-${esc(s.name)}" type="number" min="0" max="${s.available}" step="any" value="0" aria-label="Quantity of ${esc(s.name)}"></td></tr>`).join('') || '<tr><td colspan="3">No available stock in this warehouse. Receive or transfer accepted goods first.</td></tr>'; }
   function showSubmitAction(label) {
     const actions = document.querySelector('#record-dialog .modal-actions');
     const submit = $('#save-record');
@@ -37,18 +43,21 @@
   function openStart() {
     inventoryData();
     $('#modal-label').textContent = 'PRODUCTION RUN'; $('#modal-title').textContent = 'Start production run';
-    $('#form-fields').innerHTML = `<div class="form-grid"><div class="field"><label>Production batch no.</label><input name="batch" readonly value="${esc(nextBatch())}"></div><div class="field"><label>Run date</label><input name="date" type="date" required value="${today()}"></div><div class="field"><label>Machine</label><select name="machine" required>${machineOptions()}</select></div><div class="field"><label>Materials warehouse</label><select name="sourceWarehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Output warehouse</label><select name="warehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Factory manager</label><select name="manager" required>${(data.people || []).filter(p => p.type === 'User').map(p => `<option>${esc(p.name)}</option>`).join('')}</select></div><div class="field"><label>Staff / roles</label><select name="staff" required>${staffOptions()}</select></div><div class="field full"><label>Materials and resources to issue</label><table class="run-materials"><thead><tr><th>Material</th><th>Available</th><th>Quantity to issue</th></tr></thead><tbody>${materialRows()}</tbody></table><div class="item-note">Starting the run immediately records consumption from stock. Any correction is recorded later as an adjustment.</div></div></div>`;
-    const form = $('#record-form'); form.dataset.type = 'production-start'; showSubmitAction('Start production run'); $('#record-dialog').showModal();
+    $('#form-fields').innerHTML = `<div class="form-grid"><div class="field"><label>Production batch no.</label><input name="batch" readonly value="${esc(nextBatch())}"></div><div class="field"><label>Run date</label><input name="date" type="date" required value="${today()}"></div><div class="field full"><label>Machines</label><select name="machines" multiple required aria-describedby="machine-selection-help">${machineOptions()}</select><div class="item-note" id="machine-selection-help">Select every machine used for this run.</div></div><div class="field"><label>Materials warehouse</label><select name="sourceWarehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Output warehouse</label><select name="warehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Factory manager</label><select name="manager" required>${(data.people || []).filter(p => p.type === 'User').map(p => `<option>${esc(p.name)}</option>`).join('')}</select></div><div class="field"><label>Staff / roles</label><select name="staff" required>${staffOptions()}</select></div><div class="field full"><label>Materials and resources to issue</label><table class="run-materials"><thead><tr><th>Material</th><th>Available</th><th>Quantity to issue</th></tr></thead><tbody id="production-materials">${materialRows()}</tbody></table><div class="item-note">Select a materials warehouse to load its available stock. Starting the run records the issue from that warehouse.</div></div></div>`;
+    const form = $('#record-form'); form.dataset.type = 'production-start'; form.elements.sourceWarehouseId.onchange=()=>{form.querySelector('#production-materials').innerHTML=materialRows(form.elements.sourceWarehouseId.value);}; showSubmitAction('Start production run'); $('#record-dialog').showModal();
   }
   function selectedMaterials(form) { return [...form.querySelectorAll('[name="material"]:checked')].map(box => ({ name: box.value, quantity: Number(form.elements[`qty-${box.value}`].value || 0) })).filter(m => m.quantity > 0); }
   function startRun(form) {
-    const materials = selectedMaterials(form); if (!materials.length) return alert('Select at least one material or resource and enter its quantity.');
-    const shortage = materials.find(m => { const item = stockItem(m.name); return !item || m.quantity > Number(item.qty); });
-    if (shortage) return alert(`Insufficient available stock for ${shortage.name}.`);
+    const machines=[...form.elements.machines.selectedOptions].map(option=>option.value); if (!machines.length) return alert('Select at least one machine.');
     const warehouse = (data.warehouses || []).find(w => String(w.id) === String(form.elements.warehouseId.value)); const sourceWarehouse=(data.warehouses || []).find(w=>String(w.id)===String(form.elements.sourceWarehouseId.value)); if (!warehouse || !sourceWarehouse) return alert('Select the materials and output warehouses.');
+    const materials = selectedMaterials(form); if (!materials.length) return alert('Select at least one material or resource and enter its quantity.');
+    const shortage = materials.find(m => m.quantity > warehouseAvailable(m.name,sourceWarehouse.id));
+    if (shortage) return alert(`Insufficient available stock for ${shortage.name} in ${sourceWarehouse.name}.`);
+    const low=materials.find(m=>{const item=stockItem(m.name);return item&&Number(item.reorder)>0&&warehouseAvailable(m.name,sourceWarehouse.id)-m.quantity<=Number(item.reorder);});
+    if (low&&!confirm(`${low.name} will be at or below its reorder level after this issue. Continue with the production run?`))return;
     data.productionConfig.batch.nextNumber = Number(data.productionConfig.batch.nextNumber) + 1;
     materials.forEach(m => { const item = stockItem(m.name); item.qty -= m.quantity; recordStockMovement({ type:'PRODUCTION_ISSUE', item:m.name, category:item.category, quantity:-m.quantity, unit:item.unit, warehouseId:sourceWarehouse.id, sourceType:'PRODUCTION_RUN', sourceId:form.elements.batch.value, note:'Issued at production start' }); });
-    data.activeProductionRuns.unshift({ id:id(), batch:form.elements.batch.value, date:form.elements.date.value, machine:form.elements.machine.value, sourceWarehouseId:sourceWarehouse.id, sourceWarehouseName:sourceWarehouse.name, warehouseId:warehouse.id, warehouseName:warehouse.name, manager:form.elements.manager.value, staff:form.elements.staff.value, materials, startedAt:new Date().toISOString(), status:'IN_PROGRESS' });
+    data.activeProductionRuns.unshift({ id:id(), batch:form.elements.batch.value, date:form.elements.date.value, machine:machines.join(' · '), machines, sourceWarehouseId:sourceWarehouse.id, sourceWarehouseName:sourceWarehouse.name, warehouseId:warehouse.id, warehouseName:warehouse.name, manager:form.elements.manager.value, staff:form.elements.staff.value, materials, startedAt:new Date().toISOString(), status:'IN_PROGRESS' });
     save(); render(); $('#record-dialog').close();
   }
   function elapsedLabel(startedAt) {

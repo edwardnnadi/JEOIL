@@ -19,6 +19,14 @@
     home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel'], machines: ['machines-panel'], production: ['production-master-panel'], numbering: ['purchase-number-panel'], lab: ['lab-tests-panel'],
   };
   const storageKey = 'je-oils-admin-submenu-expanded';
+  if (!root.querySelector('.admin-breadcrumbs')) root.querySelector('.view-head').insertAdjacentHTML('afterend', '<nav class="admin-breadcrumbs" aria-label="Administration breadcrumb"><button type="button" data-admin-section="home">Administration</button><span aria-hidden="true">/</span><span aria-current="page">Overview</span></nav>');
+  if (!document.querySelector('#admin-breadcrumb-styles')) { const style=document.createElement('style'); style.id='admin-breadcrumb-styles'; style.textContent='.admin-breadcrumbs{display:flex;align-items:center;gap:7px;margin:-12px 0 18px;color:#708077;font-size:12px}.admin-breadcrumbs button{border:0;padding:0;background:transparent;color:#315c3a;font:600 12px inherit;cursor:pointer;text-decoration:underline;text-underline-offset:2px}.admin-breadcrumbs [aria-current]{color:#536257;font-weight:600}'; document.head.append(style); }
+  const breadcrumbs = root.querySelector('.admin-breadcrumbs');
+  const updateBreadcrumbs = (section) => {
+    const current = section === 'home' ? 'Overview' : (sectionDetails[section]?.[0] || 'Administration');
+    breadcrumbs.querySelector('[aria-current="page"]').textContent = current;
+  };
+  breadcrumbs.querySelector('button').onclick = () => setSection('home');
 
   if (!submenu.querySelector('[data-admin-section="production"]')) submenu.insertAdjacentHTML('beforeend', '<button type="button" data-admin-section="production">Production</button><button type="button" data-admin-section="numbering">Purchase & lot numbers</button>');
   const overview = root.querySelector('#admin-overview');
@@ -43,6 +51,7 @@
       document.querySelector('#warehouse-view')?.classList.add('active');
       document.querySelector('#page-title').textContent = 'Warehouses';
       document.querySelector('#eyebrow').textContent = 'ADMINISTRATION';
+      updateBreadcrumbs(section);
       setExpanded(true);
       return;
     }
@@ -55,6 +64,7 @@
     document.querySelector('#page-title').textContent = 'Administration';
     document.querySelector('#eyebrow').textContent = 'JE OILS OPERATIONS';
     const detail = sectionDetails[section] || sectionDetails.people;
+    updateBreadcrumbs(section);
     root.dataset.adminSection = section;
     root.querySelector('#admin-section-title').textContent = detail[0];
     root.querySelector('#admin-section-description').textContent = detail[1];

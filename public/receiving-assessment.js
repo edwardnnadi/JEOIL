@@ -132,6 +132,59 @@ function receivingDecisionReason(form, receipt) {
   );
 }
 
+function receivingParameterKey(label = '') {
+  const normalised = label.toLowerCase().replace(/[^a-z]/g, '');
+  return { quantity: 'qty', oilcontent: 'oilContent', ffa: 'ffa', moisture: 'moisture', damagedkernels: 'damaged', damaged: 'damaged', foreignmatter: 'foreignMatter', aflatoxin: 'aflatoxin' }[normalised];
+}
+
+function receivingMeetsStandard(value, operator, limit) {
+  if (value === null || !Number.isFinite(Number(limit))) return null;
+  const measured = Number(value), threshold = Number(limit);
+  return ({ '≥': measured >= threshold, '>': measured > threshold, '≤': measured <= threshold, '<': measured < threshold, '=': measured === threshold })[operator] ?? null;
+}
+
+function addReceivingDecisionPanel(form, panel, getStandard, existingReceipt) {
+  const grid = panel?.querySelector('.form-grid');
+  if (!grid || grid.querySelector('.receiving-decision-review')) return;
+  const review = document.createElement('section');
+  review.className = 'field full receiving-decision-review';
+  review.innerHTML = '<label>Purchase, delivery and JE Oils Standard</label><div class="item-note">Review the measured change and JE Oils Standard before choosing the final disposition.</div><div class="receiving-comparison-wrap"><table class="receiving-comparison"><thead><tr><th>Measure</th><th>Quality check at purchase</th><th>Quality check at delivery</th><th>Change</th></tr></thead><tbody data-receiving-decision-rows></tbody></table></div><div class="receiving-recommendation" role="status" aria-live="polite"></div>';
+  grid.prepend(review);
+  review._getStandard = getStandard;
+  form._receivingReceipt = existingReceipt || null;
+  refreshReceivingDecision(form);
+}
+
+function refreshReceivingDecision(form) {
+  const review = form.querySelector('.receiving-decision-review');
+  if (!review) return;
+  const purchase = data.purchases.find(entry => entry.id === +form.elements.purchaseId?.value);
+  const receipt = purchase ? receiptForPurchase(purchase) : (form._receivingReceipt || {});
+  const assessment = receipt.purchaseQuality || {};
+  const standard = review._getStandard?.() || itemStandard?.(form.elements.item?.value, form.elements.category?.value) || { name: 'JE Oils Standard', parameters: [] };
+  const rows = review.querySelector('[data-receiving-decision-rows]');
+  const delivery = form._deliveryReadings || {};
+  rows.innerHTML = receivingComparisonFields.map(([key, label, unit, sourceKey]) => {
+    const before = key === 'qty' ? receipt[sourceKey] ?? receipt.qty : assessment[key];
+    const after = delivery[key] ?? form.elements[key]?.value;
+    const difference = comparisonNumber(after) === null || comparisonNumber(before) === null ? '—' : `${Number(after) - Number(before) > 0 ? '+' : ''}${Number((Number(after) - Number(before)).toFixed(2))}${unit ? ` ${unit}` : ''}`;
+    return `<tr><th scope="row">${label}</th><td>${comparisonValue(before, unit || receipt.unit || '')}</td><td>${comparisonNumber(after) === null ? 'Not recorded' : comparisonValue(after, unit || receipt.unit || '')}</td><td>${difference}</td></tr>`;
+  }).join('');
+  const checked = (standard.parameters || []).map(parameter => {
+    const key = receivingParameterKey(parameter.label);
+    const value = key ? comparisonNumber(delivery[key] ?? form.elements[key]?.value) : null;
+    return { parameter, value, outcome: receivingMeetsStandard(value, parameter.operator, parameter.limit) };
+  }).filter(item => item.outcome !== null);
+  const failures = checked.filter(item => !item.outcome);
+  const recommendation = review.querySelector('.receiving-recommendation');
+  if (!checked.length) recommendation.innerHTML = `<strong>Recommendation unavailable</strong><span>Enter delivery readings for the configured ${goodsEscape(standard.name || 'JE Oils Standard')} parameters.</span>`;
+  else if (!failures.length) recommendation.innerHTML = `<strong>Recommended: Accept</strong><span>All ${checked.length} recorded reading${checked.length === 1 ? '' : 's'} meet the ${goodsEscape(standard.name || 'JE Oils Standard')}.</span>`;
+  else recommendation.innerHTML = `<strong>Recommended: ${failures.length > 1 ? 'Reject' : 'Hold'}</strong><span>${failures.map(item => goodsEscape(item.parameter.label)).join(', ')} ${failures.length === 1 ? 'is' : 'are'} outside the ${goodsEscape(standard.name || 'JE Oils Standard')}. ${failures.length > 1 ? 'Reject or escalate for a documented exception.' : 'Hold for review or retest.'}</span>`;
+  recommendation.className = `receiving-recommendation ${!checked.length ? 'is-pending' : !failures.length ? 'is-accept' : failures.length > 1 ? 'is-reject' : 'is-hold'}`;
+}
+window.addReceivingDecisionPanel = addReceivingDecisionPanel;
+window.refreshReceivingDecision = refreshReceivingDecision;
+
 function receivingRefresh(form, receipt) {
   const live = {
     qty: form.elements.qty?.value,
@@ -231,5 +284,7 @@ receivingStyle.textContent =
   '.qc-change-value{transition:background-color .15s ease}.qc-change-value.is-better{color:#285f32;background:rgb(126 185 117 / var(--qc-heat,.12));font-weight:700}.qc-change-value.is-worse{color:#8d3029;background:rgb(211 115 103 / var(--qc-heat,.12));font-weight:700}.qc-change-value.is-same{color:#5d625b;background:rgb(157 164 152 / var(--qc-heat,.08))}.qc-change-value.is-unavailable{color:#6d6e64}' +
   '.receiving-comparison,.receiving-settlement{margin-bottom:6px}'+
   '.rv-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'+
-  '.rv-table{min-width:420px}';
+  '.rv-table{min-width:420px}' +
+  '.receiving-recommendation{display:grid;gap:3px;margin-top:12px;padding:10px 12px;border:1px solid;border-radius:7px;font-size:13px;line-height:1.4}' +
+  '.receiving-recommendation span{font-size:12px}.receiving-recommendation.is-pending{color:#6b5417;background:#fbf1dc;border-color:#e6cf9a}.receiving-recommendation.is-accept{color:#285f32;background:#edf6ea;border-color:#bfd7b9}.receiving-recommendation.is-hold{color:#765118;background:#fff5df;border-color:#e4cc96}.receiving-recommendation.is-reject{color:#8c2b21;background:#fbe9e7;border-color:#e3b3ac}';
 document.head.append(receivingStyle);

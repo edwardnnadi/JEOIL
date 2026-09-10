@@ -119,11 +119,9 @@ function initialQualityComparisonRows(receipt,assessment){
   }).join('');
 }
 function initialQualityCard(receipt={}){
-  const assessment=receipt.purchaseQuality;
-  if(!assessment)return '<div class="field full initial-quality-card"><label>Initial purchase quality assessment</label><div class="item-note">No purchase-time assessment was recorded for this legacy purchase.</div></div>';
-  const result=`Oil Content ${goodsNumber(assessment.oilContent)===''?'—':goodsNumber(assessment.oilContent)+'%'} · FFA ${goodsNumber(assessment.ffa)===''?'—':goodsNumber(assessment.ffa)+'%'}<br>Moisture ${goodsNumber(assessment.moisture)===''?'—':goodsNumber(assessment.moisture)+'%'} · Damaged ${goodsNumber(assessment.damaged)===''?'—':goodsNumber(assessment.damaged)+'%'} · Foreign matter ${goodsNumber(assessment.foreignMatter)===''?'—':goodsNumber(assessment.foreignMatter)+'%'} · Aflatoxin ${goodsNumber(assessment.aflatoxin)===''?'—':goodsNumber(assessment.aflatoxin)+' ppb'}`;
-  const statusHistory=(assessment.statusHistory||[]).map(entry=>`${goodsEscape(entry.from||'—')} → ${goodsEscape(entry.to||'—')} · ${goodsEscape(entry.changedAt||'—')} · ${goodsEscape(entry.changedBy||'—')}: ${goodsEscape(entry.reason||'—')}`).join('<br>')||'No field QC status changes recorded.';
-  return `<div class="field full initial-quality-card"><label>Quality checks: purchase and delivery</label><div class="item-note">${result}<br>Test reference: ${goodsEscape(assessment.testReference||'—')} · Inspected: ${goodsEscape(assessment.testedAt||'—')}<br>Inspector: ${goodsEscape(assessment.inspector||'—')} · Condition: ${goodsEscape(assessment.condition||'—')} · Field QC status: ${goodsEscape(assessment.status||assessment.decision||'Assess')}<br>Status history: ${statusHistory}<br>Notes: ${goodsEscape(assessment.notes||'—')}</div><div class="receiving-comparison-wrap"><table class="receiving-comparison"><thead><tr><th>Measure</th><th>Quality check at purchase</th><th>Quality check at delivery</th><th>Change</th></tr></thead><tbody>${initialQualityComparisonRows(receipt,assessment)}</tbody></table></div></div>`;
+  // Purchase/delivery notes were deliberately removed from the inspection
+  // screen. The live comparison now belongs with the receiving decision.
+  return '';
 }
 
 function refreshInitialQualityComparison(form){
@@ -167,7 +165,7 @@ function openGoodsInward(receipt){
     purchaseField.insertAdjacentElement('afterend',ordered);
   }
   const createdByField=[...form.querySelectorAll('.field')].find(field=>field.querySelector('label')?.textContent==='Created by');
-  if(createdByField)createdByField.innerHTML=`<label>Created by</label><input name="createdBy" list="goods-inwards-people" value="${goodsEscape(receipt?.createdBy||currentOperator?.()?.name||'')}" placeholder="Select or type station officer"><datalist id="goods-inwards-people">${data.people.map(person=>`<option value="${goodsEscape(person.name)}">`).join('')}</datalist>`;
+  if(createdByField){const createdBy=receipt?.createdBy||currentOperator?.()?.name||'';createdByField.innerHTML=`<label>Created by</label><select name="createdBy" required><option value="">Select a staff member</option>${data.people.filter(person=>person.name).map(person=>`<option value="${goodsEscape(person.name)}" ${person.name===createdBy?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||person.type||'Staff')}</option>`).join('')}</select>`;}
   form.elements.purchaseId.onchange=()=>fillGoodsFromPurchase(form,data.purchases.find(purchase=>purchase.id===+form.elements.purchaseId.value));
   form.elements.item.onchange=()=>{const item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;form.elements.unit.value=item.unit}};
   receivingComparisonFields.forEach(([key])=>form.elements[key]?.addEventListener('input',()=>refreshInitialQualityComparison(form)));
