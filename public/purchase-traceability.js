@@ -206,9 +206,13 @@ $('#record-form').addEventListener('submit',event=>{
   event.stopImmediatePropagation();
   const values=formData(form),person=data.people.find(entry=>entry.id===+values.purchasedById),operator=currentOperator?.()||data.people.find(entry=>entry.type==='User');
   const attachments=form.__traceAttachments||[];
-  const purchaseId=nextPurchaseReference();
+  const requestedReference=values.purchaseNumberChoice||'__auto__';
+  const pendingStages=['Quote','Ordered','QC inspection','QC accepted','QC hold / retest','In transit'];
+  const existingPurchase=data.purchases.find(purchase=>purchase.purchaseId===requestedReference&&purchase.supplier===values.supplier&&pendingStages.includes(purchase.status||'Quote'));
+  if(requestedReference!=='__auto__'&&!existingPurchase){alert('That purchase number is no longer available for this supplier. Select the next generated number or an undelivered purchase number.');return;}
+  const purchaseId=existingPurchase?.purchaseId||nextPurchaseReference();
   const purchaseQuality=purchaseQualityFromForm(values);
-  const purchase={id:id(),purchaseId,date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:values.createdBy||operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),lotNo:values.lotNo?.trim()||lotReference(purchaseId),originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,attachments,stockReceived:false,qualityStatus:purchaseQuality.decision};
+  const purchase={id:id(),purchaseId,date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:values.createdBy||operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,itemDescription:values.itemDescription?.trim()||'',supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),lotNo:values.lotNo?.trim()||lotReference(purchaseId),originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,attachments,stockReceived:false,qualityStatus:purchaseQuality.decision};
   data.purchases.unshift(purchase);save();render();$('#record-dialog').close();
 },true);
 
@@ -219,7 +223,7 @@ $('#record-form').addEventListener('submit',event=>{
   event.stopImmediatePropagation();
   const values=formData(form),purchase=data.purchases.find(entry=>entry.id===+form.dataset.editId),person=data.people.find(entry=>entry.id===+values.purchasedById);
   const purchaseQuality=purchaseQualityFromForm(values);
-  Object.assign(purchase,{date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),lotNo:values.lotNo?.trim()||'',originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,qualityStatus:purchaseQuality.decision,attachments:form.__traceAttachments||purchase.attachments||[]});
+  Object.assign(purchase,{date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',item:values.item,itemDescription:values.itemDescription?.trim()||'',supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),lotNo:values.lotNo?.trim()||'',originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,qualityStatus:purchaseQuality.decision,attachments:form.__traceAttachments||purchase.attachments||[]});
   save();render();$('#record-dialog').close();
 },true);
 
