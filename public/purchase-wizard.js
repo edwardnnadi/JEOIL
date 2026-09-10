@@ -75,7 +75,7 @@ function buildPurchaseWizard(form){
   if(!allFields.length)return;
   bindPurchaseMoneyFields(form);
   const groups=[
-    {title:'Purchase details',help:'Record the commercial and item details.',names:['status','purchasedDate','purchasedById','category','item','supplier','qty','unit','unitPrice','cost']},
+    {title:'Purchase details',help:'Record the commercial and item details.',names:['status','purchasedDate','purchasedById','category','item','itemDescription','supplier','qty','unit','unitPrice','cost']},
     {title:'Traceability',help:'Capture the source and supplier evidence for this lot.',names:['lotNo','originState','originLga','collectionSite','originCode','supplierReceiptId']},
     {title:'Field QC',help:'Record the initial QC inspection completed before collection. Any status change made after the purchase is saved requires a time and reason. Receiving quality is completed later in Goods Inwards.',names:['purchaseQcStatus','purchaseQcStatusHistory','purchaseQcTestRef','purchaseQcTestedAt','purchaseOilContent','purchaseFfa','purchaseInspectorId','purchaseMoisture','purchaseDamaged','purchaseForeignMatter','purchaseAflatoxin','purchaseCondition','purchaseDecision','purchaseNotes']},
     {title:'Attachments & review',help:'Attach supplier evidence and review before saving.',names:['attachmentsInput']}
