@@ -32,7 +32,7 @@ openModal=(type,pid)=>{
   populatedUnitsPurchaseModal(type,pid);
   if(type!=='purchase')return;
   let form=$('#record-form'),unit=form.elements.unit,qty=form.elements.qty,price=form.elements.unitPrice,total=form.elements.cost,description=form.elements.itemDescription;
-  unit.outerHTML=`<select name="unit" required><option value="" selected disabled>Select units</option>${data.units.map(value=>`<option value="${value}">${value}</option>`).join('')}</select>`;
+  unit.outerHTML=`<select name="unit" required><option value="" selected>Select units</option>${data.units.map(value=>`<option value="${value}">${value}</option>`).join('')}</select>`;
   unit=form.elements.unit;
   let quantityField=qty.closest('.field'),unitField=unit.closest('.field'),priceField=price.closest('.field'),totalField=total.closest('.field');
   quantityField.after(unitField);

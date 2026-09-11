@@ -14,10 +14,7 @@
     item.disabled = !choices.length;
     item.value = choices.some(entry => entry.name === preferred) ? preferred : (choices[0]?.name || '');
     const selected = choices.find(entry => entry.name === item.value);
-    if (selected) {
-      if (form.elements.unit && selected.unit) form.elements.unit.value = selected.unit;
-      if (form.elements.itemDescription) form.elements.itemDescription.value = selected.description || '';
-    }
+    if (selected && form.elements.itemDescription) form.elements.itemDescription.value = selected.description || '';
   }
 
   function bindCategoryItems(form) {
@@ -30,10 +27,7 @@
     category.addEventListener('change', () => syncItemsForCategory(form));
     item.addEventListener('change', () => {
       const selected = (data.items || []).find(entry => entry.name === item.value);
-      if (selected) {
-        if (form.elements.unit && selected.unit) form.elements.unit.value = selected.unit;
-        if (form.elements.itemDescription) form.elements.itemDescription.value = selected.description || '';
-      }
+      if (selected && form.elements.itemDescription) form.elements.itemDescription.value = selected.description || '';
     });
   }
 

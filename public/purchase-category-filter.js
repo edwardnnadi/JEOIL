@@ -27,7 +27,6 @@
   const applySelectedItem = (form) => {
     const selected = data.items.find((entry) => entry.name === form.elements.item?.value);
     if (!selected) return;
-    if (form.elements.unit && data.units.includes(selected.unit)) form.elements.unit.value = selected.unit;
     if (form.elements.itemDescription) form.elements.itemDescription.value = selected.description || '';
   };
 
