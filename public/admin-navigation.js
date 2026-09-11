@@ -9,7 +9,7 @@
     people: ['Users & People', 'Maintain application users and operational contacts.'],
     roles: ['Roles', 'Maintain the roles that can be assigned to people and users.'],
     items: ['Purchase Items', 'Maintain the approved items that can be selected on purchases.'],
-    catalogue: ['Categories & Units', 'Maintain the categories and default units used by purchase items.'],
+    catalogue: ['Categories, Units & Conversions', 'Maintain categories, default stock units and safe unit conversions used by receiving.'],
     machines: ['Machines', 'Configure production equipment, service intervals and hour-meter readings.'],
     production: ['Production', 'Manage production batch numbering and view the machines available to factory managers.'],
     numbering: ['Purchase, lot & Goods Inwards numbers', 'Configure the automatically generated purchase, lot and Goods Inwards references.'],
@@ -17,7 +17,7 @@
     activity: ['User activity log', 'Immutable sign-in and operational activity history.'],
   };
   const visiblePanels = {
-    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel'], machines: ['machines-panel'], production: ['production-master-panel'], numbering: ['purchase-number-panel'], lab: ['lab-tests-panel'], activity: ['activity-log-panel'],
+    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel', 'unit-conversions-panel'], machines: ['machines-panel'], production: ['production-master-panel'], numbering: ['purchase-number-panel'], lab: ['lab-tests-panel'], activity: ['activity-log-panel'],
   };
   const storageKey = 'je-oils-admin-submenu-expanded';
   if (!root.querySelector('.admin-breadcrumbs')) root.querySelector('.view-head').insertAdjacentHTML('afterend', '<nav class="admin-breadcrumbs" aria-label="Administration breadcrumb"><button type="button" data-admin-section="home">Administration</button><span aria-hidden="true">/</span><span aria-current="page">Overview</span></nav>');
@@ -152,10 +152,54 @@
     render();
   }, true);
 
+  const unitEscape = (value = '') => String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  const addConversionsPanel = () => {
+    if (document.querySelector('#unit-conversions-panel')) return;
+    root.querySelector('.admin-section-grid').insertAdjacentHTML('beforeend', '<section class="panel table-panel admin-section-panel" id="unit-conversions-panel"><div class="panel-head"><div><h3>Unit conversions</h3><p>Define how a supplier receipt unit converts to the item’s base stock unit. Example: 1 drum = 200 L.</p></div><button class="secondary" id="add-unit-conversion">+ Add conversion</button></div><table><thead><tr><th>Receipt unit</th><th>Stock unit</th><th>Conversion</th><th></th></tr></thead><tbody id="unit-conversions-table"></tbody></table></section>');
+  };
+  const openConversionModal = (index) => {
+    const conversion = index === undefined ? {} : (data.unitConversions || [])[index] || {};
+    const options = (selected) => data.units.map(unit => `<option value="${unitEscape(unit)}" ${unit === selected ? 'selected' : ''}>${unitEscape(unit)}</option>`).join('');
+    document.querySelector('#modal-label').textContent = conversion.fromUnit ? 'EDIT UNIT CONVERSION' : 'NEW UNIT CONVERSION';
+    document.querySelector('#modal-title').textContent = conversion.fromUnit ? 'Edit unit conversion' : 'Add unit conversion';
+    document.querySelector('#form-fields').innerHTML = `<div class="form-grid"><div class="field"><label>Receipt unit</label><select name="fromUnit" required>${options(conversion.fromUnit)}</select></div><div class="field"><label>Base stock unit</label><select name="toUnit" required>${options(conversion.toUnit)}</select></div><div class="field full"><label>Conversion factor</label><input name="factor" type="number" min="0.000001" step="any" value="${unitEscape(conversion.factor || '')}" required><div class="item-note">Enter the number of base units in 1 receipt unit. Example: 1 drum = 200 L, so use 200.</div></div></div>`;
+    const form = document.querySelector('#record-form');
+    form.dataset.type = 'unit-conversion-admin';
+    form.dataset.conversionIndex = index === undefined ? '' : String(index);
+    document.querySelector('#record-dialog').showModal();
+  };
+  const renderConversions = () => {
+    addConversionsPanel();
+    data.unitConversions ??= [];
+    const table = document.querySelector('#unit-conversions-table');
+    table.innerHTML = data.unitConversions.map((conversion, index) => `<tr><td><strong>${unitEscape(conversion.fromUnit)}</strong></td><td>${unitEscape(conversion.toUnit)}</td><td>1 ${unitEscape(conversion.fromUnit)} = ${Number(conversion.factor).toLocaleString()} ${unitEscape(conversion.toUnit)}</td><td><button type="button" class="text-btn edit-unit-conversion" data-index="${index}">Edit</button> <button type="button" class="text-btn delete-unit-conversion" data-index="${index}">Delete</button></td></tr>`).join('') || '<tr><td colspan="4">No conversions have been configured. Matching units post directly; other receipt units must have a conversion.</td></tr>';
+    document.querySelector('#add-unit-conversion').onclick = () => openConversionModal();
+    document.querySelectorAll('.edit-unit-conversion').forEach(button => button.onclick = () => openConversionModal(+button.dataset.index));
+    document.querySelectorAll('.delete-unit-conversion').forEach(button => button.onclick = () => {
+      const conversion = data.unitConversions[+button.dataset.index];
+      if (!conversion || !confirm(`Delete the conversion from ${conversion.fromUnit} to ${conversion.toUnit}?`)) return;
+      data.unitConversions.splice(+button.dataset.index, 1); save(); render();
+    });
+  };
+  document.querySelector('#record-form').addEventListener('submit', (event) => {
+    const form = event.currentTarget;
+    if (form.dataset.type !== 'unit-conversion-admin') return;
+    event.stopImmediatePropagation(); event.preventDefault();
+    const values = formData(form), factor = Number(values.factor), index = form.dataset.conversionIndex;
+    if (values.fromUnit === values.toUnit || !Number.isFinite(factor) || factor <= 0) { alert('Choose two different units and enter a conversion greater than zero.'); return; }
+    data.unitConversions ??= [];
+    const duplicate = data.unitConversions.some((entry, entryIndex) => (index === '' || entryIndex !== +index) && entry.fromUnit.toLowerCase() === values.fromUnit.toLowerCase() && entry.toUnit.toLowerCase() === values.toUnit.toLowerCase());
+    if (duplicate) { alert('A conversion for these two units already exists. Edit the existing conversion instead.'); return; }
+    const conversion = { fromUnit: values.fromUnit, toUnit: values.toUnit, factor };
+    if (index === '') data.unitConversions.push(conversion); else data.unitConversions[+index] = conversion;
+    save(); document.querySelector('#record-dialog').close(); render();
+  }, true);
+
   const priorRender = render;
   render = () => {
     priorRender();
     renderUnits();
+    renderConversions();
     renderOverview();
     if (root.classList.contains('active') || document.querySelector('#warehouse-view')?.classList.contains('active')) {
       setSection(root.dataset.adminSection || 'people');

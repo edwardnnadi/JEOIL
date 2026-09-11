@@ -1,11 +1,15 @@
 // Guided receiving workflow: receipt selection, quality comparison, decision, then warehouse assignment.
 function buildGoodsInwardsWizard(form,receipt){
-  const area=$('#form-fields'),allFields=[...area.querySelectorAll('.field')];
+  const area=$('#form-fields');let allFields=[...area.querySelectorAll('.field')];
   // The flag alone is not enough: #form-fields is re-rendered on every open, so
   // a sticky 'ready' left the second and later receipts with a flat form and no
   // wizard at all. Confirm the wizard is actually still in the DOM.
   if(form.dataset.goodsWizard==='ready'&&area.querySelector('.goods-inwards-wizard'))return;
   if(!allFields.length)return;
+  // Keep the purchase's QC batch reference visible while the receiver works
+  // through every receiving and quality step.
+  const pinnedFields=allFields.filter(field=>field.querySelector('label')?.textContent==='QC Batch Reference');
+  allFields=allFields.filter(field=>!pinnedFields.includes(field));
   const groups=[
     {title:'Select goods to receive',help:'Choose the purchase being received. Its supplier, item and ordered quantity will be brought through automatically.',names:['goodsInwardsId','purchaseId','receivedDate','quantityOrdered','supplier','item','category','unit','receivedBy']},
     {title:'Inspect quality',help:'Enter the factory findings, then review the collection-versus-factory comparison below.',names:['batch','qualityDate','qty','oilContent','ffa','moisture','damaged','foreignMatter','aflatoxin','qualityCheckOfficerId']},
@@ -28,6 +32,7 @@ function buildGoodsInwardsWizard(form,receipt){
   const wizard=document.createElement('div');wizard.className='goods-inwards-wizard';
   const progress=document.createElement('div');progress.className='wizard-progress';
   groups.forEach((group,index)=>progress.insertAdjacentHTML('beforeend',`<button type="button" data-step="${index}" aria-label="Go to step ${index+1}: ${group.title}"><b>${index+1}</b>${group.title}</button>`));wizard.append(progress);
+  if(pinnedFields.length){const pinned=document.createElement('section');pinned.className='goods-wizard-pinned';pinned.style.cssText='display:grid;grid-template-columns:minmax(0,1fr);margin:0 0 14px;padding:11px 12px;border:1px solid #ded6b3;border-radius:8px;background:#fbf8ed';pinnedFields.forEach(field=>pinned.append(field));wizard.append(pinned);}
   const standardFor=()=>{
     const purchase=data.purchases.find(entry=>entry.id===+form.elements.purchaseId?.value);
     return itemStandard?.(form.elements.item?.value||purchase?.item,form.elements.category?.value||purchase?.category)||categoryStandard?.(form.elements.category?.value||purchase?.category)||peanutStandard||{name:'JE Oils Standard',parameters:[]};

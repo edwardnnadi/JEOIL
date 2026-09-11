@@ -11,7 +11,7 @@
   const installPurchaseNumberChoice = (form) => {
     const numberField = [...form.querySelectorAll('.field')].find((field) => field.querySelector('label')?.textContent.trim() === 'Purchase ID');
     if (!numberField || form.elements.purchaseNumberChoice) return;
-    numberField.innerHTML = '<label>Purchase number</label><select name="purchaseNumberChoice"></select><div class="item-note">Use the next generated number, or add this item to an undelivered purchase for the selected supplier.</div>';
+      numberField.innerHTML = '<label>Purchase number</label><select name="purchaseNumberChoice" data-keep-default="true"></select><div class="item-note">Use the next generated number, or add this item to an undelivered purchase for the selected supplier.</div>';
     const selector = form.elements.purchaseNumberChoice;
     const syncLotNumber = () => {
       const purchaseId = selector.value === '__auto__' ? purchaseReference() : selector.value;
