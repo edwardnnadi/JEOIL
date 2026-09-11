@@ -84,7 +84,7 @@ function purchaseLifecycleRows() {
     && (item === 'all' || purchase.item === item)
     && (!from || String(purchase.date) >= from)
     && (!to || String(purchase.date) <= to)
-    && `${purchase.purchaseId || ''} ${purchase.item} ${purchase.supplier}`.toLowerCase().includes(search),
+    && `${purchase.purchaseId || ''} ${purchase.item} ${purchase.itemDescription || ''} ${purchase.supplier}`.toLowerCase().includes(search),
   );
 }
 
@@ -115,7 +115,7 @@ function renderPurchaseLifecycle() {
   if (statusFilter && ![...statusFilter.options].some((option) => option.value === 'Quote')) statusFilter.insertAdjacentHTML('afterbegin', '<option>Quote</option>');
   const table = $('#purchases-table')?.closest('table');
   if (!table) return;
-  table.querySelector('thead').innerHTML = '<tr><th>Date</th><th>Ordered at</th><th>Purchase / item</th><th>Supplier</th><th>Quantity</th><th>Logistics status</th><th>Warehouse</th><th>QC</th><th>Total</th><th></th></tr>';
+  table.querySelector('thead').innerHTML = '<tr><th>Date</th><th>Ordered at</th><th>Purchase / item</th><th>Item description</th><th>Supplier</th><th>Quantity</th><th>Logistics status</th><th>Warehouse</th><th>QC</th><th>Total</th><th></th></tr>';
   const rows = purchaseLifecycleRows();
   $('#purchases-table').innerHTML = rows.map((purchase) => {
     const lifecycle = lifecycleFor(purchase);
@@ -123,6 +123,7 @@ function renderPurchaseLifecycle() {
       <td>${date(purchase.date)}</td>
       <td>${purchase.createdAt ? new Date(purchase.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '<span class="purchase-muted">Not recorded</span>'}</td>
       <td><strong>${lifecycleEscape(purchase.item)}</strong><div class="item-note">${lifecycleEscape(purchase.purchaseId || `Purchase ${purchase.id}`)}${purchase.lotNo ? ` · Lot: ${lifecycleEscape(purchase.lotNo)}` : ''}</div></td>
+      <td>${purchase.itemDescription ? lifecycleEscape(purchase.itemDescription) : '<span class="purchase-muted">Not recorded</span>'}</td>
       <td>${lifecycleEscape(purchase.supplier)}</td>
       <td>${Number(purchase.qty || 0).toLocaleString()} ${lifecycleEscape(purchase.unit)}</td>
       <td>${purchaseLogisticsSelect(purchase)}<div class="item-note">${lifecycle.detail}</div></td>
@@ -131,7 +132,7 @@ function renderPurchaseLifecycle() {
       <td><strong>${money(purchase.cost)}</strong></td>
       <td>${lifecycle.label==='Quote'?`<button class="text-btn download-quote" data-purchase-id="${purchase.id}">Download quote</button> `:''}${!purchase.stockReceived&&!['Quote','Rejected'].includes(lifecycle.label)?`<button class="text-btn receive-purchase" data-purchase-id="${purchase.id}">Receive goods</button> `:''}${editButton('purchase', purchase.id)}${canDeleteRecords?.()?` <button class="text-btn delete-purchase-direct" data-purchase-id="${purchase.id}">Delete</button>`:''}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="10">No purchases match your search.</td></tr>';
+  }).join('') || '<tr><td colspan="11">No purchases match your search.</td></tr>';
 }
 
 const lifecycleRender = render;
