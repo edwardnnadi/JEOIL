@@ -26,6 +26,12 @@
   }
   const addEmployeeButton = $('#add-employee');
   addEmployeeButton.onclick = employeeModal;
+  const syncEmployeeButton = () => {
+    addEmployeeButton.hidden = $('#admin-view')?.dataset.adminSection !== 'people';
+  };
+  document.querySelectorAll('[data-admin-section], .nav-item:not(.admin-parent)').forEach((button) => {
+    button.addEventListener('click', syncEmployeeButton);
+  });
   $('#record-form').addEventListener('submit', (event) => {
     const form = event.currentTarget;
     if (form.dataset.type !== 'employee') return;
@@ -49,9 +55,9 @@
   const renderBeforeEmployees = render;
   render = () => {
     renderBeforeEmployees();
-    // Administration continues to control visibility of its original user
-    // action. Mirror that state for the independent employee action.
-    addEmployeeButton.hidden = addPersonButton.hidden;
+    // Employees are managed only from Admin → Users & People. Do not expose
+    // this operational master-data action in other Admin sections or views.
+    syncEmployeeButton();
   };
 
   function replaceWithEmployeeSelect(form, name, selectedName) {
