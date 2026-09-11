@@ -14,10 +14,10 @@ function lifecycleFor(purchase) {
   if (receipt?.decision === 'Rejected' || purchase.status === 'Rejected') {
     return { label: 'Rejected', detail: 'Not collected; no warehouse stock', tone: 'rejected', receipt };
   }
-  if (receipt?.warehouseId || purchase.warehouseId || purchase.status === 'Moved to warehouse') {
+  if (purchase.status === 'Moved to warehouse' || receipt?.warehouseId || purchase.warehouseId) {
     return { label: 'Moved to warehouse', detail: receipt?.warehouseId ? 'Warehouse movement recorded' : 'Warehouse assignment required', tone: 'stored', receipt };
   }
-  if (receipt?.arrivedAt || (receipt?.decision && receipt.decision !== 'Assess') || purchase.status === 'Arrived at factory' || purchase.status === 'Arrived' || purchase.status === 'Received') {
+  if (purchase.status === 'Arrived at factory' || purchase.status === 'Arrived' || purchase.status === 'Received') {
     return { label: 'Arrived at factory', detail: 'Awaiting QC / warehouse assignment', tone: 'arrived', receipt };
   }
   if (purchase.status === 'QC inspection') return { label: 'QC inspection', detail: 'Inspection is in progress at supplier site', tone: 'inspection', receipt };
@@ -55,15 +55,12 @@ function purchaseQcSelect(purchase) {
 }
 
 function purchaseLogisticsStage(purchase) {
-  if (purchase.status === 'Quote') return 'Quote';
-  if (purchase.status === 'In transit') return 'In transit';
-  if (purchase.status === 'Delivered' || purchase.status === 'Arrived at factory' || purchase.status === 'Moved to warehouse') return 'Delivered';
-  return 'Ordered';
+  return ['Quote','Ordered','QC inspection','QC accepted','In transit','Arrived at factory','Moved to warehouse','Rejected'].includes(purchase.status) ? purchase.status : 'Ordered';
 }
 
 function purchaseLogisticsSelect(purchase) {
   const stage = purchaseLogisticsStage(purchase);
-  return `<select class="purchase-logistics-select" data-purchase-id="${purchase.id}" aria-label="Logistics status for ${lifecycleEscape(purchase.purchaseId || purchase.item)}">${['Quote','Ordered','In transit','Delivered'].map((option) => `<option ${option === stage ? 'selected' : ''}>${option}</option>`).join('')}</select>`;
+  return `<select class="purchase-logistics-select" data-purchase-id="${purchase.id}" aria-label="Purchase stage for ${lifecycleEscape(purchase.purchaseId || purchase.item)}">${['Quote','Ordered','QC inspection','QC accepted','In transit','Arrived at factory','Moved to warehouse','Rejected'].map((option) => `<option ${option === stage ? 'selected' : ''}>${option}</option>`).join('')}</select>`;
 }
 
 function purchaseLifecycleRows() {
@@ -132,7 +129,7 @@ function renderPurchaseLifecycle() {
       <td>${lifecycleWarehouse(lifecycle, purchase)}</td>
       <td>${purchaseQcSelect(purchase)}</td>
       <td><strong>${money(purchase.cost)}</strong></td>
-      <td>${!purchase.stockReceived&&!['Quote','Rejected'].includes(lifecycle.label)?`<button class="text-btn receive-purchase" data-purchase-id="${purchase.id}">Receive goods</button> `:''}${editButton('purchase', purchase.id)}${canDeleteRecords?.()?` <button class="text-btn delete-purchase-direct" data-purchase-id="${purchase.id}">Delete</button>`:''}</td>
+      <td>${lifecycle.label==='Quote'?`<button class="text-btn download-quote" data-purchase-id="${purchase.id}">Download quote</button> `:''}${!purchase.stockReceived&&!['Quote','Rejected'].includes(lifecycle.label)?`<button class="text-btn receive-purchase" data-purchase-id="${purchase.id}">Receive goods</button> `:''}${editButton('purchase', purchase.id)}${canDeleteRecords?.()?` <button class="text-btn delete-purchase-direct" data-purchase-id="${purchase.id}">Delete</button>`:''}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="10">No purchases match your search.</td></tr>';
 }
@@ -190,7 +187,7 @@ function openWarehouseAssignmentDialog(purchase, select) {
   overlay.querySelector('.delivery-save').onclick = () => {
     const warehouse = warehouses.find(entry => entry.id === +overlay.querySelector('.delivery-warehouse').value);
     if (!warehouse) return;
-    purchase.status = 'Delivered';
+    purchase.status = 'Moved to warehouse';
     purchase.warehouseId = warehouse.id;
     purchase.warehouseName = warehouse.name;
     purchase.warehouseAssignedDate = new Date().toISOString().slice(0, 10);
@@ -210,9 +207,12 @@ document.addEventListener('change', (event) => {
   if (!logistics) return;
   const purchase = data.purchases.find(entry => entry.id === +logistics.dataset.purchaseId);
   if (!purchase || logistics.value === purchaseLogisticsStage(purchase)) return;
-  if (logistics.value === 'Delivered') { openWarehouseAssignmentDialog(purchase, logistics); return; }
+  const nextStages={Quote:'Ordered',Ordered:'QC inspection','QC inspection':'QC accepted','QC accepted':'In transit','In transit':'Arrived at factory','Arrived at factory':'Moved to warehouse'};
+  if (logistics.value==='Rejected') { purchase.status='Rejected'; save(); render(); return; }
+  if (nextStages[purchaseLogisticsStage(purchase)]!==logistics.value) { alert(`Move this record through the workflow in order. The next stage is ${nextStages[purchaseLogisticsStage(purchase)]||'not available'}.`); logistics.value=purchaseLogisticsStage(purchase); return; }
+  if (logistics.value === 'Moved to warehouse') { openWarehouseAssignmentDialog(purchase, logistics); return; }
   purchase.status = logistics.value;
-  if (logistics.value !== 'Delivered') {
+  if (logistics.value !== 'Moved to warehouse') {
     delete purchase.warehouseId; delete purchase.warehouseName; delete purchase.warehouseAssignedDate;
   }
   save(); render();

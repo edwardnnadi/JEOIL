@@ -1,5 +1,6 @@
-// Final purchase-wizard binding. Item Purchased is deliberately independent
-// of Category: buyers choose from the full approved item catalogue.
+// Final purchase-wizard binding. Category is the source of truth for the
+// available items: a buyer must not be able to select an item from another
+// category.
 (() => {
   const escapeOption = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 
@@ -36,7 +37,8 @@
     // lookup to obtain this purchase form's `<select name="item">`.
     const item = form.elements.namedItem('item');
     if (!item) return;
-    const available = data.items;
+    const category = form.elements.namedItem('category');
+    const available = data.items.filter((entry) => entry.category === category?.value);
     item.innerHTML = available.length
       ? available.map((entry) => `<option value="${escapeOption(entry.name)}">${escapeOption(entry.name)}</option>`).join('')
       : '<option value="">No Purchase Items available</option>';
@@ -53,6 +55,8 @@
     const item = form?.elements.namedItem('item');
     if (!form || !item) return;
     populateItems(form, item.value);
+    const category = form.elements.namedItem('category');
+    category?.addEventListener('change', () => populateItems(form));
     item.addEventListener('change', () => applySelectedItem(form));
   };
 })();
