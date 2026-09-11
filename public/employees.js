@@ -20,7 +20,18 @@
     $('#record-dialog').showModal();
   }
 
-  $('#add-person').onclick = employeeModal;
+  const addPersonButton = $('#add-person');
+  if (!$('#add-employee')) {
+    addPersonButton.insertAdjacentHTML('afterend', '<button class="secondary" id="add-employee" hidden>+ Add employee</button>');
+  }
+  const addEmployeeButton = $('#add-employee');
+  addEmployeeButton.onclick = employeeModal;
+  const syncEmployeeButton = () => {
+    addEmployeeButton.hidden = $('#admin-view')?.dataset.adminSection !== 'people';
+  };
+  document.querySelectorAll('[data-admin-section], .nav-item:not(.admin-parent)').forEach((button) => {
+    button.addEventListener('click', syncEmployeeButton);
+  });
   $('#record-form').addEventListener('submit', (event) => {
     const form = event.currentTarget;
     if (form.dataset.type !== 'employee') return;
@@ -44,13 +55,9 @@
   const renderBeforeEmployees = render;
   render = () => {
     renderBeforeEmployees();
-    const panel = $('#people-panel');
-    if (!panel) return;
-    panel.querySelector('h3').textContent = 'Users & Employees';
-    panel.querySelector('.panel-head p').textContent = 'Employees are operational records only; users retain their existing application access.';
-    $('#add-person').textContent = '+ Add employee';
-    const rows = (data.people || []).map((person) => `<tr><td><strong>${esc(person.name)}</strong></td><td><span class="category">${esc(person.type === 'Person' ? 'Employee' : person.type)}</span></td><td>${esc(person.jobTitle || person.role || '—')}</td><td>${esc(person.email || person.phone || '—')}</td></tr>`).join('') || '<tr><td colspan="4">No users or employees yet.</td></tr>';
-    $('#people-table').innerHTML = rows;
+    // Employees are managed only from Admin → Users & People. Do not expose
+    // this operational master-data action in other Admin sections or views.
+    syncEmployeeButton();
   };
 
   function replaceWithEmployeeSelect(form, name, selectedName) {
