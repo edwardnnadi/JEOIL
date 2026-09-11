@@ -77,9 +77,12 @@ function buildPurchaseWizard(form){
   const groups=[
     {title:'Purchase details',help:'Record the commercial and item details.',names:['status','purchasedDate','purchasedById','category','item','itemDescription','supplier','qty','unit','unitPrice','cost']},
     {title:'Traceability',help:'Capture the source and supplier evidence for this lot.',names:['lotNo','originState','originLga','collectionSite','originCode','supplierReceiptId']},
-    {title:'Field QC',help:'Record the initial QC inspection completed before collection. Any status change made after the purchase is saved requires a time and reason. Receiving quality is completed later in Goods Inwards.',names:['purchaseQcStatus','purchaseQcStatusHistory','purchaseQcTestRef','purchaseQcTestedAt','purchaseOilContent','purchaseFfa','purchaseInspectorId','purchaseMoisture','purchaseDamaged','purchaseForeignMatter','purchaseAflatoxin','purchaseCondition','purchaseDecision','purchaseNotes']},
     {title:'Attachments & review',help:'Attach supplier evidence and review before saving.',names:['attachmentsInput']}
   ];
+  const qcNames=['purchaseQcStatus','purchaseQcStatusHistory','purchaseQcTestRef','purchaseQcTestedAt','purchaseOilContent','purchaseFfa','purchaseInspectorId','purchaseMoisture','purchaseDamaged','purchaseForeignMatter','purchaseAflatoxin','purchaseCondition','purchaseDecision','purchaseNotes'];
+  // Quotes deliberately stop before inspection: QC begins only once a chosen
+  // supplier quote has been advanced to Ordered.
+  if([...area.querySelectorAll('[name]')].some(input=>qcNames.includes(input.name))) groups.splice(2,0,{title:'Field QC',help:'Record the initial QC inspection completed before collection. Any status change made after the purchase is saved requires a time and reason. Receiving quality is completed later in Goods Inwards.',names:qcNames});
   const fieldGroup=field=>{
     const names=[...field.querySelectorAll('[name]')].map(input=>input.name);
     const label=field.querySelector('label')?.textContent||'';

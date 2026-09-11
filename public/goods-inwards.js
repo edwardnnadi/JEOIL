@@ -172,14 +172,46 @@ function receiptFields(receipt={}){
   return `<div class="form-grid"><div class="field"><label>Goods received date</label><input name="receivedDate" type="date" value="${goodsEscape(receipt.receivedDate||today)}" required></div><div class="field"><label>Link to purchase</label><select name="purchaseId"><option value="">Standalone receipt</option>${data.purchases.map(purchase=>`<option value="${purchase.id}" ${purchase.id===receipt.purchaseId?'selected':''}>${goodsEscape(purchaseLabel(purchase))}</option>`).join('')}</select></div>${purchaseTraceCard(receipt)}${initialQualityCard(receipt)}<div class="field"><label>Supplier</label><input name="supplier" value="${goodsEscape(receipt.supplier||'')}" required></div><div class="field"><label>Item received</label><select name="item" required>${data.items.map(item=>`<option value="${goodsEscape(item.name)}" ${item.name===receipt.item?'selected':''}>${goodsEscape(item.name)}</option>`).join('')}</select></div><div class="field"><label>Category</label><select name="category" required>${data.categories.map(category=>`<option ${category===receipt.category?'selected':''}>${goodsEscape(category)}</option>`).join('')}</select></div><div class="field"><label>Quantity received</label><input name="qty" type="number" min="0" step="any" value="${goodsEscape(receipt.qty??'')}" required></div><div class="field"><label>Receipt unit</label><select name="unit" required>${receiptUnits.map(unit=>`<option value="${goodsEscape(unit)}" ${unit===receipt.unit?'selected':''}>${goodsEscape(unit)}</option>`).join('')}</select><div class="item-note">Stock is posted in the item's base unit; conversions are managed in Administration.</div></div><div class="field"><label>Received by</label><select name="receivedBy">${data.people.map(person=>`<option ${person.name===(receipt.receivedBy||operator?.name)?'selected':''}>${goodsEscape(person.name)}</option>`).join('')}</select></div><div class="field"><label>Assign to warehouse</label><select name="warehouseId"><option value="">Not yet assigned</option>${(data.warehouses||[]).map(warehouse=>`<option value="${warehouse.id}" ${warehouse.id===receipt.warehouseId?'selected':''}>${goodsEscape(warehouse.name)} · ${goodsEscape(warehouse.location)}</option>`).join('')}</select><div class="item-note">Assigning posts the quantity to Stock on Hand.</div></div><div class="field"><label>Assigned by</label><select name="warehouseAssignedById"><option value="">Select a person</option>${data.people.map(person=>`<option value="${person.id}" ${person.id===receipt.warehouseAssignedById?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||person.type||'Person')}</option>`).join('')}</select></div><div class="field"><label>Warehouse assignment date</label><input name="warehouseAssignedDate" type="date" value="${goodsEscape(receipt.warehouseAssignedDate||today)}"></div><div class="field"><label>Created by</label><input value="${goodsEscape(receipt.createdBy||operator?.name||'Current user')}" readonly></div><div class="field"><label>Created date</label><input value="${goodsEscape((receipt.createdAt||today).slice(0,10))}" readonly></div>${goodsQualityFields(receipt)}</div>`;
 }
 
+// `HTMLFormControlsCollection.item` is a browser method, so the purchase-item
+// select must be resolved with namedItem rather than property access.
+const goodsFormControl=(form,name)=>form.elements.namedItem(name);
+
 function fillGoodsFromPurchase(form,purchase){
   if(!purchase)return;
-  form.elements.item.value=purchase.item;form.elements.supplier.value=purchase.supplier;form.elements.category.value=purchase.category;form.elements.qty.value=purchase.qty;form.elements.unit.value=purchase.unit;if(form.elements.quantityOrdered)form.elements.quantityOrdered.value=`${purchase.qty} ${purchase.unit||''}`.trim();
+  goodsFormControl(form,'item').value=purchase.item;form.elements.supplier.value=purchase.supplier;form.elements.category.value=purchase.category;form.elements.qty.value=purchase.qty;form.elements.unit.value=purchase.unit;if(form.elements.quantityOrdered)form.elements.quantityOrdered.value=`${purchase.qty} ${purchase.unit||''}`.trim();
   const current={purchaseId:purchase.id};syncReceiptFromPurchase(current,purchase);
   form.querySelector('.purchase-trace-card')?.replaceWith(document.createRange().createContextualFragment(purchaseTraceCard(current)));
   form.querySelector('.initial-quality-card')?.replaceWith(document.createRange().createContextualFragment(initialQualityCard(current)));
   if(form.elements.batch&&!form.elements.batch.value)form.elements.batch.value=purchase.lotNo||'';
   refreshInitialQualityComparison(form);
+}
+
+// A receipt linked to a purchase must retain the item's purchase traceability.
+// Keep these catalogue fields in the submitted form data, but prevent them from
+// being changed independently of the selected purchase.
+function setPurchaseLinkedFieldState(form,purchase){
+  const linked=Boolean(purchase);
+  ['supplier','item','category','unit'].forEach(name=>{
+    const field=goodsFormControl(form,name);
+    if(!field)return;
+    field.setAttribute('aria-readonly',String(linked));
+    field.tabIndex=linked?-1:0;
+    field.readOnly=linked;
+    field.style.pointerEvents=linked?'none':'';
+    field.style.backgroundColor=linked?'#f5f6f2':'';
+    field.title=linked?'Set by the linked purchase':'';
+    field.closest('.field')?.classList.toggle('purchase-linked-field',linked);
+  });
+  const itemField=goodsFormControl(form,'item')?.closest('.field');
+  if(itemField){
+    let note=itemField.querySelector('.purchase-linked-note');
+    if(linked&&!note){
+      note=document.createElement('div');
+      note.className='item-note purchase-linked-note';
+      note.textContent='Pulled from the selected purchase. Change the linked purchase to update this item.';
+      itemField.append(note);
+    }else if(!linked)note?.remove();
+  }
 }
 
 function openGoodsInward(receipt){
@@ -206,9 +238,12 @@ function openGoodsInward(receipt){
     // purchase must update that record rather than create a second receipt.
     form.dataset.receiptId=linkedReceipt?.id||'';
     fillGoodsFromPurchase(form,purchase);
+    setPurchaseLinkedFieldState(form,purchase);
     if(form.elements.qcBatchReference)form.elements.qcBatchReference.value=purchase?.purchaseQuality?.testReference||'';
   };
-  form.elements.item.onchange=()=>{const item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;form.elements.unit.value=item.unit}};
+  goodsFormControl(form,'item').onchange=()=>{const item=data.items.find(entry=>entry.name===goodsFormControl(form,'item').value);if(item){form.elements.category.value=item.category;form.elements.unit.value=item.unit}};
+  if(linkedPurchase)fillGoodsFromPurchase(form,linkedPurchase);
+  setPurchaseLinkedFieldState(form,linkedPurchase);
   receivingComparisonFields.forEach(([key])=>form.elements[key]?.addEventListener('input',()=>refreshInitialQualityComparison(form)));
   refreshInitialQualityComparison(form);
   $('#record-dialog').showModal();
@@ -242,6 +277,23 @@ function deleteReceipt(receipt){
 }
 
 const baseQualityRender=quality;quality=()=>renderGoodsInwards();
+
+// The legacy page is re-rendered by several independently loaded scripts.
+// Bind the primary receive action at document level so a later render cannot
+// silently replace the button's handler with the obsolete quality-assessment
+// action (or leave it without a handler).
+document.addEventListener('click',event=>{
+  const trigger=event.target.closest?.('#add-quality');
+  if(!trigger)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  try{openGoodsInward();}
+  catch(error){
+    console.error('Could not open the Goods Inwards wizard.',error);
+    alert(`The Goods Inwards wizard could not open: ${error?.message||'Unknown error'}`);
+  }
+},true);
+
 function adjustStockForWarehouseAssignment(previousItem,previousQty,record,isPreviouslyPosted){
   // Assigning a warehouse is not on its own enough to create stock: the QC
   // decision must be Accepted. Held and rejected material therefore has no

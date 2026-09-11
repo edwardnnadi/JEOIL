@@ -1,5 +1,7 @@
 // Purchasing is commercial approval/logistics; Goods Inwards is the physical receipt and quality release.
-const purchaseStages=['Quote','Ordered','QC inspection','QC accepted','QC hold / retest','In transit','Arrived at factory','Moved to warehouse','Rejected'];
+// Keep commercial and physical stages explicit.  A quote is a supplier offer,
+// not an order or a QC record.
+const purchaseStages=['Quote','Ordered','QC inspection','QC accepted','In transit','Arrived at factory','Moved to warehouse','Rejected'];
 function purchaseStageOptions(value){
   const selected=purchaseStages.includes(value)?value:'Quote';
   return purchaseStages.map(stage=>`<option ${stage===selected?'selected':''}>${stage}</option>`).join('');
