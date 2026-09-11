@@ -76,6 +76,10 @@ function ensureGoodsInwards(){
   data.purchases.forEach(purchase=>{
     let receipt=data.goodsInwards.find(record=>record.purchaseId===purchase.id);
     if(!receipt){receipt=receiptForPurchase(purchase);data.goodsInwards.unshift(receipt)}
+    // A deleted receipt remains as a hidden marker against its purchase. This
+    // prevents automatic placeholder creation, while allowing the same
+    // purchase to be received again through the normal wizard.
+    if(receipt.deleted){purchase.qualityStatus='Assess';purchase.stockReceived=false;return;}
     if(receipt.orderedQty===undefined)receipt.orderedQty=+purchase.qty;
     purchase.status=purchaseStageFor(purchase,receipt);
     purchase.qualityStatus=receipt.decision||'Assess';
@@ -169,7 +173,14 @@ function openGoodsInward(receipt){
   }
   const createdByField=[...form.querySelectorAll('.field')].find(field=>field.querySelector('label')?.textContent==='Created by');
   if(createdByField){const createdBy=receipt?.createdBy||currentOperator?.()?.name||'';createdByField.innerHTML=`<label>Created by</label><select name="createdBy" required><option value="">Select a staff member</option>${data.people.filter(person=>person.name).map(person=>`<option value="${goodsEscape(person.name)}" ${person.name===createdBy?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||person.type||'Staff')}</option>`).join('')}</select>`;}
-  form.elements.purchaseId.onchange=()=>fillGoodsFromPurchase(form,data.purchases.find(purchase=>purchase.id===+form.elements.purchaseId.value));
+  form.elements.purchaseId.onchange=()=>{
+    const purchase=data.purchases.find(entry=>entry.id===+form.elements.purchaseId.value);
+    const linkedReceipt=purchase&&data.goodsInwards.find(record=>record.purchaseId===purchase.id);
+    // Every purchase has one controlled Goods Inwards record. Selecting the
+    // purchase must update that record rather than create a second receipt.
+    form.dataset.receiptId=linkedReceipt?.id||'';
+    fillGoodsFromPurchase(form,purchase);
+  };
   form.elements.item.onchange=()=>{const item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;form.elements.unit.value=item.unit}};
   receivingComparisonFields.forEach(([key])=>form.elements[key]?.addEventListener('input',()=>refreshInitialQualityComparison(form)));
   refreshInitialQualityComparison(form);
@@ -179,24 +190,28 @@ function openGoodsInward(receipt){
 function renderGoodsInwards(){
   ensureGoodsInwards();const view=$('#quality-view');view.querySelector('.view-head h2').textContent='Goods inwards';view.querySelector('.view-head p').textContent='Receive goods, assess quality, and retain complete purchase traceability.';
   const add=$('#add-quality');add.textContent='+ Record goods received';add.onclick=()=>openGoodsInward();
-  $('#quality-stats').innerHTML=[['Receipts',data.goodsInwards.length],['Accepted',data.goodsInwards.filter(record=>record.decision==='Accepted').length],['Assess / hold / rejected',data.goodsInwards.filter(record=>['Assess','Hold','Rejected'].includes(record.decision)).length]].map(item=>`<div class="quality-stat"><small>${item[0]}</small><strong>${item[1]}</strong></div>`).join('');
+  const visibleReceipts=data.goodsInwards.filter(receipt=>!receipt.deleted);
+  $('#quality-stats').innerHTML=[['Receipts',visibleReceipts.length],['Accepted',visibleReceipts.filter(record=>record.decision==='Accepted').length],['Assess / hold / rejected',visibleReceipts.filter(record=>['Assess','Hold','Rejected'].includes(record.decision)).length]].map(item=>`<div class="quality-stat"><small>${item[0]}</small><strong>${item[1]}</strong></div>`).join('');
   $('#quality-table').parentElement.querySelector('thead').innerHTML='<tr><th>Received</th><th>Completed at</th><th>Goods / lot</th><th>Supplier / origin</th><th>Quantity</th><th>Warehouse</th><th>Inspection</th><th>Decision</th><th>Officer</th><th></th></tr>';
-  $('#quality-table').innerHTML=[...data.goodsInwards].sort((a,b)=>String(b.receivedDate).localeCompare(String(a.receivedDate))).map(receipt=>{const origin=[receipt.originLga,receipt.originState].filter(Boolean).join(', '),warehouse=(data.warehouses||[]).find(entry=>entry.id===receipt.warehouseId),warehouseText=warehouse?warehouse.name:'Not assigned',completed=receipt.finalizedAt||receipt.arrivedAt||receipt.createdAt;const result=`Oil ${goodsNumber(receipt.oilContent)===''?'—':goodsNumber(receipt.oilContent)+'%'} · FFA ${goodsNumber(receipt.ffa)===''?'—':goodsNumber(receipt.ffa)+'%'}<br>Moisture ${goodsNumber(receipt.moisture)===''?'—':goodsNumber(receipt.moisture)+'%'} · Damaged ${goodsNumber(receipt.damaged)===''?'—':goodsNumber(receipt.damaged)+'%'}<br>Foreign matter ${goodsNumber(receipt.foreignMatter)===''?'—':goodsNumber(receipt.foreignMatter)+'%'} · Aflatoxin ${goodsNumber(receipt.aflatoxin)===''?'—':goodsNumber(receipt.aflatoxin)+' ppb'}`;return `<tr><td>${date(receipt.receivedDate)}</td><td>${completed?new Date(completed).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'Not recorded'}</td><td><strong>${goodsEscape(receipt.item)}</strong><div class="item-note">${goodsEscape(receipt.purchaseReference||'Standalone receipt')} · Lot: ${goodsEscape(receipt.lotNo||receipt.batch||'—')}</div></td><td>${goodsEscape(receipt.supplier)}<div class="item-note">${goodsEscape(origin||'Origin not recorded')}</div></td><td>${(+receipt.qty).toLocaleString()} ${goodsEscape(receipt.unit)}${settlementNote(receipt)}</td><td>${goodsEscape(warehouseText)}<div class="item-note">${goodsEscape(receipt.warehouseAssignedBy||'—')} · ${receipt.warehouseAssignedDate?date(receipt.warehouseAssignedDate):'—'}</div></td><td class="quality-result">${result}</td><td>${receiptBadge(receipt.decision)}</td><td>${goodsEscape(receipt.qualityCheckOfficer||'—')}</td><td><button class="text-btn edit-receipt" data-receipt-id="${goodsEscape(receipt.id)}">Edit</button></td></tr>`;}).join('')||'<tr><td colspan="10">No goods received yet.</td></tr>';
+  $('#quality-table').innerHTML=[...visibleReceipts].sort((a,b)=>String(b.receivedDate).localeCompare(String(a.receivedDate))).map(receipt=>{const origin=[receipt.originLga,receipt.originState].filter(Boolean).join(', '),warehouse=(data.warehouses||[]).find(entry=>entry.id===receipt.warehouseId),warehouseText=warehouse?warehouse.name:'Not assigned',completed=receipt.finalizedAt||receipt.arrivedAt||receipt.createdAt;const result=`Oil ${goodsNumber(receipt.oilContent)===''?'—':goodsNumber(receipt.oilContent)+'%'} · FFA ${goodsNumber(receipt.ffa)===''?'—':goodsNumber(receipt.ffa)+'%'}<br>Moisture ${goodsNumber(receipt.moisture)===''?'—':goodsNumber(receipt.moisture)+'%'} · Damaged ${goodsNumber(receipt.damaged)===''?'—':goodsNumber(receipt.damaged)+'%'}<br>Foreign matter ${goodsNumber(receipt.foreignMatter)===''?'—':goodsNumber(receipt.foreignMatter)+'%'} · Aflatoxin ${goodsNumber(receipt.aflatoxin)===''?'—':goodsNumber(receipt.aflatoxin)+' ppb'}`;return `<tr><td>${date(receipt.receivedDate)}</td><td>${completed?new Date(completed).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'Not recorded'}</td><td><strong>${goodsEscape(receipt.item)}</strong><div class="item-note">${goodsEscape(receipt.purchaseReference||'Standalone receipt')} · Lot: ${goodsEscape(receipt.lotNo||receipt.batch||'—')}</div></td><td>${goodsEscape(receipt.supplier)}<div class="item-note">${goodsEscape(origin||'Origin not recorded')}</div></td><td>${(+receipt.qty).toLocaleString()} ${goodsEscape(receipt.unit)}${settlementNote(receipt)}</td><td>${goodsEscape(warehouseText)}<div class="item-note">${goodsEscape(receipt.warehouseAssignedBy||'—')} · ${receipt.warehouseAssignedDate?date(receipt.warehouseAssignedDate):'—'}</div></td><td class="quality-result">${result}</td><td>${receiptBadge(receipt.decision)}</td><td>${goodsEscape(receipt.qualityCheckOfficer||'—')}</td><td><button class="text-btn edit-receipt" data-receipt-id="${goodsEscape(receipt.id)}">Edit</button>${canDeleteRecords?.()?` <button class="text-btn delete-receipt" data-receipt-id="${goodsEscape(receipt.id)}">Delete</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="10">No goods received yet.</td></tr>';
   document.querySelectorAll('.edit-receipt').forEach(button=>button.onclick=()=>openGoodsInward(data.goodsInwards.find(receipt=>String(receipt.id)===button.dataset.receiptId)));
-  [...data.goodsInwards].sort((a,b)=>String(b.receivedDate).localeCompare(String(a.receivedDate))).forEach((receipt,index)=>{
+  document.querySelectorAll('.delete-receipt').forEach(button=>button.onclick=()=>deleteReceipt(data.goodsInwards.find(receipt=>String(receipt.id)===button.dataset.receiptId)));
+  [...visibleReceipts].sort((a,b)=>String(b.receivedDate).localeCompare(String(a.receivedDate))).forEach((receipt,index)=>{
     const detail=document.querySelectorAll('#quality-table tr')[index]?.querySelector('td:nth-child(3) .item-note');
     if(detail&&receipt.goodsInwardsId&&!detail.textContent.includes(receipt.goodsInwardsId))detail.textContent=`${receipt.goodsInwardsId} · ${detail.textContent}`;
   });
-  // Legacy receipt deletion intentionally disabled. Goods Inwards records are retained for traceability.
-  // document.querySelectorAll('.delete-receipt').forEach(button=>button.onclick=()=>deleteReceipt(data.goodsInwards.find(receipt=>String(receipt.id)===button.dataset.receiptId)));
 }
 
 function deleteReceipt(receipt){
   if(!canDeleteRecords?.()){alert('Only Administrators and Operations Managers can delete records.');return;}
-  if(!receipt||!confirm(`Delete goods receipt for ${receipt.item}?`))return;
-  const stock=stockItem(receipt.item);if(stock)stock.qty-=+receipt.qty;
-  if(receipt.linkedPurchase){data.purchases=data.purchases.filter(purchase=>purchase.id!==receipt.purchaseId);data.assessments=data.assessments.filter(assessment=>assessment.purchaseId!==receipt.purchaseId)}
-  data.goodsInwards=data.goodsInwards.filter(record=>record!==receipt);save();render();
+  if(!receipt||!confirm(`Delete goods receipt for ${receipt.item}? Any accepted quantity will be removed from Stock on Hand. The purchase itself will not be deleted.`))return;
+  const postedQty=Number(receipt.stockOnHandQty)||0,stock=stockItem(receipt.item);
+  if(stock&&postedQty)stock.qty-=postedQty;
+  if(data.stockMovements)data.stockMovements=data.stockMovements.filter(movement=>!(movement.sourceType==='GOODS_RECEIPT'&&String(movement.sourceId)===String(receipt.id)));
+  const purchase=receipt.linkedPurchase&&data.purchases.find(entry=>entry.id===receipt.purchaseId);
+  if(purchase){purchase.stockReceived=false;purchase.qualityStatus='Assess';purchase.status='In Transit';}
+  Object.assign(receipt,{deleted:true,deletedAt:new Date().toISOString(),deletedBy:currentOperator?.()?.name||'Current user',stockOnHandQty:0,warehouseId:null,warehouseName:'',warehouseAssignedById:null,warehouseAssignedBy:'',warehouseAssignedDate:'',finalizedAt:null});
+  save();render();
 }
 
 const baseQualityRender=quality;quality=()=>renderGoodsInwards();
@@ -216,11 +231,12 @@ function adjustStockForWarehouseAssignment(previousItem,previousQty,record,isPre
 $('#record-form').addEventListener('submit',event=>{
   if(event.currentTarget.dataset.type!=='goods-inward')return;
   event.stopImmediatePropagation();
-  const form=event.currentTarget,values=formData(form),receiptId=form.dataset.receiptId,existing=receiptId?data.goodsInwards.find(record=>String(record.id)===receiptId):null,operator=currentOperator?.()||data.people.find(person=>person.type==='User'),previousItem=existing?.item||'',previousQty=existing?.stockOnHandQty,isPreviouslyPosted=!!(existing?.linkedPurchase&&data.purchases.find(purchase=>purchase.id===existing.purchaseId)?.stockReceived);
-  const purchase=data.purchases.find(record=>record.id===+values.purchaseId),record=existing||{id:id(),createdBy:operator?.name||'Current user',createdAt:new Date().toISOString()};
+  const form=event.currentTarget,values=formData(form),receiptId=form.dataset.receiptId,purchase=data.purchases.find(record=>record.id===+values.purchaseId),existing=(receiptId?data.goodsInwards.find(record=>String(record.id)===receiptId):null)||(purchase?data.goodsInwards.find(record=>record.purchaseId===purchase.id):null),operator=currentOperator?.()||data.people.find(person=>person.type==='User'),previousItem=existing?.item||'',previousQty=existing?.stockOnHandQty,isPreviouslyPosted=!!(existing?.linkedPurchase&&data.purchases.find(purchase=>purchase.id===existing.purchaseId)?.stockReceived);
+  const restoringDeletedReceipt=!!existing?.deleted;
+  const record=existing||{id:id(),createdBy:operator?.name||'Current user',createdAt:new Date().toISOString()};
   const warehouse=(data.warehouses||[]).find(entry=>entry.id===+values.warehouseId),warehouseAssignee=data.people.find(person=>person.id===+values.warehouseAssignedById);
   record.goodsInwardsId=existing?.goodsInwardsId||nextGoodsInwardsReference();
-  Object.assign(record,{purchaseId:purchase?.id||null,linkedPurchase:!!purchase,receivedDate:values.receivedDate,arrivedAt:existing?.arrivedAt||new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,receivedBy:values.receivedBy,warehouseId:warehouse?.id||null,warehouseName:warehouse?.name||'',warehouseAssignedById:warehouseAssignee?.id||null,warehouseAssignedBy:warehouseAssignee?.name||'',warehouseAssignedDate:warehouse?values.warehouseAssignedDate||new Date().toISOString().slice(0,10):'',batch:values.batch,qualityDate:values.qualityDate,condition:values.condition,decision:values.decision,notes:values.notes});
+  Object.assign(record,{deleted:false,deletedAt:'',deletedBy:'',purchaseId:purchase?.id||null,linkedPurchase:!!purchase,receivedDate:values.receivedDate,arrivedAt:restoringDeletedReceipt?new Date().toISOString():(existing?.arrivedAt||new Date().toISOString()),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,receivedBy:values.receivedBy,warehouseId:warehouse?.id||null,warehouseName:warehouse?.name||'',warehouseAssignedById:warehouseAssignee?.id||null,warehouseAssignedBy:warehouseAssignee?.name||'',warehouseAssignedDate:warehouse?values.warehouseAssignedDate||new Date().toISOString().slice(0,10):'',batch:values.batch,qualityDate:values.qualityDate,condition:values.condition,decision:values.decision,notes:values.notes});
   ['moisture','damaged','foreignMatter','aflatoxin','oilContent','ffa'].forEach(field=>record[field]=values[field]===''?'':Number(Number(values[field]).toFixed(2)));
   record.createdBy=values.createdBy?.trim()||record.createdBy;
   const officer=data.people.find(person=>person.id===+values.qualityCheckOfficerId);record.qualityCheckOfficerId=officer?.id||null;record.qualityCheckOfficer=officer?.name||'';record.inspector=record.qualityCheckOfficer;
