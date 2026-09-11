@@ -166,6 +166,10 @@ function openGoodsInward(receipt){
   const goodsInwardsId=receipt?.goodsInwardsId||goodsInwardsReference();
   const identifier=document.createElement('div');identifier.className='field';identifier.innerHTML=`<label>Goods Inwards ID</label><input name="goodsInwardsId" value="${goodsEscape(goodsInwardsId)}" readonly><div class="item-note">Generated automatically from Administration settings.</div>`;
   form.querySelector('#form-fields .form-grid')?.prepend(identifier);
+  const linkedPurchase=receipt?.purchaseId&&data.purchases.find(purchase=>purchase.id===receipt.purchaseId);
+  const qcReference=receipt?.purchaseQuality?.testReference||linkedPurchase?.purchaseQuality?.testReference||'';
+  const qcBatchReferenceField=document.createElement('div');qcBatchReferenceField.className='field';qcBatchReferenceField.innerHTML=`<label>QC Batch Reference</label><input name="qcBatchReference" value="${goodsEscape(qcReference)}" readonly><div class="item-note">Linked from the purchase Field QC record.</div>`;
+  form.querySelector('#form-fields .form-grid')?.prepend(qcBatchReferenceField);
   const purchaseField=form.elements.purchaseId?.closest('.field');
   if(purchaseField){
     const ordered=document.createElement('div');ordered.className='field';ordered.innerHTML=`<label>Quantity ordered</label><input name="quantityOrdered" value="${goodsEscape(receipt?.orderedQty??'')} ${goodsEscape(receipt?.unit||'')}" readonly>`;
@@ -180,6 +184,7 @@ function openGoodsInward(receipt){
     // purchase must update that record rather than create a second receipt.
     form.dataset.receiptId=linkedReceipt?.id||'';
     fillGoodsFromPurchase(form,purchase);
+    if(form.elements.qcBatchReference)form.elements.qcBatchReference.value=purchase?.purchaseQuality?.testReference||'';
   };
   form.elements.item.onchange=()=>{const item=data.items.find(entry=>entry.name===form.elements.item.value);if(item){form.elements.category.value=item.category;form.elements.unit.value=item.unit}};
   receivingComparisonFields.forEach(([key])=>form.elements[key]?.addEventListener('input',()=>refreshInitialQualityComparison(form)));
