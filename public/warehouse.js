@@ -13,11 +13,12 @@ function warehouseItems(warehouse){
   );
   return [...receivedItems,...productionItems];
 }
-function warehouseQuantity(receipt){return +(receipt.stockOnHandQty??receipt.qty??receipt.quantity)||0;}
+function warehouseQuantity(receipt){return +(receipt.stockOnHandQty??receipt.stockQty??receipt.qty??receipt.quantity)||0;}
+function warehouseUnit(receipt){return receipt.stockUnit||receipt.unit||'';}
 function warehouseItemRows(warehouse){
   const items=warehouseItems(warehouse);
   if(!items.length)return '<tr class="warehouse-items-empty"><td colspan="5">No accepted items have been posted to this warehouse yet.</td></tr>';
-  return items.map(receipt=>`<tr><td><strong>${warehouseEscape(receipt.item||'Unnamed item')}</strong><div class="item-note">${receipt.productionRunRef?`Production: ${warehouseEscape(receipt.productionRunRef)}`:`Lot: ${warehouseEscape(receipt.lotNo||receipt.batch||'—')}`}</div></td><td>${warehouseEscape(receipt.category||'—')}</td><td>${warehouseQuantity(receipt).toLocaleString()} ${warehouseEscape(receipt.unit||'')}</td><td>${warehouseEscape(receipt.source||receipt.supplier||'—')}</td><td>${warehouseEscape(receipt.postedAt||receipt.warehouseAssignedDate||receipt.receivedDate||'—')}</td></tr>`).join('');
+  return items.map(receipt=>`<tr><td><strong>${warehouseEscape(receipt.item||'Unnamed item')}</strong><div class="item-note">${receipt.productionRunRef?`Production: ${warehouseEscape(receipt.productionRunRef)}`:`Lot: ${warehouseEscape(receipt.lotNo||receipt.batch||'—')}`}</div></td><td>${warehouseEscape(receipt.category||'—')}</td><td>${warehouseQuantity(receipt).toLocaleString()} ${warehouseEscape(warehouseUnit(receipt))}</td><td>${warehouseEscape(receipt.source||receipt.supplier||'—')}</td><td>${warehouseEscape(receipt.postedAt||receipt.warehouseAssignedDate||receipt.receivedDate||'—')}</td></tr>`).join('');
 }
 
 function renderWarehouses(){
