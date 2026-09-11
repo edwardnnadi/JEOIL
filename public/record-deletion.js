@@ -1,7 +1,7 @@
 (() => {
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const allowed = () => typeof canDeleteRecords === 'function' && canDeleteRecords();
-  const deny = () => alert('Only Administrators and Operations Managers can delete records.');
+  const deny = () => alert('Only Administrators can delete purchases, production records, or stock.');
   const remove = async (collection, id, label) => {
     if (!allowed()) return deny();
     if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
@@ -40,8 +40,25 @@
       alert('Could not refresh records after deleting the purchase.');
     }
   };
+  const deleteAllStock = async () => {
+    if (!allowed()) return deny();
+    if (!data.stock?.length) return alert('There are no stock items to delete.');
+    const confirmation = prompt(`This will permanently delete all ${data.stock.length} stock items. Type DELETE STOCK to continue.`);
+    if (confirmation !== 'DELETE STOCK') return;
+    const response = await fetch('/api/state', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ collection: 'stock', all: true }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) return alert(result.error || 'Could not delete stock items.');
+    data = JSON.parse(result.payload); data.assessments ??= []; stateRevision = result.revision ?? null; render();
+  };
   const addButtons = () => {
     if (!allowed()) return;
+    const stockHeader = document.querySelector('#stock-view .view-head');
+    if (stockHeader && !stockHeader.querySelector('#delete-all-stock')) {
+      stockHeader.insertAdjacentHTML('beforeend', '<button class="secondary delete-all-stock" id="delete-all-stock" type="button">Delete all stock</button>');
+      stockHeader.querySelector('#delete-all-stock')?.addEventListener('click', deleteAllStock);
+    }
     document.querySelectorAll('.stock-card').forEach((card, index) => {
       const record = data.stock?.[index]; if (!record || card.querySelector('.delete-record')) return;
       card.querySelector('header')?.insertAdjacentHTML('beforeend', `<button class="text-btn delete-record" data-kind="stock" data-id="${esc(record.id)}">Delete</button>`);

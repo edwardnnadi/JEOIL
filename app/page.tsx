@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <iframe
       title="JE Oils Operations"
-      src="/legacy.html?v=no-implicit-dropdowns-20260911"
+      src="/legacy.html?v=admin-only-deletions-20260911"
       className="je-operations-frame"
     />
   );

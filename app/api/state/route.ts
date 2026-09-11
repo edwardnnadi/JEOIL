@@ -12,6 +12,21 @@ async function appendActivity(action: string, details: string, user: Awaited<Ret
   });
 }
 
+function isAdministrator(payload: string, email: string) {
+  if (email === 'operations@jeoils.test') return true;
+  try {
+    const people = (JSON.parse(payload) as { people?: unknown }).people;
+    return Array.isArray(people) && people.some((person) => {
+      if (!person || typeof person !== 'object') return false;
+      const record = person as { email?: unknown; role?: unknown };
+      return typeof record.email === 'string' && record.email.toLowerCase() === email.toLowerCase() &&
+        typeof record.role === 'string' && record.role.trim().toLowerCase() === 'administrator';
+    });
+  } catch {
+    return false;
+  }
+}
+
 function changedAreas(before: string | null, after: string) {
   try {
     const previous = before ? JSON.parse(before) as Record<string, unknown> : {};
@@ -109,10 +124,10 @@ export async function DELETE(request: Request) {
     typeof body !== 'object' ||
     body === null ||
     !('collection' in body) ||
-    !('id' in body) ||
     typeof body.collection !== 'string' ||
     !deletableCollections.has(body.collection) ||
-    (typeof body.id !== 'string' && typeof body.id !== 'number')
+    (!('all' in body) && (!('id' in body) || (typeof body.id !== 'string' && typeof body.id !== 'number'))) ||
+    ('all' in body && body.all !== true)
   ) {
     return NextResponse.json({ error: 'Invalid deletion request' }, { status: 400 });
   }
@@ -124,6 +139,9 @@ export async function DELETE(request: Request) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const current = await db.select().from(operationsState).where(eq(operationsState.id, 'main')).get();
     if (!current) return NextResponse.json({ error: 'No application state exists' }, { status: 404 });
+    if (!isAdministrator(current.payload, user.email)) {
+      return NextResponse.json({ error: 'Administrator access is required to delete operational records.' }, { status: 403 });
+    }
 
     let state: Record<string, unknown>;
     try {
@@ -134,10 +152,14 @@ export async function DELETE(request: Request) {
     const records = state[body.collection];
     if (!Array.isArray(records)) return NextResponse.json({ error: 'Record collection is unavailable' }, { status: 404 });
 
-    const deletedRecords = records.filter(record =>
+    const deleteAll = 'all' in body && body.all === true;
+    if (deleteAll && body.collection !== 'stock') {
+      return NextResponse.json({ error: 'Only stock can be deleted in bulk.' }, { status: 400 });
+    }
+    const deletedRecords = deleteAll ? records : records.filter(record =>
       typeof record === 'object' && record !== null && 'id' in record && String(record.id) === String(body.id),
     );
-    state[body.collection] = records.filter(record =>
+    state[body.collection] = deleteAll ? [] : records.filter(record =>
       !(typeof record === 'object' && record !== null && 'id' in record && String(record.id) === String(body.id)),
     );
     if (body.collection === 'purchases') {
@@ -171,7 +193,11 @@ export async function DELETE(request: Request) {
       .returning({ revision: operationsState.updatedAt })
       .get();
     if (updated) {
-      await appendActivity('Deleted operational record', `Deleted a record from ${body.collection}.`, user);
+      await appendActivity(
+        deleteAll ? 'Deleted all stock items' : 'Deleted operational record',
+        deleteAll ? `Deleted ${deletedRecords.length} stock item(s).` : `Deleted a record from ${body.collection}.`,
+        user,
+      );
       return NextResponse.json({ ok: true, payload: JSON.stringify(state), revision: updatedAt.getTime() });
     }
   }
