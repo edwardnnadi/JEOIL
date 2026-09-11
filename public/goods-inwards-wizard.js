@@ -35,7 +35,7 @@ function buildGoodsInwardsWizard(form,receipt){
   if(pinnedFields.length){const pinned=document.createElement('section');pinned.className='goods-wizard-pinned';pinned.style.cssText='display:grid;grid-template-columns:minmax(0,1fr);margin:0 0 14px;padding:11px 12px;border:1px solid #ded6b3;border-radius:8px;background:#fbf8ed';pinnedFields.forEach(field=>pinned.append(field));wizard.append(pinned);}
   const standardFor=()=>{
     const purchase=data.purchases.find(entry=>entry.id===+form.elements.purchaseId?.value);
-    return itemStandard?.(form.elements.item?.value||purchase?.item,form.elements.category?.value||purchase?.category)||categoryStandard?.(form.elements.category?.value||purchase?.category)||peanutStandard||{name:'JE Oils Standard',parameters:[]};
+    return itemStandard?.(form.elements.namedItem('item')?.value||purchase?.item,form.elements.category?.value||purchase?.category)||categoryStandard?.(form.elements.category?.value||purchase?.category)||peanutStandard||{name:'JE Oils Standard',parameters:[]};
   };
   const standardCard=()=>{
     const card=document.createElement('section');card.className='field full receiving-standard-card';
@@ -48,9 +48,15 @@ function buildGoodsInwardsWizard(form,receipt){
   addReceivingDecisionPanel(form,panels[2],standardFor,receipt);
   const qualityOfficer=form.elements.qualityCheckOfficerId?.closest('.field');if(qualityOfficer)qualityOfficer.querySelector('label').textContent='Inspection officer';
   const controls=document.createElement('div');controls.className='wizard-controls';controls.innerHTML='<button type="button" class="secondary goods-wizard-back">Back</button><button type="button" class="primary goods-wizard-next">Continue</button>';wizard.append(controls);area.append(wizard);
-  let step=0,save=$('#save-record');
+  let step=0,save=$('#save-record'),modalActions=save.parentElement;
+  // Purchase review hides the shared action bar and changes its button type.
+  // Restore both whenever the receiving wizard opens, otherwise its final
+  // Finish receipt action is unreachable after visiting a purchase form.
+  modalActions.hidden=false;
+  save.type='submit';
+  save.disabled=false;
   const syncDeliveryReadings=()=>{form._deliveryReadings=Object.fromEntries(receivingComparisonFields.map(([key])=>[key,form.elements[key]?.value??'']));refreshReceivingDecision(form);};
-  const show=next=>{if(next===2)syncDeliveryReadings();step=next;if(step===groups.length-1&&typeof receivingApplyGate==='function')receivingApplyGate(form);panels.forEach((panel,index)=>{const active=index===step;panel.hidden=!active;panel.style.setProperty('display',active?'block':'none','important');});progress.querySelectorAll('button').forEach((item,index)=>{item.classList.toggle('active',index===step);item.toggleAttribute('aria-current',index===step);});controls.querySelector('.goods-wizard-back').hidden=step===0;controls.querySelector('.goods-wizard-next').hidden=step===groups.length-1;save.hidden=step!==groups.length-1;if(step===groups.length-1)save.textContent='Finish receipt';};
+  const show=next=>{if(next===2)syncDeliveryReadings();step=next;if(step===groups.length-1&&typeof receivingApplyGate==='function')receivingApplyGate(form);panels.forEach((panel,index)=>{const active=index===step;panel.hidden=!active;panel.style.setProperty('display',active?'block':'none','important');});progress.querySelectorAll('button').forEach((item,index)=>{item.classList.toggle('active',index===step);item.toggleAttribute('aria-current',index===step);});controls.querySelector('.goods-wizard-back').hidden=step===0;controls.querySelector('.goods-wizard-next').hidden=step===groups.length-1;modalActions.hidden=false;save.hidden=step!==groups.length-1;if(step===groups.length-1){save.type='submit';save.textContent='Finish receipt';}};
   const canAdvanceTo=next=>{for(let index=step;index<next;index++){const invalid=[...panels[index].querySelectorAll('[required]')].find(input=>!input.checkValidity());if(invalid){show(index);invalid.reportValidity();return false;}}return true;};
   progress.querySelectorAll('button').forEach(button=>button.onclick=()=>{const next=Number(button.dataset.step);if(next<=step||canAdvanceTo(next))show(next);});
   controls.querySelector('.goods-wizard-back').onclick=()=>show(Math.max(0,step-1));
@@ -60,7 +66,7 @@ function buildGoodsInwardsWizard(form,receipt){
     const existingChange=purchase.onchange;
     purchase.onchange=event=>{existingChange?.(event);const selected=data.purchases.find(purchase=>purchase.id===+form.elements.purchaseId.value);if(!selected){refreshStandards();return;}const linked=receiptForPurchase(selected);form.querySelector('.purchase-trace-card')?.replaceWith(document.createRange().createContextualFragment(purchaseTraceCard(linked)));refreshStandards();};
   }
-  ['item','category'].forEach(name=>form.elements[name]?.addEventListener('change',refreshStandards));
+  ['item','category'].forEach(name=>(name==='item'?form.elements.namedItem(name):form.elements[name])?.addEventListener('change',refreshStandards));
   receivingComparisonFields.forEach(([key])=>{form.elements[key]?.addEventListener('input',syncDeliveryReadings);form.elements[key]?.addEventListener('change',syncDeliveryReadings);});
   form.dataset.goodsWizard='ready';show(0);
 }

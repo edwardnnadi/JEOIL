@@ -161,7 +161,7 @@ function refreshReceivingDecision(form) {
   const purchase = data.purchases.find(entry => entry.id === +form.elements.purchaseId?.value);
   const receipt = purchase ? receiptForPurchase(purchase) : (form._receivingReceipt || {});
   const assessment = receipt.purchaseQuality || {};
-  const standard = review._getStandard?.() || itemStandard?.(form.elements.item?.value, form.elements.category?.value) || { name: 'JE Oils Standard', parameters: [] };
+  const standard = review._getStandard?.() || itemStandard?.(form.elements.namedItem('item')?.value, form.elements.category?.value) || { name: 'JE Oils Standard', parameters: [] };
   const rows = review.querySelector('[data-receiving-decision-rows]');
   const delivery = form._deliveryReadings || {};
   rows.innerHTML = receivingComparisonFields.map(([key, label, unit, sourceKey]) => {
