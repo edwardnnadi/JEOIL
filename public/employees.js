@@ -71,17 +71,6 @@
     field.replaceWith(select);
   }
 
-  const openGoodsInwardBeforeEmployees = window.openGoodsInward;
-  if (openGoodsInwardBeforeEmployees) {
-    window.openGoodsInward = (receipt) => {
-      openGoodsInwardBeforeEmployees(receipt);
-      const form = $('#record-form');
-      replaceWithEmployeeSelect(form, 'receivedBy', receipt?.receivedBy);
-      replaceWithEmployeeSelect(form, 'warehouseAssignedById', receipt?.warehouseAssignedById || receipt?.warehouseAssignedBy);
-      replaceWithEmployeeSelect(form, 'qualityCheckOfficerId', receipt?.qualityCheckOfficerId || receipt?.qualityCheckOfficer);
-    };
-  }
-
   const openModalBeforeEmployees = window.openModal;
   window.openModal = (type, pid) => {
     openModalBeforeEmployees(type, pid);

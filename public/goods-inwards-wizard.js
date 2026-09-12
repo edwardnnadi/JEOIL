@@ -18,7 +18,7 @@ function buildGoodsInwardsWizard(form,receipt){
   ];
   const groupFor=field=>{
     const names=[...field.querySelectorAll('[name]')].map(input=>input.name),label=field.querySelector('label')?.textContent||'';
-    if(field.classList.contains('purchase-trace-card')||field.classList.contains('initial-quality-card')||label.includes('Purchase traceability')||label.includes('Initial purchase quality'))return 1;
+    if(field.classList.contains('purchase-trace-card')||field.classList.contains('initial-quality-card')||field.classList.contains('receiving-parameter-field')||label.includes('Purchase traceability')||label.includes('Initial purchase quality'))return 1;
     if(label.includes('Created by')||label.includes('Created date'))return 0;
     const index=groups.findIndex(group=>names.some(name=>group.names.includes(name)));
     return index<0?0:index;
@@ -33,10 +33,7 @@ function buildGoodsInwardsWizard(form,receipt){
   const progress=document.createElement('div');progress.className='wizard-progress';
   groups.forEach((group,index)=>progress.insertAdjacentHTML('beforeend',`<button type="button" data-step="${index}" aria-label="Go to step ${index+1}: ${group.title}"><b>${index+1}</b>${group.title}</button>`));wizard.append(progress);
   if(pinnedFields.length){const pinned=document.createElement('section');pinned.className='goods-wizard-pinned';pinned.style.cssText='display:grid;grid-template-columns:minmax(0,1fr);margin:0 0 14px;padding:11px 12px;border:1px solid #ded6b3;border-radius:8px;background:#fbf8ed';pinnedFields.forEach(field=>pinned.append(field));wizard.append(pinned);}
-  const standardFor=()=>{
-    const purchase=data.purchases.find(entry=>entry.id===+form.elements.purchaseId?.value);
-    return itemStandard?.(form.elements.namedItem('item')?.value||purchase?.item,form.elements.category?.value||purchase?.category)||categoryStandard?.(form.elements.category?.value||purchase?.category)||peanutStandard||{name:'JE Oils Standard',parameters:[]};
-  };
+  const standardFor=()=>formReceivingStandard(form);
   const standardCard=()=>{
     const card=document.createElement('section');card.className='field full receiving-standard-card';
     const render=()=>{const standard=standardFor(),parameters=standard.parameters||[];card.innerHTML=`<div class="receiving-standard-heading"><strong>${goodsEscape(standard.name||'JE Oils Standard')}</strong><span>${parameters.length?`${parameters.length} acceptance parameter${parameters.length===1?'':'s'}`:'No acceptance parameters configured'}</span></div><ul>${parameters.map(parameter=>`<li><span>${goodsEscape(parameter.label||'Quality parameter')}</span><strong>${goodsEscape([parameter.operator,parameter.limit,parameter.unit].filter(Boolean).join(' '))}</strong></li>`).join('')||'<li><span>Configure the item standard in Administration to show limits here.</span></li>'}</ul>`;};
@@ -44,7 +41,7 @@ function buildGoodsInwardsWizard(form,receipt){
   };
   const selectStandard=standardCard(),inspectStandard=standardCard();
   const panels=groups.map((group,index)=>{const panel=document.createElement('section');panel.className='wizard-step';panel.dataset.step=index;const active=index===0;panel.hidden=!active;panel.style.setProperty('display',active?'block':'none','important');panel.innerHTML=`<header><h3>${group.title}</h3><p>${group.help}</p></header><div class="form-grid"></div>`;const grid=panel.querySelector('.form-grid');if(index===0)grid.append(selectStandard.card);if(index===1){grid.classList.add('receiving-inspection-grid');grid.append(inspectStandard.card)}buckets[index].forEach(field=>grid.append(field));wizard.append(panel);return panel});
-  const refreshStandards=()=>{selectStandard.render();inspectStandard.render();refreshReceivingDecision(form);};
+  const refreshStandards=()=>{selectStandard.render();inspectStandard.render();renderReceivingParameterFields(form);refreshReceivingDecision(form);};
   addReceivingDecisionPanel(form,panels[2],standardFor,receipt);
   const qualityOfficer=form.elements.qualityCheckOfficerId?.closest('.field');if(qualityOfficer)qualityOfficer.querySelector('label').textContent='Inspection officer';
   const controls=document.createElement('div');controls.className='wizard-controls';controls.innerHTML='<button type="button" class="secondary goods-wizard-back">Back</button><button type="button" class="primary goods-wizard-next">Continue</button>';wizard.append(controls);area.append(wizard);
@@ -55,7 +52,7 @@ function buildGoodsInwardsWizard(form,receipt){
   modalActions.hidden=false;
   save.type='submit';
   save.disabled=false;
-  const syncDeliveryReadings=()=>{form._deliveryReadings=Object.fromEntries(receivingComparisonFields.map(([key])=>[key,form.elements[key]?.value??'']));refreshReceivingDecision(form);};
+  const syncDeliveryReadings=()=>{form._deliveryReadings=Object.fromEntries(receivingComparisonFieldsFor(form).map(([key])=>[key,form.elements[key]?.value??'']));refreshReceivingDecision(form);};
   const show=next=>{if(next===2)syncDeliveryReadings();step=next;if(step===groups.length-1&&typeof receivingApplyGate==='function')receivingApplyGate(form);panels.forEach((panel,index)=>{const active=index===step;panel.hidden=!active;panel.style.setProperty('display',active?'block':'none','important');});progress.querySelectorAll('button').forEach((item,index)=>{item.classList.toggle('active',index===step);item.toggleAttribute('aria-current',index===step);});controls.querySelector('.goods-wizard-back').hidden=step===0;controls.querySelector('.goods-wizard-next').hidden=step===groups.length-1;modalActions.hidden=false;save.hidden=step!==groups.length-1;if(step===groups.length-1){save.type='submit';save.textContent='Finish receipt';}};
   const canAdvanceTo=next=>{for(let index=step;index<next;index++){const invalid=[...panels[index].querySelectorAll('[required]')].find(input=>!input.checkValidity());if(invalid){show(index);invalid.reportValidity();return false;}}return true;};
   progress.querySelectorAll('button').forEach(button=>button.onclick=()=>{const next=Number(button.dataset.step);if(next<=step||canAdvanceTo(next))show(next);});
@@ -67,7 +64,7 @@ function buildGoodsInwardsWizard(form,receipt){
     purchase.onchange=event=>{existingChange?.(event);const selected=data.purchases.find(purchase=>purchase.id===+form.elements.purchaseId.value);if(!selected){refreshStandards();return;}const linked=receiptForPurchase(selected);form.querySelector('.purchase-trace-card')?.replaceWith(document.createRange().createContextualFragment(purchaseTraceCard(linked)));refreshStandards();};
   }
   ['item','category'].forEach(name=>(name==='item'?form.elements.namedItem(name):form.elements[name])?.addEventListener('change',refreshStandards));
-  receivingComparisonFields.forEach(([key])=>{form.elements[key]?.addEventListener('input',syncDeliveryReadings);form.elements[key]?.addEventListener('change',syncDeliveryReadings);});
+  receivingComparisonFieldsFor(form).forEach(([key])=>{const control=form.elements.namedItem(key);control?.addEventListener('input',syncDeliveryReadings);control?.addEventListener('change',syncDeliveryReadings);});
   form.dataset.goodsWizard='ready';show(0);
 }
 
@@ -77,3 +74,17 @@ openGoodsInward=receipt=>{goodsWizardOpen(receipt);buildGoodsInwardsWizard($('#r
 const goodsWizardStyle=document.createElement('style');
 goodsWizardStyle.textContent='#record-dialog:has(#record-form[data-type="goods-inward"]){width:min(1180px,calc(100vw - 48px))}.goods-inwards-wizard .wizard-progress{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.goods-inwards-wizard .wizard-progress button{border:0;padding:0;background:transparent;color:#887c68;font:12px inherit;display:flex;gap:6px;align-items:center;cursor:pointer}.goods-inwards-wizard .wizard-progress b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#eee5d5;color:#5c513d}.goods-inwards-wizard .wizard-progress button.active{color:#1e1b16;font-weight:700}.goods-inwards-wizard .wizard-progress button.active b{background:#c89b3c;color:#16120a}.goods-inwards-wizard .wizard-step header{margin-bottom:14px}.goods-inwards-wizard .wizard-step h3{margin:0;color:#201b13}.goods-inwards-wizard .wizard-step p{margin:4px 0 0;color:#776b58;font-size:13px}.goods-inwards-wizard .wizard-controls{display:flex;justify-content:space-between;gap:10px;margin-top:18px}.goods-inwards-wizard .wizard-step[hidden]{display:none!important}.receiving-standard-card{align-content:start;gap:10px;padding:13px 14px;border:1px solid #d8e2d3;border-radius:7px;background:#f5f8f1;color:#39523c}.receiving-standard-heading{display:grid;gap:2px}.receiving-standard-heading span{color:#657368;font-size:12px}.receiving-standard-card ul{display:grid;gap:7px;margin:0;padding:10px 0 0;border-top:1px solid #d8e2d3;list-style:none}.receiving-standard-card li{display:flex;justify-content:space-between;gap:12px;color:#657368;font-size:12px}.receiving-standard-card li strong{color:#39523c;white-space:nowrap}.receiving-inspection-grid{grid-template-columns:minmax(270px,.72fr) minmax(0,1fr)}.receiving-inspection-grid .receiving-standard-card{grid-column:1;grid-row:span 8}.receiving-inspection-grid .field:not(.receiving-standard-card){grid-column:2}.receiving-inspection-grid .field.full:not(.receiving-standard-card){grid-column:2}@media(max-width:760px){#record-dialog:has(#record-form[data-type="goods-inward"]){width:calc(100vw - 20px)}.goods-inwards-wizard .wizard-progress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}.goods-inwards-wizard .wizard-progress button{font-size:11px;align-items:flex-start;text-align:left}.receiving-inspection-grid{grid-template-columns:1fr}.receiving-inspection-grid .receiving-standard-card,.receiving-inspection-grid .field:not(.receiving-standard-card),.receiving-inspection-grid .field.full:not(.receiving-standard-card){grid-column:1;grid-row:auto}}';
 document.head.append(goodsWizardStyle);
+
+const goodsWizardAlignmentStyle=document.createElement('style');
+goodsWizardAlignmentStyle.textContent=`
+  .goods-inwards-wizard .wizard-step .form-grid { align-items:start; }
+  .goods-inwards-wizard .wizard-step[data-step="0"] .field,
+  .goods-inwards-wizard .wizard-step[data-step="3"] .field { align-self:start; }
+  .goods-inwards-wizard .field > select { margin:0; min-height:42px; }
+  .goods-inwards-wizard .wizard-step[data-step="3"] .form-grid { grid-auto-rows:min-content; }
+  @media (max-width:760px) {
+    .goods-inwards-wizard .wizard-step[data-step="0"] .form-grid,
+    .goods-inwards-wizard .wizard-step[data-step="3"] .form-grid { grid-template-columns:1fr; }
+  }
+`;
+document.head.append(goodsWizardAlignmentStyle);

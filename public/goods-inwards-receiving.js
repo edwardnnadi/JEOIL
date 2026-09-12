@@ -3,7 +3,9 @@ const receivingGoodsOpen=openGoodsInward;
 openGoodsInward=receipt=>{
   receivingGoodsOpen(receipt);
   const form=$('#record-form'),fields=$('#form-fields');
-  if(form.elements.oilContent&&form.elements.ffa&&form.elements.qualityCheckOfficerId)return;
+  // Quality readings are rendered from the item's standard (Diesel has no oil
+  // content or FFA), so only a form missing the core controls needs supplementing.
+  if(form.elements.namedItem('qualityCheckOfficerId')&&form.elements.namedItem('notes'))return;
   const officerId=String(receipt?.qualityCheckOfficerId||''),officerName=receipt?.qualityCheckOfficer||receipt?.inspector||'';
   const number=value=>value===''||value===null||value===undefined?'':Number(value).toFixed(2);
   const officerOptions=data.people.map(person=>`<option value="${person.id}" ${String(person.id)===officerId||person.name===officerName?'selected':''}>${warehouseEscape(person.name)} · ${warehouseEscape(person.role||person.type||'Person')}</option>`).join('');
