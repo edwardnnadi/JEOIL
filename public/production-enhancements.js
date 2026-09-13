@@ -70,7 +70,8 @@
     const sourceWarehouses = sourceIds.map(id => warehouses().find(warehouse => String(warehouse.id) === String(id))).filter(Boolean);
     const materials = [...form.querySelectorAll('.multi-production-material:checked')].map(box => {
       const quantity = Number(form.querySelector(`#${CSS.escape(box.dataset.key)}`).value || 0);
-      return { name: box.dataset.item, quantity, warehouseId: box.dataset.warehouseId, warehouseName: box.dataset.warehouseName };
+      const stockItem = (data.stock || []).find(item => item.name === box.dataset.item);
+      return { name: box.dataset.item, quantity, unit: stockItem?.unit || '', warehouseId: box.dataset.warehouseId, warehouseName: box.dataset.warehouseName };
     }).filter(material => material.quantity > 0);
     if (!machines.length || !outputWarehouse || !sourceWarehouses.length || !materials.length) return alert('Select machines, input and output warehouses, and at least one material quantity.');
     if (materials.some(material => !sourceIds.includes(String(material.warehouseId)))) return alert('Each selected material must come from one of the selected input warehouses.');
@@ -85,8 +86,17 @@
       window.recordStockMovement({ type: 'PRODUCTION_ISSUE', item: material.name, quantity: -material.quantity, warehouseId: material.warehouseId, sourceType: 'PRODUCTION_RUN', sourceId: batch, note: `Issued to ${batch}` });
     });
     data.activeProductionRuns ??= [];
+    const machineRatings = machines.map(name => {
+      const machine = (data.machines || []).find(entry => entry.name === name);
+      return {
+        id: machine?.id || '',
+        name,
+        manufacturerRating: { ...(machine?.manufacturerRating || {}) },
+      };
+    });
     data.activeProductionRuns.unshift({
       id: makeId(), batch, date: today(), machine: machines.join(' · '), machines,
+      machineRatings,
       sourceWarehouseId: sourceWarehouses[0].id, sourceWarehouseName: sourceWarehouses.map(warehouse => warehouse.name).join(' · '),
       sourceWarehouses: sourceWarehouses.map(warehouse => ({ id: warehouse.id, name: warehouse.name })),
       warehouseId: outputWarehouse.id, warehouseName: outputWarehouse.name,
