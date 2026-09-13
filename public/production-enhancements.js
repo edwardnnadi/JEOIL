@@ -31,7 +31,7 @@
         .filter(entry => entry.available > 0)
         .map(({ item, available }) => {
           const key = `material-${index++}`;
-          return `<tr><td><label><input type="checkbox" class="multi-production-material" data-key="${key}" data-item="${esc(item.name)}" data-warehouse-id="${esc(warehouseId)}" data-warehouse-name="${esc(warehouse?.name || '')}"> ${esc(item.name)}</label></td><td>${esc(warehouse?.name || 'Warehouse')}</td><td>${available} ${esc(item.unit || '')}</td><td><input id="${key}" type="number" min="0" step="any" placeholder="0"></td></tr>`;
+          return `<tr><td><label><input type="checkbox" class="multi-production-material" data-key="${key}" data-item="${esc(item.name)}" data-warehouse-id="${esc(warehouseId)}" data-warehouse-name="${esc(warehouse?.name || '')}"> ${esc(item.name)}</label></td><td>${esc(warehouse?.name || 'Warehouse')}</td><td>${available.toLocaleString()}</td><td>${esc(item.unit || '—')}</td><td><input id="${key}" type="number" min="0" step="any" placeholder="0"></td></tr>`;
         });
     }).join('') || '<tr><td colspan="4" class="muted">No available stock in the selected warehouse(s).</td></tr>';
   }
@@ -43,10 +43,10 @@
     $('#form-fields').innerHTML = `<div class="form-grid">
       <div class="field full"><label>Machines</label><select name="machines" multiple required>${machineOptions()}</select><small>Hold Ctrl/Cmd to select multiple machines.</small></div>
       <div class="field full"><label>Input warehouses</label><select name="sourceWarehouseIds" multiple required>${warehouseOptions()}</select><small>Select every warehouse materials will be issued from.</small></div>
-      <div class="field"><label>Output warehouse</label><select name="warehouseId" required>${warehouseOptions()}</select></div>
+      <div class="field"><label>Output warehouse</label><select name="warehouseId" required><option value="">Select output warehouse</option>${warehouseOptions()}</select></div>
       <div class="field"><label>Production manager</label><select name="manager" required>${peopleOptions()}</select></div>
       <div class="field full"><label>Staff</label><select name="staff" multiple>${peopleOptions()}</select></div>
-      <div class="field full"><label>Materials to issue</label><table class="data-table"><thead><tr><th>Material</th><th>Input warehouse</th><th>Available</th><th>Issue quantity</th></tr></thead><tbody id="multi-production-materials">${materialRows([])}</tbody></table></div>
+      <div class="field full"><label>Materials to issue</label><table class="data-table"><thead><tr><th>Material</th><th>Input warehouse</th><th>Available</th><th>Unit</th><th>Issue quantity</th></tr></thead><tbody id="multi-production-materials">${materialRows([])}</tbody></table><div class="item-note">Units are taken from the stock item and are retained with the issue record.</div></div>
     </div>`;
     const form = $('#record-form');
     form.dataset.type = 'multi-warehouse-production-start';
