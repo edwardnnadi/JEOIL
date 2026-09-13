@@ -13,7 +13,9 @@ async function appendActivity(action: string, details: string, user: Awaited<Ret
 }
 
 function isAdministrator(payload: string, email: string) {
-  if (email === 'operations@jeoils.test') return true;
+  // The local development identity has no matching person record. Never use
+  // that shortcut in the deployed application.
+  if (process.env.NODE_ENV !== 'production' && email === 'operations@jeoils.test') return true;
   try {
     const people = (JSON.parse(payload) as { people?: unknown }).people;
     return Array.isArray(people) && people.some((person) => {
@@ -35,6 +37,30 @@ function changedAreas(before: string | null, after: string) {
     return areas.slice(0, 6).join(', ') || 'operational data';
   } catch {
     return 'operational data';
+  }
+}
+
+// Completed production runs are an audit record. Starting and completing a run
+// remains available to the operational workflow, but changing a run after it
+// has been completed is limited to administrators.
+function changedCompletedProduction(before: string | null, after: string) {
+  try {
+    const previous = before ? JSON.parse(before) as { production?: unknown } : {};
+    const next = JSON.parse(after) as { production?: unknown };
+    if (!Array.isArray(previous.production) || !Array.isArray(next.production)) return false;
+    const nextById = new Map(next.production
+      .filter((record): record is { id?: unknown } => Boolean(record) && typeof record === 'object')
+      .map(record => [String(record.id), record]));
+    return previous.production.some((record) => {
+      if (!record || typeof record !== 'object') return false;
+      const prior = record as { id?: unknown };
+      return JSON.stringify(prior) !== JSON.stringify(nextById.get(String(prior.id)));
+    });
+  } catch {
+    // Do not treat an invalid payload as a production edit; the client retains
+    // its existing state validation behaviour and the request will be stored
+    // only if it passes the normal persistence flow.
+    return false;
   }
 }
 
@@ -87,6 +113,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: 'State changed in another session', payload: current?.payload ?? null, revision: currentRevision },
       { status: 409 },
+    );
+  }
+
+  if (changedCompletedProduction(current?.payload ?? null, body.payload) &&
+    !isAdministrator(current?.payload ?? body.payload, user.email)) {
+    return NextResponse.json(
+      { error: 'Administrator access is required to edit completed production records.' },
+      { status: 403 },
     );
   }
 

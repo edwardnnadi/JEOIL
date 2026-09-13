@@ -13,6 +13,47 @@ editModal=(kind,record)=>{
   let form=$('#record-form'),role=form.elements.role;
   role.outerHTML=`<select name="role" required>${data.roles.map(value=>`<option value="${value}" ${value===record.role?'selected':''}>${value}</option>`).join('')}</select>`;
 };
+
+// Completed production runs can contain arrays and nested objects (materials,
+// warehouse assignments, tests, and outputs).  The old editor inserted those
+// values directly into an input, which coerced objects to "[object Object]".
+const editModalWithProductionDetails=editModal;
+editModal=(kind,record)=>{
+  if(kind!=='production')return editModalWithProductionDetails(kind,record);
+  const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const label=value=>String(value??'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[-_]/g,' ').replace(/^./,char=>char.toUpperCase());
+  const detail=value=>{
+    if(value===null||value===undefined||value==='')return '—';
+    if(Array.isArray(value))return value.map(detail).join('\n');
+    if(typeof value!=='object'){
+      const text=String(value),parts=text.split(',').map(part=>part.trim());
+      // Older completed runs stored each output as name, quantity, unit.
+      // Preserve every value, but present those triples as readable rows.
+      if(parts.length>=3&&parts.length%3===0&&parts.every(Boolean))return parts.reduce((rows,part,index)=>{
+        if(index%3===0)rows.push(`${parts[index+1]} ${parts[index+2]} ${part}`);
+        return rows;
+      },[]).join('\n');
+      return text;
+    }
+    const name=value.name??value.item??value.itemName??value.product;
+    const quantity=value.quantity??value.qty??value.amount;
+    const unit=value.unit??'';
+    const warehouse=value.warehouseName??value.warehouse??value.sourceWarehouseName??'';
+    if(name!==undefined)return `${quantity!==undefined?`${quantity} ${unit} `:''}${name}${warehouse?` — ${warehouse}`:''}`.trim();
+    return Object.entries(value).map(([key,entry])=>`${label(key)}: ${detail(entry)}`).join('\n');
+  };
+  const readOnly=(title,value)=>`<div class="field full"><label>${esc(title)}</label><textarea readonly rows="${Math.min(8,Math.max(2,detail(value).split('\n').length))}">${esc(detail(value))}</textarea></div>`;
+  const metadata=[
+    ['Machines',record.machines??record.machine], ['Input warehouse',record.sourceWarehouses??record.sourceWarehouseName],
+    ['Output warehouse',record.outputWarehouseName??record.warehouseName], ['Production manager',record.manager],
+    ['Staff',record.staff], ['Started',record.startedAt], ['Completed',record.endedAt],
+    ['Actual capacity',record.actualRating], ['Issues recorded',record.issues], ['Test results',record.testResults],
+  ].filter(([,value])=>value!==undefined&&value!==null&&value!=='');
+  const form=`<div class="form-grid"><div class="field"><label>Run date</label><input name="date" type="date" value="${esc(record.date||'')}" required></div><div class="field"><label>Run reference</label><input name="reference" value="${esc(record.reference||record.batch||'')}" required></div>${readOnly('Recorded outputs',record.outputs??record.output??record.product)}${readOnly('Recorded inputs',record.inputs??record.materials)}${metadata.map(([title,value])=>readOnly(title,value)).join('')}</div>`;
+  $('#modal-label').textContent='EDIT RECORD';$('#modal-title').textContent='Edit production';$('#form-fields').innerHTML=form;
+  const formElement=$('#record-form');formElement.dataset.type='edit';formElement.dataset.editKind='production';formElement.dataset.editId=record.id;
+  const saveButton=$('#save-record'),actions=$('#record-dialog .modal-actions');saveButton.textContent='Save';saveButton.hidden=false;saveButton.disabled=false;actions.hidden=false;$('#record-dialog').showModal();
+};
 // Edit purchases together with their attached quality assessment and retain audit fields.
 const editModalWithPurchaseQuality=editModal;
 editModal=(kind,record)=>{

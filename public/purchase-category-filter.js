@@ -25,7 +25,7 @@
   };
 
   const applySelectedItem = (form) => {
-    const selected = data.items.find((entry) => entry.name === form.elements.item?.value);
+    const selected = data.items.find((entry) => entry.name === form.elements.namedItem('item')?.value);
     if (!selected) return;
     if (form.elements.itemDescription) form.elements.itemDescription.value = selected.description || '';
   };

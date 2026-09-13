@@ -34,9 +34,9 @@
   function applyLoggedInCreator(form, existingPurchase) {
     const field = [...form.querySelectorAll('.field')].find(entry => entry.querySelector('label')?.textContent.trim() === 'Created by');
     if (!field) return;
-    const operator = currentOperator?.() || data.people?.find(person => person.type === 'User');
-    const name = existingPurchase?.createdBy || operator?.name || 'Current user';
-    field.innerHTML = `<label>Created by</label><input name="createdBy" value="${escapeHtml(name)}" readonly>`;
+    const name = existingPurchase?.createdBy || '';
+    const users = (data.people || []).filter(person => person.type === 'User' && person.name);
+    field.innerHTML = `<label>Created by</label><select name="createdBy" required><option value="" ${name ? '' : 'selected'}>Select user</option>${users.map(person => `<option value="${escapeHtml(person.name)}" ${person.name === name ? 'selected' : ''}>${escapeHtml(person.name)} · ${escapeHtml(person.role || 'User')}</option>`).join('')}</select>`;
   }
 
   const enhancedOpen = openModal;

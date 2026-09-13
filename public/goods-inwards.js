@@ -112,7 +112,7 @@ function receiptBadge(decision){return badge(decision||'Assess')}
 
 function goodsQualityFields(values={}){
   const officerId=String(values.qualityCheckOfficerId||''),officerName=values.qualityCheckOfficer||values.inspector||'';
-  return `<div class="field full"><label>Goods inwards quality assessment</label><div class="item-note">Assess the delivered lot before it is released for production.</div></div><div class="field"><label>Batch / lot number</label><input name="batch" value="${goodsEscape(values.batch||'')}"></div><div class="field"><label>Assessment date</label><input name="qualityDate" type="date" value="${goodsEscape(values.date||values.qualityDate||new Date().toISOString().slice(0,10))}"></div><div class="field"><label>Oil content (%)</label><input name="oilContent" type="number" min="0" max="100" step="0.01" inputmode="decimal" value="${goodsNumber(values.oilContent)}"></div><div class="field"><label>FFA (%)</label><input name="ffa" type="number" min="0" max="100" step="0.01" inputmode="decimal" value="${goodsNumber(values.ffa)}"></div><div class="field"><label>Moisture (%)</label><input name="moisture" type="number" min="0" step="0.01" inputmode="decimal" value="${goodsNumber(values.moisture)}"></div><div class="field"><label>Damaged kernels (%)</label><input name="damaged" type="number" min="0" step="0.01" inputmode="decimal" value="${goodsNumber(values.damaged)}"></div><div class="field"><label>Foreign matter (%)</label><input name="foreignMatter" type="number" min="0" step="0.01" inputmode="decimal" value="${goodsNumber(values.foreignMatter)}"></div><div class="field"><label>Aflatoxin (ppb)</label><input name="aflatoxin" type="number" min="0" step="0.01" inputmode="decimal" value="${goodsNumber(values.aflatoxin)}"></div><div class="field"><label>Visual condition</label><select name="condition">${['Clean and dry','Minor defects','Contamination observed'].map(value=>`<option ${value===(values.condition||'Clean and dry')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Quality decision</label><select name="decision">${['Assess','Accepted','Hold','Rejected'].map(value=>`<option ${value===(values.decision||'Assess')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Quality check officer</label><select name="qualityCheckOfficerId"><option value="">Select a user</option>${data.people.filter(person=>person.type==='User').map(person=>`<option value="${person.id}" ${String(person.id)===officerId||person.name===officerName?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||person.type||'User')}</option>`).join('')}</select></div><div class="field full"><label>Notes</label><textarea name="notes">${goodsEscape(values.notes||'')}</textarea></div>`;
+  return `<div class="field full"><label>Goods inwards quality assessment</label><div class="item-note">Assess the delivered lot before it is released for production.</div></div><div class="field"><label>Batch / lot number</label><input name="batch" value="${goodsEscape(values.batch||'')}"></div><div class="field"><label>Assessment date</label><input name="qualityDate" type="date" value="${goodsEscape(values.date||values.qualityDate||new Date().toISOString().slice(0,10))}"></div><div class="field"><label>Visual condition</label><select name="condition">${['Clean and dry','Minor defects','Contamination observed'].map(value=>`<option ${value===(values.condition||'Clean and dry')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Quality decision</label><select name="decision">${['Assess','Accepted','Hold','Rejected'].map(value=>`<option ${value===(values.decision||'Assess')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Quality check officer</label><select name="qualityCheckOfficerId" required><option value="">Select user</option>${data.people.filter(person=>person.type==='User').map(person=>`<option value="${person.id}" ${String(person.id)===officerId||person.name===officerName?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||person.type||'User')}</option>`).join('')}</select></div><div class="field full"><label>Notes</label><textarea name="notes">${goodsEscape(values.notes||'')}</textarea></div>`;
 }
 
 function purchaseTraceCard(receipt={}){
@@ -122,26 +122,56 @@ function purchaseTraceCard(receipt={}){
   return `<div class="field full purchase-trace-card"><label>Purchase traceability</label><div class="item-note"><strong>${goodsEscape(receipt.purchaseReference||'—')}</strong> · ${goodsEscape(receipt.purchaseStatus||'—')} · Lot: ${goodsEscape(receipt.lotNo||'—')} · Origin: ${goodsEscape(origin)}${receipt.originCode?` (${goodsEscape(receipt.originCode)})`:''} · Supplier receipt: ${goodsEscape(receipt.supplierReceiptId||'—')}<br>Purchased by: ${goodsEscape(receipt.purchasedBy||'—')} · Unit price: ₦${(+receipt.unitPrice||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} · Total: ₦${(+receipt.cost||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}<br>Purchase attachments: ${attachments}</div></div>`;
 }
 
-const receivingComparisonFields=[
-  ['qty','Quantity','', 'orderedQty'],
-  ['oilContent','Oil content','%'],
-  ['ffa','FFA','%'],
-  ['moisture','Moisture','%'],
-  ['damaged','Damaged kernels','%'],
-  ['foreignMatter','Foreign matter','%'],
-  ['aflatoxin','Aflatoxin','ppb']
-];
+// Receiving readings follow the delivered item's configured quality standard
+// (e.g. Diesel), not a fixed nut list. Nut parameters keep their original
+// receipt columns so existing records, lists and reports still read them.
+const legacyReceivingFields={oilContent:'oilContent',ffa:'ffa',moisture:'moisture',damagedKernels:'damaged',damaged:'damaged',foreignMatter:'foreignMatter',aflatoxin:'aflatoxin'};
+const receivingFieldName=key=>legacyReceivingFields[key]||`qualityParameter_${String(key).replace(/[^A-Za-z0-9_]/g,'')}`;
+function receivingStandardFor(itemName,category){
+  if(itemName)return itemStandard?.(itemName,category)||categoryStandard?.(category)||{name:'No quality standard configured',parameters:[]};
+  return categoryStandard?.(category)||peanutStandard||{name:'JE Oils Standard',parameters:[]};
+}
+function formReceivingStandard(form){
+  const purchase=data.purchases.find(entry=>entry.id===+form.elements.namedItem('purchaseId')?.value);
+  return receivingStandardFor(form.elements.namedItem('item')?.value||purchase?.item,form.elements.namedItem('category')?.value||purchase?.category);
+}
+// Nut deliveries have always recorded moisture at receipt although the nut
+// standard does not list it, so it is kept for those standards only.
+function receivingStandardParameters(standard){
+  const parameters=[...(standard?.parameters||[])];
+  if(parameters.some(parameter=>parameter.key==='oilContent')&&!parameters.some(parameter=>parameter.key==='moisture'))parameters.splice(2,0,{key:'moisture',label:'Moisture',unit:'%'});
+  return parameters;
+}
+// [field name, label, unit, baseline source, standard key, operator]
+function receivingComparisonFieldsFor(form){
+  return [['qty','Quantity','','orderedQty'],...receivingStandardParameters(formReceivingStandard(form)).map(parameter=>[receivingFieldName(parameter.key),parameter.label||parameter.key,parameter.unit||'',undefined,parameter.key,parameter.operator])];
+}
 // More material and oil are favourable; every quality contaminant is better
-// when lower. The comparison table uses this instead of treating every rise
-// as good or every fall as bad.
+// when lower. A standard's operator (≥ / ≤) decides this for other parameters.
 const favourableDirection={qty:'higher',oilContent:'higher',ffa:'lower',moisture:'lower',damaged:'lower',foreignMatter:'lower',aflatoxin:'lower'};
+function receivingDirection(field,operator=''){return /[≥>]/.test(operator)?'higher':/[≤<]/.test(operator)?'lower':favourableDirection[field]||'lower';}
+// Field QC stores readings by standard key; older purchase records used the receipt columns.
+function receivingBaseline(assessment,field,key){const value=assessment?.parameters?.[key];return value!==undefined&&value!==null&&value!==''?value:assessment?.[field];}
+function receivingReadingValue(receipt,field,key){const value=receipt?.qualityParameters?.[key];return value!==undefined?value:receipt?.[field];}
 function comparisonNumber(value){return value===''||value===null||value===undefined||!Number.isFinite(Number(value))?null:Number(value);}
 function comparisonValue(value,unit=''){const number=comparisonNumber(value);return number===null?'—':`${number.toLocaleString(undefined,{maximumFractionDigits:2})}${unit?' '+unit:''}`;}
-function initialQualityComparisonRows(receipt,assessment){
-  return receivingComparisonFields.map(([key,label,unit,sourceKey])=>{
-    const baseline=key==='qty'?receipt[sourceKey]??receipt.qty:assessment[key];
-    return `<tr data-qc-comparison="${key}" data-qc-baseline="${baseline??''}" data-qc-unit="${unit||receipt.unit||''}"><th scope="row">${label}</th><td>${comparisonValue(baseline,unit||receipt.unit||'')}</td><td class="qc-received-value">Not recorded</td><td class="qc-change-value">—</td></tr>`;
-  }).join('');
+function receivingParameterFieldsHtml(standard,values={}){
+  return receivingStandardParameters(standard).map(parameter=>{
+    const limit=[parameter.operator,parameter.limit,parameter.unit].filter(value=>value!==undefined&&value!==null&&value!=='').join(' ');
+    return `<div class="field receiving-parameter-field" data-parameter-key="${goodsEscape(parameter.key)}"><label>${goodsEscape(parameter.label||parameter.key)}${parameter.unit?` (${goodsEscape(parameter.unit)})`:''}</label><input name="${goodsEscape(receivingFieldName(parameter.key))}" type="number" step="any" inputmode="decimal" value="${goodsEscape(values[parameter.key]??'')}">${limit?`<div class="item-note">Standard: ${goodsEscape(limit)}</div>`:''}</div>`;
+  }).join('')||'<div class="field receiving-parameter-field"><div class="item-note">No quality parameters are configured for this item. Configure its standard in Administration.</div></div>';
+}
+// Re-rendered whenever the purchase, item or category changes; readings already
+// typed for a parameter that is still in the standard are kept.
+function renderReceivingParameterFields(form,receipt){
+  const anchor=form.elements.namedItem('qualityCheckOfficerId')?.closest('.field');
+  if(!anchor)return;
+  const standard=formReceivingStandard(form);
+  const values=Object.fromEntries(receivingStandardParameters(standard).map(parameter=>{const value=receivingReadingValue(receipt,receivingFieldName(parameter.key),parameter.key);return [parameter.key,value===null||value===undefined?'':value];}));
+  form.querySelectorAll('.receiving-parameter-field').forEach(field=>{const input=field.querySelector('input');if(input&&input.value!=='')values[field.dataset.parameterKey]=input.value;field.remove();});
+  anchor.insertAdjacentHTML('beforebegin',receivingParameterFieldsHtml(standard,values));
+  form._deliveryReadings=null;
+  form.querySelectorAll('.receiving-parameter-field input').forEach(input=>input.addEventListener('input',()=>{form._deliveryReadings=null;window.refreshReceivingDecision?.(form);}));
 }
 function initialQualityCard(receipt={}){
   // Purchase/delivery notes were deliberately removed from the inspection
@@ -230,7 +260,12 @@ function openGoodsInward(receipt){
     purchaseField.insertAdjacentElement('afterend',ordered);
   }
   const createdByField=[...form.querySelectorAll('.field')].find(field=>field.querySelector('label')?.textContent==='Created by');
-  if(createdByField){const createdBy=receipt?.createdBy||currentOperator?.()?.name||'';createdByField.innerHTML=`<label>Created by</label><select name="createdBy" required><option value="">Select a staff member</option>${data.people.filter(person=>person.name).map(person=>`<option value="${goodsEscape(person.name)}" ${person.name===createdBy?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||person.type||'Staff')}</option>`).join('')}</select>`;}
+  if(createdByField){const createdBy=receipt?.createdBy||'';createdByField.innerHTML=`<label>Created by</label><select name="createdBy" required><option value="" ${createdBy?'':'selected'}>Select user</option>${data.people.filter(person=>person.type==='User'&&person.name).map(person=>`<option value="${goodsEscape(person.name)}" ${person.name===createdBy?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||'User')}</option>`).join('')}</select>`;}
+  const users=data.people.filter(person=>person.type==='User'&&person.name);
+  const receivedBy=receipt?.receivedBy||'';
+  if(form.elements.receivedBy){form.elements.receivedBy.required=true;form.elements.receivedBy.innerHTML=`<option value="" ${receivedBy?'':'selected'}>Select user</option>${users.map(person=>`<option value="${goodsEscape(person.name)}" ${person.name===receivedBy?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||'User')}</option>`).join('')}`;}
+  const assignedBy=receipt?.warehouseAssignedById??'';
+  if(form.elements.warehouseAssignedById)form.elements.warehouseAssignedById.innerHTML=`<option value="" ${assignedBy?'':'selected'}>Select user</option>${users.map(person=>`<option value="${person.id}" ${String(person.id)===String(assignedBy)?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||'User')}</option>`).join('')}`;
   form.elements.purchaseId.onchange=()=>{
     const purchase=data.purchases.find(entry=>entry.id===+form.elements.purchaseId.value);
     const linkedReceipt=purchase&&data.goodsInwards.find(record=>record.purchaseId===purchase.id);
@@ -244,7 +279,7 @@ function openGoodsInward(receipt){
   goodsFormControl(form,'item').onchange=()=>{const item=data.items.find(entry=>entry.name===goodsFormControl(form,'item').value);if(item){form.elements.category.value=item.category;form.elements.unit.value=item.unit}};
   if(linkedPurchase)fillGoodsFromPurchase(form,linkedPurchase);
   setPurchaseLinkedFieldState(form,linkedPurchase);
-  receivingComparisonFields.forEach(([key])=>form.elements[key]?.addEventListener('input',()=>refreshInitialQualityComparison(form)));
+  renderReceivingParameterFields(form,receipt);
   refreshInitialQualityComparison(form);
   $('#record-dialog').showModal();
 }
@@ -255,7 +290,7 @@ function renderGoodsInwards(){
   const visibleReceipts=data.goodsInwards.filter(receipt=>!receipt.deleted);
   $('#quality-stats').innerHTML=[['Receipts',visibleReceipts.length],['Accepted',visibleReceipts.filter(record=>record.decision==='Accepted').length],['Assess / hold / rejected',visibleReceipts.filter(record=>['Assess','Hold','Rejected'].includes(record.decision)).length]].map(item=>`<div class="quality-stat"><small>${item[0]}</small><strong>${item[1]}</strong></div>`).join('');
   $('#quality-table').parentElement.querySelector('thead').innerHTML='<tr><th>Received</th><th>Completed at</th><th>Goods / lot</th><th>Supplier / origin</th><th>Quantity</th><th>Warehouse</th><th>Inspection</th><th>Decision</th><th>Officer</th><th></th></tr>';
-  $('#quality-table').innerHTML=[...visibleReceipts].sort((a,b)=>String(b.receivedDate).localeCompare(String(a.receivedDate))).map(receipt=>{const origin=[receipt.originLga,receipt.originState].filter(Boolean).join(', '),warehouse=(data.warehouses||[]).find(entry=>entry.id===receipt.warehouseId),warehouseText=warehouse?warehouse.name:'Not assigned',completed=receipt.finalizedAt||receipt.arrivedAt||receipt.createdAt;const result=`Oil ${goodsNumber(receipt.oilContent)===''?'—':goodsNumber(receipt.oilContent)+'%'} · FFA ${goodsNumber(receipt.ffa)===''?'—':goodsNumber(receipt.ffa)+'%'}<br>Moisture ${goodsNumber(receipt.moisture)===''?'—':goodsNumber(receipt.moisture)+'%'} · Damaged ${goodsNumber(receipt.damaged)===''?'—':goodsNumber(receipt.damaged)+'%'}<br>Foreign matter ${goodsNumber(receipt.foreignMatter)===''?'—':goodsNumber(receipt.foreignMatter)+'%'} · Aflatoxin ${goodsNumber(receipt.aflatoxin)===''?'—':goodsNumber(receipt.aflatoxin)+' ppb'}`;return `<tr><td>${date(receipt.receivedDate)}</td><td>${completed?new Date(completed).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'Not recorded'}</td><td><strong>${goodsEscape(receipt.item)}</strong><div class="item-note">${goodsEscape(receipt.purchaseReference||'Standalone receipt')} · Lot: ${goodsEscape(receipt.lotNo||receipt.batch||'—')}</div></td><td>${goodsEscape(receipt.supplier)}<div class="item-note">${goodsEscape(origin||'Origin not recorded')}</div></td><td>${(+receipt.qty).toLocaleString()} ${goodsEscape(receipt.unit)}${settlementNote(receipt)}</td><td>${goodsEscape(warehouseText)}<div class="item-note">${goodsEscape(receipt.warehouseAssignedBy||'—')} · ${receipt.warehouseAssignedDate?date(receipt.warehouseAssignedDate):'—'}</div></td><td class="quality-result">${result}</td><td>${receiptBadge(receipt.decision)}</td><td>${goodsEscape(receipt.qualityCheckOfficer||'—')}</td><td><button class="text-btn edit-receipt" data-receipt-id="${goodsEscape(receipt.id)}">Edit</button>${canDeleteRecords?.()?` <button class="text-btn delete-receipt" data-receipt-id="${goodsEscape(receipt.id)}">Delete</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="10">No goods received yet.</td></tr>';
+  $('#quality-table').innerHTML=[...visibleReceipts].sort((a,b)=>String(b.receivedDate).localeCompare(String(a.receivedDate))).map(receipt=>{const origin=[receipt.originLga,receipt.originState].filter(Boolean).join(', '),warehouse=(data.warehouses||[]).find(entry=>entry.id===receipt.warehouseId),warehouseText=warehouse?warehouse.name:'Not assigned',completed=receipt.finalizedAt||receipt.arrivedAt||receipt.createdAt;const readings=receivingStandardParameters(receivingStandardFor(receipt.item,receipt.category)).map(parameter=>{const value=comparisonNumber(receivingReadingValue(receipt,receivingFieldName(parameter.key),parameter.key));return `${goodsEscape(parameter.label||parameter.key)} ${value===null?'—':`${value.toLocaleString(undefined,{maximumFractionDigits:4})}${parameter.unit?` ${goodsEscape(parameter.unit)}`:''}`}`;});const result=readings.map((reading,index)=>`${index?(index%2?' · ':'<br>'):''}${reading}`).join('')||'No parameters configured';return `<tr><td>${date(receipt.receivedDate)}</td><td>${completed?new Date(completed).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'Not recorded'}</td><td><strong>${goodsEscape(receipt.item)}</strong><div class="item-note">${goodsEscape(receipt.purchaseReference||'Standalone receipt')} · Lot: ${goodsEscape(receipt.lotNo||receipt.batch||'—')}</div></td><td>${goodsEscape(receipt.supplier)}<div class="item-note">${goodsEscape(origin||'Origin not recorded')}</div></td><td>${(+receipt.qty).toLocaleString()} ${goodsEscape(receipt.unit)}${settlementNote(receipt)}</td><td>${goodsEscape(warehouseText)}<div class="item-note">${goodsEscape(receipt.warehouseAssignedBy||'—')} · ${receipt.warehouseAssignedDate?date(receipt.warehouseAssignedDate):'—'}</div></td><td class="quality-result">${result}</td><td>${receiptBadge(receipt.decision)}</td><td>${goodsEscape(receipt.qualityCheckOfficer||'—')}</td><td><button class="text-btn edit-receipt" data-receipt-id="${goodsEscape(receipt.id)}">Edit</button>${canDeleteRecords?.()?` <button class="text-btn delete-receipt" data-receipt-id="${goodsEscape(receipt.id)}">Delete</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="10">No goods received yet.</td></tr>';
   document.querySelectorAll('.edit-receipt').forEach(button=>button.onclick=()=>openGoodsInward(data.goodsInwards.find(receipt=>String(receipt.id)===button.dataset.receiptId)));
   document.querySelectorAll('.delete-receipt').forEach(button=>button.onclick=()=>deleteReceipt(data.goodsInwards.find(receipt=>String(receipt.id)===button.dataset.receiptId)));
   [...visibleReceipts].sort((a,b)=>String(b.receivedDate).localeCompare(String(a.receivedDate))).forEach((receipt,index)=>{
@@ -319,7 +354,13 @@ $('#record-form').addEventListener('submit',event=>{
   const warehouse=(data.warehouses||[]).find(entry=>entry.id===+values.warehouseId),warehouseAssignee=data.people.find(person=>person.id===+values.warehouseAssignedById);
   record.goodsInwardsId=existing?.goodsInwardsId||nextGoodsInwardsReference();
   Object.assign(record,{deleted:false,deletedAt:'',deletedBy:'',purchaseId:purchase?.id||null,linkedPurchase:!!purchase,receivedDate:values.receivedDate,arrivedAt:restoringDeletedReceipt?new Date().toISOString():(existing?.arrivedAt||new Date().toISOString()),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,stockQty,stockUnit,receivedBy:values.receivedBy,warehouseId:warehouse?.id||null,warehouseName:warehouse?.name||'',warehouseAssignedById:warehouseAssignee?.id||null,warehouseAssignedBy:warehouseAssignee?.name||'',warehouseAssignedDate:warehouse?values.warehouseAssignedDate||new Date().toISOString().slice(0,10):'',batch:values.batch,qualityDate:values.qualityDate,condition:values.condition,decision:values.decision,notes:values.notes});
-  ['moisture','damaged','foreignMatter','aflatoxin','oilContent','ffa'].forEach(field=>record[field]=values[field]===''?'':Number(Number(values[field]).toFixed(2)));
+  // Readings are saved per parameter of the item's standard; nut parameters
+  // also keep their original columns for existing lists and reports.
+  const readingNumber=(value,places)=>value===''||value===undefined||value===null||!Number.isFinite(Number(value))?'':Number(Number(value).toFixed(places));
+  ['moisture','damaged','foreignMatter','aflatoxin','oilContent','ffa'].forEach(field=>record[field]=readingNumber(values[field],2));
+  const receivingStandard=formReceivingStandard(form);
+  record.qualityStandard=receivingStandard.name||'';
+  record.qualityParameters=Object.fromEntries(receivingStandardParameters(receivingStandard).map(parameter=>[parameter.key,readingNumber(values[receivingFieldName(parameter.key)],4)]));
   record.createdBy=values.createdBy?.trim()||record.createdBy;
   const officer=data.people.find(person=>person.id===+values.qualityCheckOfficerId);record.qualityCheckOfficerId=officer?.id||null;record.qualityCheckOfficer=officer?.name||'';record.inspector=record.qualityCheckOfficer;
   record.decisionReason=values.decisionReason||'';

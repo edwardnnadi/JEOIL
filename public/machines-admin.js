@@ -8,7 +8,7 @@
 
   const esc = (value = '') => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&gt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
   const today = () => new Date().toISOString().slice(0, 10);
-  const machineTypes = ['Goyum Round Kettle Oil Expeller', 'Kurma 15-ton Oil Expeller', 'Oil filter press', 'Seed cleaner', 'Kernel roaster', 'Oil storage tank', 'Other'];
+  const machineTypes = ['Goyum Round Kettle Oil Expeller', 'Kurma 15-ton Oil Expeller', 'Oil filter press', 'Seed cleaner', 'Kernel roaster', 'Oil storage tank', 'Laboratory equipment', 'Other'];
 
   const ensureMachines = () => {
     data.machines ??= [];

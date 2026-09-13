@@ -161,18 +161,24 @@ function refreshReceivingDecision(form) {
   const purchase = data.purchases.find(entry => entry.id === +form.elements.purchaseId?.value);
   const receipt = purchase ? receiptForPurchase(purchase) : (form._receivingReceipt || {});
   const assessment = receipt.purchaseQuality || {};
-  const standard = review._getStandard?.() || itemStandard?.(form.elements.namedItem('item')?.value, form.elements.category?.value) || { name: 'JE Oils Standard', parameters: [] };
+  const standard = review._getStandard?.() || formReceivingStandard(form);
+  const heading = review.querySelector(':scope > label');
+  if (heading) heading.textContent = `Purchase, delivery and ${standard.name || 'quality standard'}`;
   const rows = review.querySelector('[data-receiving-decision-rows]');
   const delivery = form._deliveryReadings || {};
-  rows.innerHTML = receivingComparisonFields.map(([key, label, unit, sourceKey]) => {
-    const before = key === 'qty' ? receipt[sourceKey] ?? receipt.qty : assessment[key];
-    const after = delivery[key] ?? form.elements[key]?.value;
-    const difference = comparisonNumber(after) === null || comparisonNumber(before) === null ? '—' : `${Number(after) - Number(before) > 0 ? '+' : ''}${Number((Number(after) - Number(before)).toFixed(2))}${unit ? ` ${unit}` : ''}`;
-    return `<tr><th scope="row">${label}</th><td>${comparisonValue(before, unit || receipt.unit || '')}</td><td>${comparisonNumber(after) === null ? 'Not recorded' : comparisonValue(after, unit || receipt.unit || '')}</td><td>${difference}</td></tr>`;
+  rows.innerHTML = receivingComparisonFieldsFor(form).map(([key, label, unit, sourceKey, parameterKey, operator]) => {
+    const before = key === 'qty' ? receipt[sourceKey] ?? receipt.qty : receivingBaseline(assessment, key, parameterKey);
+    const after = delivery[key] ?? form.elements.namedItem(key)?.value;
+    const baseline = comparisonNumber(before), found = comparisonNumber(after), delta = baseline === null || found === null ? null : found - baseline;
+    const direction = receivingDirection(key, operator);
+    const outcome = delta === null ? 'unavailable' : delta === 0 ? 'same' : ((delta > 0) === (direction === 'higher') ? 'better' : 'worse');
+    const heat = delta === null || delta === 0 ? '' : Math.min(.52, Math.max(.12, Math.abs(delta) / (Math.abs(baseline) || Math.abs(found) || 1) * .65 + .12)).toFixed(2);
+    const difference = delta === null ? '—' : `${delta > 0 ? '+' : ''}${Number(delta.toFixed(2))}${unit ? ` ${unit}` : ''}${delta === 0 ? ' · No change' : ` · ${outcome === 'better' ? 'Better' : 'Worse'}`}`;
+    return `<tr class="receiving-change-${outcome}" ${heat ? `style="--receiving-heat:${heat}"` : ''}><th scope="row">${label}</th><td>${comparisonValue(before, (key === 'qty' ? receipt.unit || '' : unit))}</td><td>${found === null ? 'Not recorded' : comparisonValue(after, (key === 'qty' ? receipt.unit || '' : unit))}</td><td class="receiving-change-value">${difference}</td></tr>`;
   }).join('');
   const checked = (standard.parameters || []).map(parameter => {
-    const key = receivingParameterKey(parameter.label);
-    const value = key ? comparisonNumber(delivery[key] ?? form.elements[key]?.value) : null;
+    const key = parameter.key ? receivingFieldName(parameter.key) : receivingParameterKey(parameter.label);
+    const value = key ? comparisonNumber(delivery[key] ?? form.elements.namedItem(key)?.value) : null;
     return { parameter, value, outcome: receivingMeetsStandard(value, parameter.operator, parameter.limit) };
   }).filter(item => item.outcome !== null);
   const failures = checked.filter(item => !item.outcome);
@@ -282,7 +288,7 @@ receivingStyle.textContent =
   '.rv-gate-wait{background:#fbf1dc;border:1px solid #e6cf9a;color:#6b5417}' +
   '.rv-gate-reject{background:#fbe9e7;border:1px solid #e3b3ac;color:#8c2b21}' +
   '.qc-change-value{transition:background-color .15s ease}.qc-change-value.is-better{color:#285f32;background:rgb(126 185 117 / var(--qc-heat,.12));font-weight:700}.qc-change-value.is-worse{color:#8d3029;background:rgb(211 115 103 / var(--qc-heat,.12));font-weight:700}.qc-change-value.is-same{color:#5d625b;background:rgb(157 164 152 / var(--qc-heat,.08))}.qc-change-value.is-unavailable{color:#6d6e64}' +
-  '.receiving-comparison,.receiving-settlement{margin-bottom:6px}'+
+  '.receiving-comparison,.receiving-settlement{margin-bottom:6px}.receiving-comparison .receiving-change-value{font-weight:700}.receiving-comparison .receiving-change-better .receiving-change-value{color:#285f32;background:rgb(126 185 117 / var(--receiving-heat,.12))}.receiving-comparison .receiving-change-worse .receiving-change-value{color:#8d3029;background:rgb(211 115 103 / var(--receiving-heat,.12))}.receiving-comparison .receiving-change-same .receiving-change-value{color:#5d625b;background:rgb(157 164 152 / .08)}.receiving-comparison .receiving-change-unavailable .receiving-change-value{color:#6d6e64}'+
   '.rv-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'+
   '.rv-table{min-width:420px}' +
   '.receiving-recommendation{display:grid;gap:3px;margin-top:12px;padding:10px 12px;border:1px solid;border-radius:7px;font-size:13px;line-height:1.4}' +
