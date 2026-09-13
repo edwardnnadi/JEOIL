@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="quality.css?v=quality-direction-20260910" />
     <link rel="stylesheet" href="production.css" />
     <link rel="stylesheet" href="brand.css?v=purchase-filter-layout-20260909" />
+    <link rel="stylesheet" href="reports.css?v=report-centre-20260913" />
   </head>
   <body class="operations-app">
     <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Hide navigation menu">
@@ -28,6 +29,7 @@
         <button class="nav-item" data-view="production" data-title="Production"><span>◒</span>Production</button>
         <button class="nav-item" data-view="stock" data-title="Stock"><span>□</span>Stock</button>
         <button class="nav-item" data-view="suppliers" data-title="Suppliers"><span>♙</span>Suppliers</button>
+        <button class="nav-item" data-view="reports" data-title="Report Centre"><span>▤</span>Reports</button>
         <button class="nav-item admin-parent" data-view="admin" data-title="Administration" aria-controls="admin-submenu" aria-expanded="false"><span>⚙</span>Admin <b aria-hidden="true">⌄</b></button>
         <div class="admin-submenu" id="admin-submenu" hidden>
           <button type="button" data-admin-section="people">Users &amp; People</button>
@@ -69,6 +71,8 @@
 
       <section class="view" id="stock-view"><div class="view-head"><div><h2>Stock on hand</h2><p>Your current inventory across raw materials, consumables and finished goods.</p></div><button class="primary" id="add-stock">+ Add stock item</button></div><div class="stock-grid" id="stock-grid"></div></section>
       <section class="view" id="warehouse-view"><div class="view-head"><div><h2>Warehouses</h2><p>Maintain the warehouses used to receive, store and issue materials.</p></div><button class="primary" id="add-warehouse">+ Add warehouse</button></div><div class="panel table-panel"><table><thead><tr><th>Warehouse name</th><th>Warehouse location</th><th></th></tr></thead><tbody id="warehouses-table"></tbody></table></div></section>
+
+      <section class="view" id="reports-view"><div class="view-head"><div><p class="admin-section-label">REPORTING</p><h2>Report Centre</h2><p>Operational reporting, yield analysis and traceability using the live ERP records.</p></div><div class="header-actions"><button class="secondary" id="report-builder-toggle" type="button">Create report</button><button class="primary" id="report-favourites" type="button">★ Favourites</button></div></div><section class="report-catalogue panel"><div class="report-catalogue-tools"><label class="report-search"><span>⌕</span><input id="report-search" type="search" placeholder="Find a report"></label><div id="report-area-filters" class="report-area-filters" aria-label="Report areas"></div></div><div id="report-catalogue-list" class="report-catalogue-list"></div></section><section id="report-builder" class="panel report-builder" hidden></section><section id="report-runner" class="panel report-runner" hidden></section></section>
 
       <section class="view" id="lab-results-view"><div class="view-head"><div><p class="admin-section-label">LABORATORY</p><h2>Lab results</h2><p>Record and review test results for incoming materials and finished products.</p></div><button class="primary" id="add-lab-result">+ Record result</button></div><div class="quality-guide"><span>⌁</span><div><strong>Traceable laboratory records</strong><p>Select a configured test, enter the batch reference and readings, then record the decision and analyst.</p></div></div><div class="lab-result-stats" id="lab-result-stats"></div><div class="panel table-panel"><table><thead><tr><th>Test date</th><th>Batch / sample</th><th>Test</th><th>Result summary</th><th>Decision</th><th>Analyst</th></tr></thead><tbody id="lab-results-table"></tbody></table></div></section>
 
@@ -112,6 +116,7 @@
     <script src="dropdown-defaults.js?v=no-implicit-dropdowns-20260911"></script>
     <script src="employees.js?v=employees-20260911"></script>
     <script src="production-enhancements.js?v=production-warehouse-units-20260913"></script>
+    <script src="reports.js?v=report-centre-20260913"></script>
     <script>
       document.querySelectorAll('.nav-item:not(.admin-parent)').forEach((item) => {
         item.onclick = () => {
