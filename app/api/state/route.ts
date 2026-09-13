@@ -33,8 +33,38 @@ function changedAreas(before: string | null, after: string) {
   try {
     const previous = before ? JSON.parse(before) as Record<string, unknown> : {};
     const next = JSON.parse(after) as Record<string, unknown>;
-    const areas = Object.keys(next).filter((key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]));
-    return areas.slice(0, 6).join(', ') || 'operational data';
+    const labels: Record<string, string> = {
+      purchases: 'Purchases', goodsInwards: 'Goods inwards', assessments: 'Quality assessments',
+      production: 'Production runs', stock: 'Stock', suppliers: 'Suppliers', people: 'People',
+      warehouses: 'Warehouses', machines: 'Machines', labResults: 'Lab results', labRuns: 'Lab runs',
+    };
+    const recordName = (record: Record<string, unknown>) => String(
+      record.reference ?? record.batch ?? record.name ?? record.item ?? record.product ?? record.id ?? 'record',
+    );
+    const changedFields = (beforeRecord: Record<string, unknown>, afterRecord: Record<string, unknown>) =>
+      Object.keys(afterRecord).filter(key => key !== 'id' && JSON.stringify(beforeRecord[key]) !== JSON.stringify(afterRecord[key]))
+        .slice(0, 4).map(key => key.replace(/([a-z])([A-Z])/g, '$1 $2'));
+    const summaries = Object.keys(next).flatMap((key) => {
+      if (JSON.stringify(previous[key]) === JSON.stringify(next[key])) return [];
+      const label = labels[key] ?? key.replace(/([a-z])([A-Z])/g, '$1 $2');
+      if (!Array.isArray(previous[key]) || !Array.isArray(next[key])) return [label];
+      const oldRecords = previous[key].filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object');
+      const newRecords = next[key].filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object');
+      const oldById = new Map(oldRecords.map(record => [String(record.id), record]));
+      const newById = new Map(newRecords.map(record => [String(record.id), record]));
+      const added = newRecords.find(record => !oldById.has(String(record.id)));
+      if (added) return [`${label}: added ${recordName(added)}`];
+      const removed = oldRecords.find(record => !newById.has(String(record.id)));
+      if (removed) return [`${label}: removed ${recordName(removed)}`];
+      const updated = newRecords.find(record => {
+        const oldRecord = oldById.get(String(record.id));
+        return oldRecord && JSON.stringify(oldRecord) !== JSON.stringify(record);
+      });
+      if (!updated) return [label];
+      const fields = changedFields(oldById.get(String(updated.id))!, updated);
+      return [`${label}: updated ${recordName(updated)}${fields.length ? ` (${fields.join(', ')})` : ''}`];
+    });
+    return summaries.slice(0, 6).join('; ') || 'Operational data';
   } catch {
     return 'operational data';
   }
