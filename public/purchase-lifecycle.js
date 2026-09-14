@@ -122,7 +122,7 @@ function renderPurchaseLifecycle() {
     return `<tr>
       <td>${date(purchase.date)}</td>
       <td>${purchase.createdAt ? new Date(purchase.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '<span class="purchase-muted">Not recorded</span>'}</td>
-      <td><strong>${lifecycleEscape(purchase.item)}</strong><div class="item-note">${lifecycleEscape(purchase.purchaseId || `Purchase ${purchase.id}`)}${purchase.lotNo ? ` · Lot: ${lifecycleEscape(purchase.lotNo)}` : ''}</div></td>
+      <td><strong>${lifecycleEscape(purchase.item)}</strong><div class="item-note">${lifecycleEscape(purchase.purchaseId || `Purchase ${purchase.id}`)}${purchase.batchNumber || purchase.lotNo ? ` · Batch: ${lifecycleEscape(purchase.batchNumber || purchase.lotNo)}` : ''}</div></td>
       <td>${purchase.itemDescription ? lifecycleEscape(purchase.itemDescription) : '<span class="purchase-muted">Not recorded</span>'}</td>
       <td>${lifecycleEscape(purchase.supplier)}</td>
       <td>${Number(purchase.qty || 0).toLocaleString()} ${lifecycleEscape(purchase.unit)}</td>

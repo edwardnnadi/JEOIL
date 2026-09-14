@@ -31,6 +31,30 @@
     const receiptQuantity=(data.goodsInwards||[]).filter(receipt=>receipt.decision==='Accepted'&&String(receipt.warehouseId)===String(warehouseId)&&receipt.item===itemName&&!matchingMovements.some(m=>m.sourceType==='GOODS_RECEIPT'&&String(m.sourceId)===String(receipt.id))).reduce((sum,receipt)=>sum+Number(receipt.qty||0),0);
     return matchingMovements.reduce((sum,movement)=>sum+Number(movement.quantity||0),receiptQuantity);
   }
+  // A production run must name the accepted purchase batch it consumes. This
+  // keeps the production record connected to the receiving and QC records.
+  function acceptedPurchaseBatches(warehouseId='') {
+    return (data.goodsInwards || []).filter(receipt =>
+      receipt.decision === 'Accepted'
+      && (!warehouseId || String(receipt.warehouseId) === String(warehouseId))
+      && (receipt.batchNumber || receipt.batch || receipt.lotNo),
+    );
+  }
+  function purchaseBatchNumber(receipt) { return receipt.batchNumber || receipt.batch || receipt.lotNo || ''; }
+  function purchaseBatchAvailable(receipt) {
+    const batch = purchaseBatchNumber(receipt);
+    const received = Number(receipt.stockOnHandQty ?? receipt.stockQty ?? receipt.qty ?? 0);
+    const issued = (data.stockMovements || []).filter(movement =>
+      movement.type === 'PRODUCTION_ISSUE' && movement.lotNo === batch,
+    ).reduce((sum, movement) => sum + Number(movement.quantity || 0), 0);
+    return Math.max(0, received + issued);
+  }
+  function purchaseBatchOptions(warehouseId='') {
+    return acceptedPurchaseBatches(warehouseId).map(receipt => {
+      const batch = purchaseBatchNumber(receipt), available = purchaseBatchAvailable(receipt);
+      return `<option value="${esc(receipt.id)}">${esc(batch)} · ${esc(receipt.item)} · ${available.toLocaleString()} ${esc(receipt.stockUnit || receipt.unit || '')} available · received ${esc(receipt.receivedDate || '')}</option>`;
+    }).join('');
+  }
   function materialRows(warehouseId='') { return (data.stock || []).map(s => ({...s,available:warehouseAvailable(s.name,warehouseId)})).filter(s => s.available > 0).map(s => `<tr><td><label><input type="checkbox" name="material" value="${esc(s.name)}"> ${esc(s.name)}</label></td><td>${Number(s.available).toLocaleString()} ${esc(s.unit)}</td><td><input name="qty-${esc(s.name)}" type="number" min="0" max="${s.available}" step="any" value="0" aria-label="Quantity of ${esc(s.name)}"></td></tr>`).join('') || '<tr><td colspan="3">No available stock in this warehouse. Receive or transfer accepted goods first.</td></tr>'; }
   function showSubmitAction(label) {
     const actions = document.querySelector('#record-dialog .modal-actions');
@@ -44,23 +68,36 @@
   function openStart() {
     inventoryData();
     $('#modal-label').textContent = 'PRODUCTION RUN'; $('#modal-title').textContent = 'Start production run';
-    $('#form-fields').innerHTML = `<div class="form-grid"><div class="field"><label>Production batch no.</label><input name="batch" readonly value="${esc(nextBatch())}"></div><div class="field"><label>Run date</label><input name="date" type="date" required value="${today()}"></div><div class="field full"><label>Machines</label><select name="machines" multiple required aria-describedby="machine-selection-help">${machineOptions()}</select><div class="item-note" id="machine-selection-help">Select every machine used for this run.</div></div><div class="field"><label>Materials warehouse</label><select name="sourceWarehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Output warehouse</label><select name="warehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Factory manager</label><select name="manager" required>${(data.people || []).filter(p => p.type === 'User').map(p => `<option>${esc(p.name)}</option>`).join('')}</select></div><div class="field"><label>Staff / roles</label><select name="staff" required>${staffOptions()}</select></div><div class="field full"><label>Materials and resources to issue</label><table class="run-materials"><thead><tr><th>Material</th><th>Available</th><th>Quantity to issue</th></tr></thead><tbody id="production-materials">${materialRows()}</tbody></table><div class="item-note">Select a materials warehouse to load its available stock. Starting the run records the issue from that warehouse.</div></div></div>`;
-    const form = $('#record-form'); form.dataset.type = 'production-start'; form.elements.sourceWarehouseId.onchange=()=>{form.querySelector('#production-materials').innerHTML=materialRows(form.elements.sourceWarehouseId.value);}; showSubmitAction('Start production run'); $('#record-dialog').showModal();
+    $('#form-fields').innerHTML = `<div class="form-grid"><div class="field"><label>Production batch no.</label><input name="batch" readonly value="${esc(nextBatch())}"></div><div class="field"><label>Run date</label><input name="date" type="date" required value="${today()}"></div><div class="field full"><label>Machines</label><select name="machines" multiple required aria-describedby="machine-selection-help">${machineOptions()}</select><div class="item-note" id="machine-selection-help">Select every machine used for this run.</div></div><div class="field"><label>Materials warehouse</label><select name="sourceWarehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Purchase batch</label><select name="purchaseBatchReceiptId" required disabled><option value="">Select a materials warehouse first</option></select><div class="item-note">Only accepted, QC-tested batches are available for production.</div></div><div class="field"><label>Output warehouse</label><select name="warehouseId" required><option value="">Select warehouse</option>${warehouseOptions()}</select></div><div class="field"><label>Factory manager</label><select name="manager" required>${(data.people || []).filter(p => p.type === 'User').map(p => `<option>${esc(p.name)}</option>`).join('')}</select></div><div class="field"><label>Staff / roles</label><select name="staff" required>${staffOptions()}</select></div><div class="field full"><label>Materials and resources to issue</label><table class="run-materials"><thead><tr><th>Material</th><th>Available</th><th>Quantity to issue</th></tr></thead><tbody id="production-materials">${materialRows()}</tbody></table><div class="item-note">Select a materials warehouse and accepted purchase batch before starting the run. The selected batch is carried to the production and inventory records.</div></div></div>`;
+    const form = $('#record-form');
+    const refreshPurchaseBatches=()=>{
+      const selector=form.elements.purchaseBatchReceiptId, warehouseId=form.elements.sourceWarehouseId.value;
+      selector.disabled=!warehouseId;
+      selector.innerHTML=`<option value="">${warehouseId?'Select accepted purchase batch':'Select a materials warehouse first'}</option>${purchaseBatchOptions(warehouseId)}`;
+      form.querySelector('#production-materials').innerHTML=materialRows(warehouseId);
+    };
+    form.dataset.type = 'production-start'; form.elements.sourceWarehouseId.onchange=refreshPurchaseBatches; refreshPurchaseBatches(); showSubmitAction('Start production run'); $('#record-dialog').showModal();
   }
   function selectedMaterials(form) { return [...form.querySelectorAll('[name="material"]:checked')].map(box => ({ name: box.value, quantity: Number(form.elements[`qty-${box.value}`].value || 0) })).filter(m => m.quantity > 0); }
   function startRun(form) {
     const machines=[...form.elements.machines.selectedOptions].map(option=>option.value); if (!machines.length) return alert('Select at least one machine.');
     const warehouse = (data.warehouses || []).find(w => String(w.id) === String(form.elements.warehouseId.value)); const sourceWarehouse=(data.warehouses || []).find(w=>String(w.id)===String(form.elements.sourceWarehouseId.value)); if (!warehouse || !sourceWarehouse) return alert('Select the materials and output warehouses.');
+    const receipt=acceptedPurchaseBatches(sourceWarehouse.id).find(entry=>String(entry.id)===String(form.elements.purchaseBatchReceiptId.value));
+    if (!receipt) return alert('Select an accepted purchase batch for this production run.');
+    const purchaseBatchNumberValue=purchaseBatchNumber(receipt);
     const materials = selectedMaterials(form); if (!materials.length) return alert('Select at least one material or resource and enter its quantity.');
+    const batchMaterial=materials.find(material=>material.name===receipt.item);
+    if (!batchMaterial) return alert(`Include ${receipt.item} from purchase batch ${purchaseBatchNumberValue} in the materials issued.`);
+    if (batchMaterial.quantity>purchaseBatchAvailable(receipt)) return alert(`Only ${purchaseBatchAvailable(receipt).toLocaleString()} ${receipt.stockUnit||receipt.unit||''} remains in purchase batch ${purchaseBatchNumberValue}.`);
     const shortage = materials.find(m => m.quantity > warehouseAvailable(m.name,sourceWarehouse.id));
     if (shortage) return alert(`Insufficient available stock for ${shortage.name} in ${sourceWarehouse.name}.`);
     const low=materials.find(m=>{const item=stockItem(m.name);return item&&Number(item.reorder)>0&&warehouseAvailable(m.name,sourceWarehouse.id)-m.quantity<=Number(item.reorder);});
     if (low&&!confirm(`${low.name} will be at or below its reorder level after this issue. Continue with the production run?`))return;
     data.productionConfig.batch.nextNumber = Number(data.productionConfig.batch.nextNumber) + 1;
-    materials.forEach(m => { const item = stockItem(m.name); item.qty -= m.quantity; recordStockMovement({ type:'PRODUCTION_ISSUE', item:m.name, category:item.category, quantity:-m.quantity, unit:item.unit, warehouseId:sourceWarehouse.id, sourceType:'PRODUCTION_RUN', sourceId:form.elements.batch.value, note:'Issued at production start' }); });
+    materials.forEach(m => { const item = stockItem(m.name), isPurchaseBatchMaterial=m.name===receipt.item; item.qty -= m.quantity; recordStockMovement({ type:'PRODUCTION_ISSUE', item:m.name, category:item.category, quantity:-m.quantity, unit:item.unit, warehouseId:sourceWarehouse.id, sourceType:'PRODUCTION_RUN', sourceId:form.elements.batch.value, lotNo:isPurchaseBatchMaterial?purchaseBatchNumberValue:'', note:`Issued at production start${isPurchaseBatchMaterial?` from purchase batch ${purchaseBatchNumberValue}`:''}` }); });
     const machineRatings=machines.map(name=>{const machine=(data.machines||[]).find(entry=>entry.name===name);return{id:machine?.id||'',name,manufacturerRating:{...(machine?.manufacturerRating||{})}};});
-    materials.forEach(material=>{material.unit=stockItem(material.name)?.unit||'';});
-    data.activeProductionRuns.unshift({ id:id(), batch:form.elements.batch.value, date:form.elements.date.value, machine:machines.join(' · '), machines, machineRatings, sourceWarehouseId:sourceWarehouse.id, sourceWarehouseName:sourceWarehouse.name, warehouseId:warehouse.id, warehouseName:warehouse.name, manager:form.elements.manager.value, staff:form.elements.staff.value, materials, issues:[], startedAt:new Date().toISOString(), status:'IN_PROGRESS' });
+    materials.forEach(material=>{material.unit=stockItem(material.name)?.unit||'';if(material.name===receipt.item){material.batchNumber=purchaseBatchNumberValue;material.lotNo=purchaseBatchNumberValue;material.goodsInwardsId=receipt.goodsInwardsId||receipt.id;}});
+    data.activeProductionRuns.unshift({ id:id(), batch:form.elements.batch.value, date:form.elements.date.value, machine:machines.join(' · '), machines, machineRatings, purchaseBatchNumber:purchaseBatchNumberValue, purchaseId:receipt.purchaseId||'', goodsInwardsId:receipt.goodsInwardsId||receipt.id, sourceWarehouseId:sourceWarehouse.id, sourceWarehouseName:sourceWarehouse.name, warehouseId:warehouse.id, warehouseName:warehouse.name, manager:form.elements.manager.value, staff:form.elements.staff.value, materials, issues:[], startedAt:new Date().toISOString(), status:'IN_PROGRESS' });
     save(); render(); $('#record-dialog').close();
   }
   function elapsedLabel(startedAt) {

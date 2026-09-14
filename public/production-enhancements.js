@@ -13,6 +13,22 @@
   const warehouseOptions = () => warehouses().map(warehouse => `<option value="${esc(warehouse.id)}">${esc(warehouse.name)}</option>`).join('');
   const peopleOptions = () => `<option value="">Select person</option>${(data.people || []).filter(person => person.name).map(person => `<option value="${esc(person.name)}">${esc(person.name)}${person.role ? ` — ${esc(person.role)}` : ''}</option>`).join('')}`;
   const machineOptions = () => (data.machines || []).filter(machine => machine.name).map(machine => `<option value="${esc(machine.name)}">${esc(machine.name)}</option>`).join('');
+  const purchaseBatchNumber = receipt => receipt.batchNumber || receipt.batch || receipt.lotNo || '';
+  const purchaseBatchAvailable = receipt => {
+    const batch = purchaseBatchNumber(receipt);
+    const received = Number(receipt.stockOnHandQty ?? receipt.stockQty ?? receipt.qty ?? 0);
+    const issued = (data.stockMovements || []).filter(movement => movement.type === 'PRODUCTION_ISSUE' && movement.lotNo === batch)
+      .reduce((total, movement) => total + Number(movement.quantity || 0), 0);
+    return Math.max(0, received + issued);
+  };
+  const acceptedPurchaseBatches = warehouseIds => (data.goodsInwards || []).filter(receipt =>
+    receipt.decision === 'Accepted'
+    && warehouseIds.includes(String(receipt.warehouseId))
+    && purchaseBatchNumber(receipt),
+  );
+  const purchaseBatchOptions = warehouseIds => acceptedPurchaseBatches(warehouseIds).map(receipt =>
+    `<option value="${esc(receipt.id)}">${esc(purchaseBatchNumber(receipt))} · ${esc(receipt.item)} · ${purchaseBatchAvailable(receipt).toLocaleString()} ${esc(receipt.stockUnit || receipt.unit || '')} available · received ${esc(receipt.receivedDate || '')}</option>`,
+  ).join('');
 
   function availableAt(item, warehouseId) {
     const movements = (data.stockMovements || []).filter(movement => movement.item === item && String(movement.warehouseId) === String(warehouseId));
@@ -43,6 +59,7 @@
     $('#form-fields').innerHTML = `<div class="form-grid">
       <div class="field full"><label>Machines</label><select name="machines" multiple required>${machineOptions()}</select><small>Hold Ctrl/Cmd to select multiple machines.</small></div>
       <div class="field full"><label>Input warehouses</label><select name="sourceWarehouseIds" multiple required>${warehouseOptions()}</select><small>Select every warehouse materials will be issued from.</small></div>
+      <div class="field full"><label>Purchase batch</label><select name="purchaseBatchReceiptId" required disabled><option value="">Select an input warehouse first</option></select><small>Choose the accepted, QC-tested batch to be consumed in this run.</small></div>
       <div class="field"><label>Output warehouse</label><select name="warehouseId" required><option value="">Select output warehouse</option>${warehouseOptions()}</select></div>
       <div class="field"><label>Production manager</label><select name="manager" required>${peopleOptions()}</select></div>
       <div class="field full"><label>Staff</label><select name="staff" multiple>${peopleOptions()}</select></div>
@@ -54,6 +71,9 @@
     const sourceSelector = form.elements.sourceWarehouseIds;
     sourceSelector.onchange = () => {
       const ids = [...sourceSelector.selectedOptions].map(option => option.value);
+      const batchSelector = form.elements.purchaseBatchReceiptId;
+      batchSelector.disabled = !ids.length;
+      batchSelector.innerHTML = `<option value="">${ids.length ? 'Select accepted purchase batch' : 'Select an input warehouse first'}</option>${purchaseBatchOptions(ids)}`;
       $('#multi-production-materials').innerHTML = materialRows(ids);
     };
     $('#save-record').textContent = 'Start production';
@@ -68,12 +88,18 @@
     const machines = [...form.elements.machines.selectedOptions].map(option => option.value);
     const outputWarehouse = warehouses().find(warehouse => String(warehouse.id) === String(form.elements.warehouseId.value));
     const sourceWarehouses = sourceIds.map(id => warehouses().find(warehouse => String(warehouse.id) === String(id))).filter(Boolean);
+    const receipt = acceptedPurchaseBatches(sourceIds).find(entry => String(entry.id) === String(form.elements.purchaseBatchReceiptId.value));
     const materials = [...form.querySelectorAll('.multi-production-material:checked')].map(box => {
       const quantity = Number(form.querySelector(`#${CSS.escape(box.dataset.key)}`).value || 0);
       const stockItem = (data.stock || []).find(item => item.name === box.dataset.item);
       return { name: box.dataset.item, quantity, unit: stockItem?.unit || '', warehouseId: box.dataset.warehouseId, warehouseName: box.dataset.warehouseName };
     }).filter(material => material.quantity > 0);
     if (!machines.length || !outputWarehouse || !sourceWarehouses.length || !materials.length) return alert('Select machines, input and output warehouses, and at least one material quantity.');
+    if (!receipt) return alert('Select an accepted purchase batch for this production run.');
+    const batchNumber = purchaseBatchNumber(receipt);
+    const batchMaterial = materials.find(material => material.name === receipt.item && String(material.warehouseId) === String(receipt.warehouseId));
+    if (!batchMaterial) return alert(`Include ${receipt.item} from purchase batch ${batchNumber} in the materials issued.`);
+    if (batchMaterial.quantity > purchaseBatchAvailable(receipt)) return alert(`Only ${purchaseBatchAvailable(receipt).toLocaleString()} ${receipt.stockUnit || receipt.unit || ''} remains in purchase batch ${batchNumber}.`);
     if (materials.some(material => !sourceIds.includes(String(material.warehouseId)))) return alert('Each selected material must come from one of the selected input warehouses.');
     const shortage = materials.find(material => material.quantity > availableAt(material.name, material.warehouseId));
     if (shortage) return alert(`${shortage.name} does not have enough available stock in ${shortage.warehouseName}.`);
@@ -83,7 +109,8 @@
     materials.forEach(material => {
       const stock = (data.stock || []).find(item => item.name === material.name);
       if (stock) stock.qty = Number(stock.qty || 0) - material.quantity;
-      window.recordStockMovement({ type: 'PRODUCTION_ISSUE', item: material.name, quantity: -material.quantity, warehouseId: material.warehouseId, sourceType: 'PRODUCTION_RUN', sourceId: batch, note: `Issued to ${batch}` });
+      const isPurchaseBatchMaterial = material.name === receipt.item && String(material.warehouseId) === String(receipt.warehouseId);
+      window.recordStockMovement({ type: 'PRODUCTION_ISSUE', item: material.name, quantity: -material.quantity, warehouseId: material.warehouseId, sourceType: 'PRODUCTION_RUN', sourceId: batch, lotNo: isPurchaseBatchMaterial ? batchNumber : '', note: `Issued to ${batch}${isPurchaseBatchMaterial ? ` from purchase batch ${batchNumber}` : ''}` });
     });
     data.activeProductionRuns ??= [];
     const machineRatings = machines.map(name => {
@@ -100,7 +127,8 @@
       sourceWarehouseId: sourceWarehouses[0].id, sourceWarehouseName: sourceWarehouses.map(warehouse => warehouse.name).join(' · '),
       sourceWarehouses: sourceWarehouses.map(warehouse => ({ id: warehouse.id, name: warehouse.name })),
       warehouseId: outputWarehouse.id, warehouseName: outputWarehouse.name,
-      manager: form.elements.manager.value, staff: [...form.elements.staff.selectedOptions].map(option => option.value), materials, issues: [], testResults: [], startedAt: new Date().toISOString(), status: 'IN_PROGRESS',
+      manager: form.elements.manager.value, staff: [...form.elements.staff.selectedOptions].map(option => option.value), purchaseBatchNumber: batchNumber, purchaseId: receipt.purchaseId || '', goodsInwardsId: receipt.goodsInwardsId || receipt.id,
+      materials: materials.map(material => material.name === receipt.item && String(material.warehouseId) === String(receipt.warehouseId) ? { ...material, batchNumber, lotNo: batchNumber, goodsInwardsId: receipt.goodsInwardsId || receipt.id } : material), issues: [], testResults: [], startedAt: new Date().toISOString(), status: 'IN_PROGRESS',
     });
     save(); render(); $('#record-dialog').close();
   }

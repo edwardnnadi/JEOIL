@@ -27,6 +27,7 @@
         <button class="nav-item" data-view="quality" data-title="Goods inwards"><span>✓</span>Goods inwards</button>
         <button class="nav-item" data-view="lab-results" data-title="Lab results"><span>⌁</span>Lab results</button>
         <button class="nav-item" data-view="production" data-title="Production"><span>◒</span>Production</button>
+        <button class="nav-item production-subpage" data-view="machine-services" data-title="Machine service records"><span>↳</span>Machine service</button>
         <button class="nav-item" data-view="stock" data-title="Stock"><span>□</span>Stock</button>
         <button class="nav-item" data-view="suppliers" data-title="Suppliers"><span>♙</span>Suppliers</button>
         <button class="nav-item" data-view="reports" data-title="Report Centre"><span>▤</span>Reports</button>
@@ -69,6 +70,8 @@
 
       <section class="view" id="production-view"><div class="view-head"><div><h2>Production runs</h2><p>Issue kernels from the warehouse, record the production run, then close it with outputs and management sign-off.</p></div><button class="primary" id="add-production">+ Record production run</button></div><div class="production-tip"><span>✦</span><div><strong>Production control flow</strong><p>Warehouse issues the batch → production receives it → the supervisor records the run → outputs, yield and fuel are entered → the production manager signs off.</p></div></div><div class="panel table-panel production-table-wrap"><table><thead><tr><th>Date</th><th>Production batch no.</th><th>Warehouse issue</th><th>Production timing</th><th>Outputs &amp; yield</th><th>Controls</th><th>Status</th></tr></thead><tbody id="production-table"></tbody></table></div></section>
 
+      <section class="view" id="machine-services-view"><div class="view-head"><div><p class="admin-section-label">PRODUCTION / MAINTENANCE</p><h2>Machine service records</h2><p>Record preventive maintenance and repairs for every production machine.</p></div><button class="primary" id="add-machine-service">+ Add service details</button></div><div class="production-tip"><span>⚙</span><div><strong>Maintenance traceability</strong><p>Log service work for worms, belts, pots and other components. Keep the technician, parts and next due date with the machine record.</p></div></div><div class="panel table-panel"><table><thead><tr><th>Service date</th><th>Machine</th><th>Service type</th><th>Components serviced</th><th>Technician</th><th>Next due</th><th>Status</th><th></th></tr></thead><tbody id="machine-services-table"></tbody></table></div></section>
+
       <section class="view" id="stock-view"><div class="view-head"><div><h2>Stock on hand</h2><p>Your current inventory across raw materials, consumables and finished goods.</p></div><button class="primary" id="add-stock">+ Add stock item</button></div><div class="stock-grid" id="stock-grid"></div></section>
       <section class="view" id="warehouse-view"><div class="view-head"><div><h2>Warehouses</h2><p>Maintain the warehouses used to receive, store and issue materials.</p></div><button class="primary" id="add-warehouse">+ Add warehouse</button></div><div class="panel table-panel"><table><thead><tr><th>Warehouse name</th><th>Warehouse location</th><th></th></tr></thead><tbody id="warehouses-table"></tbody></table></div></section>
 
@@ -83,7 +86,7 @@
 
     <dialog id="record-dialog"><form method="dialog" id="record-form"><div class="modal-head"><div><span class="modal-label" id="modal-label">NEW RECORD</span><h2 id="modal-title">Record purchase</h2></div><button class="close" type="button" data-close>×</button></div><div id="form-fields"></div><div class="modal-actions"><button type="button" data-close class="secondary">Cancel</button><button class="primary" id="save-record" value="default">Save record</button></div></form></dialog>
     <script src="app.js?v=state-save-20260909"></script>
-    <script src="production-flow.js?v=restored-register-20260909"></script>
+    <script src="production-flow.js?v=purchase-batch-traceability-20260914"></script>
     <script src="fixes.js"></script>
     <script src="admin.js"></script>
     <script src="edit.js?v=item-configured-category-list-20260910"></script>
@@ -99,7 +102,7 @@
     <script src="goods-inwards-wizard.js?v=receiving-decision-panel-20260912"></script>
     <script src="purchase-lifecycle.js?v=purchase-description-20260911"></script>
     <script src="purchase-enhancements.js?v=explicit-unit-selection-20260911"></script>
-    <script src="inventory-production-controls.js?v=production-warehouse-units-20260913"></script>
+    <script src="inventory-production-controls.js?v=purchase-batch-traceability-20260914"></script>
     <script src="stock-locations.js?v=warehouse-ledger-totals-20260911"></script>
     <script src="view-persistence.js?v=20260904"></script>
     <script src="sidebar-navigation.js?v=20260907"></script>
@@ -115,7 +118,8 @@
     <script src="purchase-category-filter.js?v=named-item-lookup-20260912"></script>
     <script src="dropdown-defaults.js?v=no-implicit-dropdowns-20260911"></script>
     <script src="employees.js?v=employees-20260911"></script>
-    <script src="production-enhancements.js?v=production-warehouse-units-20260913"></script>
+    <script src="production-enhancements.js?v=purchase-batch-traceability-20260914"></script>
+    <script src="machine-services.js?v=machine-service-records-20260914"></script>
     <script src="reports.js?v=report-centre-open-fix-20260913"></script>
     <script>
       document.querySelectorAll('.nav-item:not(.admin-parent)').forEach((item) => {
