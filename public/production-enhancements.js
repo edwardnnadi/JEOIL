@@ -30,6 +30,32 @@
     `<option value="${esc(receipt.id)}">${esc(purchaseBatchNumber(receipt))} · ${esc(receipt.item)} · ${purchaseBatchAvailable(receipt).toLocaleString()} ${esc(receipt.stockUnit || receipt.unit || '')} available · received ${esc(receipt.receivedDate || '')}</option>`,
   ).join('');
 
+  // The inventory controls own the structured production reference setting.
+  // Older enhancements treated this object as a number, which converted it to
+  // NaN and produced references such as PR-0NaN.
+  function productionReferenceConfig() {
+    data.productionConfig ??= {};
+    const current = data.productionConfig.batch;
+    if (!current || typeof current !== 'object' || Array.isArray(current)) {
+      data.productionConfig.batch = { prefix: 'PR-', suffix: '', padding: 4, nextNumber: 1 };
+    }
+    const config = data.productionConfig.batch;
+    config.prefix = typeof config.prefix === 'string' ? config.prefix : 'PR-';
+    config.suffix = typeof config.suffix === 'string' ? config.suffix : '';
+    config.padding = Number.isInteger(Number(config.padding)) ? Math.max(1, Math.min(12, Number(config.padding))) : 4;
+    config.nextNumber = Number.isInteger(Number(config.nextNumber)) && Number(config.nextNumber) > 0 ? Number(config.nextNumber) : 1;
+    return config;
+  }
+
+  function nextProductionReference() {
+    const config = productionReferenceConfig();
+    const used = new Set([...(data.activeProductionRuns || []), ...(data.production || [])].map(run => run.batch).filter(Boolean));
+    while (used.has(`${config.prefix}${String(config.nextNumber).padStart(config.padding, '0')}${config.suffix}`)) config.nextNumber += 1;
+    const reference = `${config.prefix}${String(config.nextNumber).padStart(config.padding, '0')}${config.suffix}`;
+    config.nextNumber += 1;
+    return reference;
+  }
+
   function availableAt(item, warehouseId) {
     const movements = (data.stockMovements || []).filter(movement => movement.item === item && String(movement.warehouseId) === String(warehouseId));
     const ledgerTotal = movements.reduce((total, movement) => total + Number(movement.quantity || 0), 0);
@@ -103,9 +129,7 @@
     if (materials.some(material => !sourceIds.includes(String(material.warehouseId)))) return alert('Each selected material must come from one of the selected input warehouses.');
     const shortage = materials.find(material => material.quantity > availableAt(material.name, material.warehouseId));
     if (shortage) return alert(`${shortage.name} does not have enough available stock in ${shortage.warehouseName}.`);
-    data.productionConfig ??= { batch: 0 };
-    data.productionConfig.batch = Number(data.productionConfig.batch || 0) + 1;
-    const batch = `PR-${String(data.productionConfig.batch).padStart(4, '0')}`;
+    const batch = nextProductionReference();
     materials.forEach(material => {
       const stock = (data.stock || []).find(item => item.name === material.name);
       if (stock) stock.qty = Number(stock.qty || 0) - material.quantity;
@@ -165,13 +189,6 @@
   render = () => {
     originalRender();
     if (!isAdministrator()) document.querySelectorAll('.edit-record[data-edit-kind="production"]').forEach(button => button.closest('td')?.remove());
-    const banner = $('#active-production-run');
-    const active = (data.activeProductionRuns || []).find(run => run.status === 'IN_PROGRESS');
-    if (banner && active && !banner.querySelector('#record-production-test')) {
-      const count = (active.testResults || []).length;
-      banner.insertAdjacentHTML('beforeend', `<span class="muted" style="margin-left:auto">${count} test result${count === 1 ? '' : 's'}</span><button id="record-production-test" class="btn secondary" type="button">+ Record test result</button>`);
-      $('#record-production-test').onclick = openTestResult;
-    }
     document.querySelectorAll('#production-table tr').forEach((row, index) => {
       const results = data.production?.[index]?.testResults || [];
       if (results.length && !row.querySelector('.production-test-summary')) {

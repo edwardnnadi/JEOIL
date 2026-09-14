@@ -116,10 +116,8 @@
     const run = data.activeProductionRuns?.find(r => r.status === 'IN_PROGRESS'); let banner = $('#active-production-run');
     if (!run) { banner?.remove(); return; }
     if (!banner) { document.querySelector('#production-view .view-head').insertAdjacentHTML('afterend', '<section class="production-active" id="active-production-run"></section>'); banner = $('#active-production-run'); }
-    const issueCount = (run.issues || []).length;
-    banner.innerHTML = `<strong>${esc(run.batch)} is running</strong><span id="production-elapsed"></span>${issueCount ? `<span class="production-issue-count">${issueCount} issue${issueCount === 1 ? '' : 's'} recorded</span>` : ''}<button class="secondary" id="report-production-issue">+ Report issue</button><button class="secondary" id="end-production-run">End production run</button>`;
+    banner.innerHTML = `<strong>${esc(run.batch)} is running</strong><span id="production-elapsed"></span><button class="secondary" id="end-production-run">End production</button>`;
     updateActiveRunTimer();
-    $('#report-production-issue').onclick = () => openIssue(run);
     $('#end-production-run').onclick = () => openEnd(run);
   }
   function openIssue(run) {
