@@ -47,13 +47,15 @@ function buildGoodsInwardsWizard(form,receipt){
   const selectStandard=standardCard(),inspectStandard=standardCard();
   const panels=groups.map((group,index)=>{const panel=document.createElement('section');panel.className='wizard-step';panel.dataset.step=index;const active=index===0;panel.hidden=!active;panel.style.setProperty('display',active?'block':'none','important');panel.innerHTML=`<header><h3>${group.title}</h3><p>${group.help}</p></header><div class="form-grid"></div>`;const grid=panel.querySelector('.form-grid');if(index===0)grid.append(selectStandard.card);if(index===1){grid.classList.add('receiving-inspection-grid');grid.append(inspectStandard.card)}buckets[index].forEach(field=>grid.append(field));wizard.append(panel);return panel});
   const exemptNote=document.createElement('section');exemptNote.className='field full qc-exempt-note';exemptNote.setAttribute('role','status');
-  exemptNote.innerHTML='<strong>No quality check required</strong><span>This purchase item is received without QC inspection (Administration → Purchase Items). It is accepted on receipt and can be assigned straight to a warehouse.</span>';
+  exemptNote.innerHTML='<strong>Receiving inspection is mandatory</strong><span>Every delivery requires a factory inspection and decision before it can be released to warehouse stock.</span>';
   panels[2].querySelector('.form-grid').prepend(exemptNote);
   const receivingItemName=()=>goodsFormControl(form,'item')?.value||data.purchases.find(purchase=>purchase.id===+form.elements.purchaseId?.value)?.item||'';
   const isQcExempt=()=>form.dataset.qcExempt==='true';
   const setShown=(element,shown)=>{if(element)element.style.display=shown?'':'none';};
   const applyQcPolicy=()=>{
-    const required=window.StockLedger.requiresQualityCheck(receivingItemName());
+    // Catalogue settings select the test parameters, but never skip the
+    // factory inspection and stock-release decision.
+    const required=true;
     form.dataset.qcExempt=String(!required);
     setShown(progress.querySelector('[data-step="1"]'),required);
     setShown(exemptNote,!required);

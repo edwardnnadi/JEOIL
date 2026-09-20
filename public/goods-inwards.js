@@ -188,9 +188,11 @@ function renderReceivingParameterFields(form,receipt){
   form.querySelectorAll('.receiving-parameter-field input').forEach(input=>input.addEventListener('input',()=>{form._deliveryReadings=null;window.refreshReceivingDecision?.(form);}));
 }
 function initialQualityCard(receipt={}){
-  // Purchase/delivery notes were deliberately removed from the inspection
-  // screen. The live comparison now belongs with the receiving decision.
-  return '';
+  const purchase=(data.purchases||[]).find(record=>String(record.id)===String(receipt.purchaseId))||{};
+  const fieldTest=receipt.purchaseQuality||purchase.purchaseQuality;
+  if(!fieldTest||!Object.keys(fieldTest).length)return `<div class="field full purchase-trace-card"><label>Field test</label><div class="item-note"><strong>Not recorded</strong> — no field-test result is linked to this purchase. Record the factory inspection before accepting the goods.</div></div>`;
+  const readings=Object.entries(fieldTest.parameters||{}).filter(([,value])=>value!==''&&value!==null&&value!==undefined).map(([name,value])=>`${goodsEscape(name)}: ${goodsEscape(value)}`).join(' · ')||'No field-test readings recorded';
+  return `<div class="field full purchase-trace-card"><label>Field test</label><div class="item-note"><strong>${goodsEscape(fieldTest.status||fieldTest.decision||'Pending')}</strong> · Ref: ${goodsEscape(fieldTest.testReference||'—')} · Tested: ${goodsEscape(fieldTest.testedAt||'—')} · Inspector: ${goodsEscape(fieldTest.inspector||'—')}<br>Condition: ${goodsEscape(fieldTest.condition||'—')} · Readings: ${readings}${fieldTest.notes?`<br>Notes: ${goodsEscape(fieldTest.notes)}`:''}</div></div>`;
 }
 
 function refreshInitialQualityComparison(form){
@@ -429,10 +431,10 @@ $('#record-form').addEventListener('submit',event=>{
     if(item.category&&!data.categories.includes(item.category))data.categories.push(item.category);
     if(item.unit&&!data.units.includes(item.unit))data.units.push(item.unit);
   }
-  // Items that do not require a quality check are accepted on receipt. The
-  // inspector's decision still governs every quality-controlled item.
-  const qualityCheckRequired=window.StockLedger.requiresQualityCheck(values.item);
-  if(!qualityCheckRequired){values.decision='Accepted';values.decisionReason=values.decisionReason?.trim()||'Quality check not required for this item.';}
+  // Every delivery needs a receiving (factory) inspection. Catalogue QC flags
+  // may still guide which parameters are configured, but cannot bypass the
+  // receipt, decision, laboratory record, or stock-release gate.
+  const qualityCheckRequired=true;
   const stockUnit=stockUnitFor(values.item,values.unit),conversionFactor=unitFactor(values.unit,stockUnit);
   if(conversionFactor===null){alert(`No conversion is configured from ${values.unit} to the ${stockUnit} stock unit for ${values.item}. Add it in Administration → Categories & Units before posting this receipt.`);return;}
   const stockQty=Number((Number(values.qty||0)*conversionFactor).toFixed(6));

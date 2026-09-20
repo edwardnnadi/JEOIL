@@ -9,6 +9,8 @@ import vm from 'node:vm';
 const traceabilitySource = readFileSync(new URL('../public/purchase-traceability.js', import.meta.url), 'utf8');
 const goodsInwardsSource = readFileSync(new URL('../public/goods-inwards.js', import.meta.url), 'utf8');
 const purchaseWizardSource = readFileSync(new URL('../public/purchase-wizard.js', import.meta.url), 'utf8');
+const goodsInwardsWizardSource = readFileSync(new URL('../public/goods-inwards-wizard.js', import.meta.url), 'utf8');
+const reportsSource = readFileSync(new URL('../public/reports.js', import.meta.url), 'utf8');
 
 function loadNamedFunction(sourceText, name, contextValues = {}) {
   const match = sourceText.match(new RegExp(`function ${name}\\([^]*?\\n}`));
@@ -29,6 +31,19 @@ test('opening a purchase wizard restores a purchase-specific save label', () => 
 
   assert.equal(save.type, 'submit');
   assert.equal(save.textContent, 'Save purchase');
+});
+
+test('Goods Inwards always requires factory inspection and exposes the linked field test', () => {
+  assert.match(goodsInwardsWizardSource, /const required=true;/);
+  assert.match(goodsInwardsSource, /const qualityCheckRequired=true;/);
+  assert.match(goodsInwardsSource, /<label>Field test<\/label>/);
+});
+
+test('Report Centre includes laboratory and goods-outward operational registers', () => {
+  assert.match(reportsSource, /'Lab Results'/);
+  assert.match(reportsSource, /'Goods Outwards'/);
+  assert.match(reportsSource, /function goodsOutwardRows/);
+  assert.match(reportsSource, /function labResultRows/);
 });
 
 test('field QC never pulls a purchase back to an earlier stage', () => {
