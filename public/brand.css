@@ -158,3 +158,72 @@
 .operations-app .admin-overview[hidden]{display:none!important}
 .operations-app .delete-purchase-item,.operations-app .delete-purchase-category,.operations-app .delete-purchase-unit{color:#9b3326}.operations-app .delete-purchase-item:hover,.operations-app .delete-purchase-category:hover,.operations-app .delete-purchase-unit:hover{background:#f8e8e4;color:#7d241a}
 .operations-app .supplier-product-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.operations-app .supplier-product-choice{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #d8d7ca;border-radius:3px;background:#fbfaf5;cursor:pointer}.operations-app .supplier-product-choice:hover{border-color:#bca868;background:#fffefa}.operations-app .supplier-product-choice input{width:auto;margin-top:3px}.operations-app .supplier-product-choice strong,.operations-app .supplier-product-choice small{display:block}.operations-app .supplier-product-choice small{margin-top:2px;color:#6b7064;font-size:11px}@media(max-width:620px){.operations-app .supplier-product-choices{grid-template-columns:1fr}}
+
+/* Responsive navigation.
+   Wide: full sidebar, user can collapse it to an icon rail (remembered).
+   Medium (<=75rem): icon rail by default; expanding overlays the content.
+   Small (<=42rem): hidden drawer opened from a menu button.
+   Breakpoints use rem so larger browser text settings switch layouts sooner. */
+.operations-app{--nav-full:264px;--nav-rail:72px;--nav-drawer:min(264px,calc(100vw - 56px))}
+.operations-app .sidebar{inset:0 auto 0 0;display:flex;width:var(--nav-full);height:100dvh;padding:28px 18px 20px;background:#232920;transform:none;transition:width .2s ease,transform .2s ease,box-shadow .2s ease}
+.operations-app main{margin-left:var(--nav-full);max-width:1680px;min-width:0;transition:margin-left .2s ease}
+.operations-app .brand{display:flex;justify-content:flex-start;padding:0 10px}
+.operations-app .brand>span{display:block;font-size:inherit;white-space:nowrap}
+.operations-app .brand small{display:block}
+.operations-app .workspace{display:block;font-size:9px;white-space:nowrap;overflow:hidden}
+.operations-app .sidebar nav{display:grid;overflow:visible}
+.operations-app .nav-item,.operations-app .nav-item:not(.active){flex:none;justify-content:flex-start;padding:12px 11px;font-size:13px;white-space:normal}
+.operations-app .nav-item span{width:28px;margin-right:0;font-size:17px;text-align:left}
+
+/* Doubled class outranks the older toggle offsets declared above. */
+.operations-app.operations-app .sidebar-toggle{position:fixed;z-index:40;top:34px;left:calc(var(--nav-full) - 15px);display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid #d4d1c3;border-radius:3px;background:#fffefa;color:#30352d;box-shadow:0 3px 12px #24272022;cursor:pointer;transition:left .2s ease,background .16s ease}
+.sidebar-toggle:hover{background:#f0ede0}
+.sidebar-toggle:focus-visible{outline:2px solid #ad9250;outline-offset:2px}
+.sidebar-toggle svg{display:block;width:16px;height:16px;transition:transform .2s ease}
+.sidebar-toggle .icon-menu{display:none}
+.operations-app.sidebar-collapsed .sidebar-toggle .icon-chevron{transform:rotate(180deg)}
+.sidebar-scrim{display:none}
+
+.operations-app .nav-item .nav-icon{display:inline-grid;flex:none;place-items:start;align-self:center}
+.operations-app .nav-icon svg,.operations-app .sidebar-toggle svg{position:static;inset:auto}
+.operations-app .nav-icon svg{display:block;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* Icon rail (collapsed state on anything wider than a phone). */
+@media (min-width:42.0625rem){
+  .operations-app.sidebar-collapsed .sidebar{width:var(--nav-rail);padding:28px 10px 20px;transform:none}
+  .operations-app.sidebar-collapsed .nav-item .nav-icon{place-items:center}
+  .operations-app.sidebar-collapsed .nav-icon svg{width:20px;height:20px}
+  .operations-app.sidebar-collapsed main{margin-left:var(--nav-rail)}
+  .operations-app.operations-app.sidebar-collapsed .sidebar-toggle{top:32px;left:calc(var(--nav-rail) - 15px)}
+  .operations-app.sidebar-collapsed .brand{justify-content:center;padding:0}
+  .operations-app.sidebar-collapsed .brand-logo{width:38px;height:38px}
+  .operations-app.sidebar-collapsed .brand>span,.operations-app.sidebar-collapsed .admin-submenu{display:none!important}
+  .operations-app.sidebar-collapsed .workspace{visibility:hidden}
+  .operations-app.sidebar-collapsed .nav-item,.operations-app.sidebar-collapsed .nav-item:not(.active){justify-content:center;padding:12px 0;font-size:0}
+  .operations-app.sidebar-collapsed .nav-item span{width:auto;font-size:19px;text-align:center}
+  .operations-app.sidebar-collapsed .nav-item b{display:none}
+}
+
+/* Medium: the rail stays in place and the expanded menu floats over the content. */
+@media (max-width:75rem){
+  .operations-app main,.operations-app.sidebar-collapsed main{margin-left:var(--nav-rail)}
+  .operations-app:not(.sidebar-collapsed) .sidebar{box-shadow:12px 0 40px #1d211740}
+  .operations-app:not(.sidebar-collapsed) .sidebar-scrim{display:block;position:fixed;inset:0;z-index:20;background:#1d211755}
+}
+
+/* Small: off-canvas drawer. */
+@media (max-width:42rem){
+  .operations-app main,.operations-app.sidebar-collapsed main{margin-left:0;padding:74px 16px 36px}
+  .operations-app .sidebar{width:var(--nav-drawer)}
+  .operations-app.sidebar-collapsed .sidebar{transform:translateX(-100%);box-shadow:none}
+  .operations-app.operations-app .sidebar-toggle{top:18px;left:calc(var(--nav-drawer) - 15px)}
+  .operations-app.operations-app.sidebar-collapsed .sidebar-toggle{left:16px;width:40px;height:40px}
+  .operations-app.sidebar-collapsed .sidebar-toggle .icon-chevron{display:none}
+  .operations-app.sidebar-collapsed .sidebar-toggle .icon-menu{display:block;width:20px;height:20px}
+}
+@media (max-width:30rem){
+  .operations-app main,.operations-app.sidebar-collapsed main{padding:72px 12px 28px}
+}
+@media (prefers-reduced-motion:reduce){
+  .operations-app .sidebar,.operations-app main,.sidebar-toggle,.sidebar-toggle svg{transition:none}
+}

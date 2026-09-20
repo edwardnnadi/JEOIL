@@ -2,17 +2,24 @@
 const goodsEscape=value=>String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[character]));
 const goodsNumber=value=>value===''||value===null||value===undefined?'':Number(value).toFixed(2);
 const goodsMoney=value=>value===''||value===null||value===undefined?'—':`₦${Number(value).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-// Stock is always posted in the item's base unit. A receiver can record the
-// supplier's pack/unit, but it must have a configured conversion before it can
-// enter stock. This prevents a quantity of drums, bags or litres being added
-// together merely because the item name is the same.
+// Stock is always posted in the item's base unit. Standard SI mass units are
+// converted automatically; supplier-specific packs still need an explicitly
+// configured conversion so drums, bags or litres are never mixed by mistake.
 const normalizedGoodsUnit=value=>String(value||'').trim().toLowerCase();
+const standardMassUnits=Object.freeze({
+  g:0.001,gram:0.001,grams:0.001,
+  kg:1,kilogram:1,kilograms:1,
+  t:1000,mt:1000,tonne:1000,tonnes:1000,'metric tonne':1000,'metric tonnes':1000,
+});
 function goodsItem(itemName){return (data.items||[]).find(item=>item.name===itemName);}
 function stockUnitFor(itemName,fallbackUnit=''){
   return stockItem(itemName)?.unit||goodsItem(itemName)?.unit||fallbackUnit;
 }
 function unitFactor(fromUnit,toUnit){
-  if(normalizedGoodsUnit(fromUnit)===normalizedGoodsUnit(toUnit))return 1;
+  const from=normalizedGoodsUnit(fromUnit),to=normalizedGoodsUnit(toUnit);
+  if(from===to)return 1;
+  const standardFactor=standardMassUnits[from],standardBase=standardMassUnits[to];
+  if(standardFactor!==undefined&&standardBase!==undefined)return standardFactor/standardBase;
   const conversion=(data.unitConversions||[]).find(entry=>normalizedGoodsUnit(entry.fromUnit)===normalizedGoodsUnit(fromUnit)&&normalizedGoodsUnit(entry.toUnit)===normalizedGoodsUnit(toUnit));
   const factor=Number(conversion?.factor);
   return Number.isFinite(factor)&&factor>0?factor:null;
@@ -66,12 +73,12 @@ function applyMoistureSettlement(record){
 function receiptForPurchase(purchase){
   const initialAssessment=purchase.purchaseQuality||assessmentFor(purchase)||{};
   const batchNumber=purchase.batchNumber||purchase.lotNo||initialAssessment.batch||'';
-  return {id:`purchase-${purchase.id}`,linkedPurchase:true,receivedDate:purchase.date,purchaseId:purchase.id,purchaseReference:purchase.purchaseId||`Purchase ${purchase.id}`,purchaseDate:purchase.date,purchaseStatus:purchase.status||'Quote',item:purchase.item,supplier:purchase.supplier,category:purchase.category,orderedQty:+purchase.qty,qty:+purchase.qty,unit:purchase.unit,unitPrice:+purchase.unitPrice||0,cost:+purchase.cost||0,purchasedById:purchase.purchasedById||'',purchasedBy:purchase.purchasedBy||'',createdBy:purchase.createdBy||'',createdAt:purchase.createdAt||purchase.date,batchNumber,lotNo:batchNumber,originState:purchase.originState||'',originLga:purchase.originLga||'',collectionSite:purchase.collectionSite||'',originCode:purchase.originCode||'',supplierReceiptId:purchase.supplierReceiptId||'',purchaseQuality:initialAssessment,attachments:[...(purchase.attachments||[])],batch:batchNumber,qualityDate:purchase.date,moisture:'',damaged:'',foreignMatter:'',aflatoxin:'',oilContent:'',ffa:'',condition:'',decision:'Assess',qualityCheckOfficerId:'',qualityCheckOfficer:'',notes:''};
+  return {...Object.fromEntries((window.purchaseFieldLogisticsNames||[]).map(name=>[name,purchase[name]??''])),id:`purchase-${purchase.id}`,linkedPurchase:true,receivedDate:purchase.date,purchaseId:purchase.id,purchaseReference:purchase.purchaseId||`Purchase ${purchase.id}`,purchaseDate:purchase.date,purchaseStatus:purchase.status||'Quote',item:purchase.item,supplier:purchase.supplier,category:purchase.category,orderedQty:+purchase.qty,qty:+purchase.qty,unit:purchase.unit,unitPrice:+purchase.unitPrice||0,cost:+purchase.cost||0,purchasedById:purchase.purchasedById||'',purchasedBy:purchase.purchasedBy||'',createdBy:purchase.createdBy||'',createdAt:purchase.createdAt||purchase.date,batchNumber,lotNo:batchNumber,originState:purchase.originState||'',originLga:purchase.originLga||'',collectionSite:purchase.collectionSite||'',originCode:purchase.originCode||'',supplierReceiptId:purchase.supplierReceiptId||'',purchaseQuality:initialAssessment,attachments:[...(purchase.attachments||[])],batch:batchNumber,qualityDate:purchase.date,moisture:'',damaged:'',foreignMatter:'',aflatoxin:'',oilContent:'',ffa:'',condition:'',decision:'Assess',qualityCheckOfficerId:'',qualityCheckOfficer:'',notes:''};
 }
 
 function syncReceiptFromPurchase(receipt,purchase){
   const source=receiptForPurchase(purchase);
-  linkedPurchaseFields.forEach(field=>receipt[field]=source[field]);
+  [...linkedPurchaseFields,...(window.purchaseFieldLogisticsNames||[])].forEach(field=>receipt[field]=source[field]);
   receipt.batch=receipt.batch||source.batch;
   return receipt;
 }
@@ -103,7 +110,8 @@ function ensureGoodsInwards(){
     // purchase to be received again through the normal wizard.
     if(receipt.deleted){purchase.qualityStatus='Assess';purchase.stockReceived=false;return;}
     if(receipt.orderedQty===undefined)receipt.orderedQty=+purchase.qty;
-    purchase.status=purchaseStageFor(purchase,receipt);
+    const computedStage=purchaseStageFor(purchase,receipt);
+    if(typeof recordPurchaseStage==='function')recordPurchaseStage(purchase,computedStage,'Goods inwards');else purchase.status=computedStage;
     purchase.qualityStatus=receipt.decision||'Assess';
     syncReceiptFromPurchase(receipt,purchase);
   });
@@ -122,7 +130,7 @@ function purchaseTraceCard(receipt={}){
   if(!receipt.purchaseId)return '';
   const origin=[receipt.collectionSite,receipt.originLga,receipt.originState].filter(Boolean).join(', ')||'—';
   const attachments=(receipt.attachments||[]).map(file=>`<a href="${goodsEscape(file.dataUrl||'')}" download="${goodsEscape(file.name||'attachment')}">${goodsEscape(file.name||'Attachment')}</a>`).join(' · ')||'None';
-  return `<div class="field full purchase-trace-card"><label>Purchase traceability</label><div class="item-note"><strong>${goodsEscape(receipt.purchaseReference||'—')}</strong> · ${goodsEscape(receipt.purchaseStatus||'—')} · Lot: ${goodsEscape(receipt.lotNo||'—')} · Origin: ${goodsEscape(origin)}${receipt.originCode?` (${goodsEscape(receipt.originCode)})`:''} · Supplier receipt: ${goodsEscape(receipt.supplierReceiptId||'—')}<br>Purchased by: ${goodsEscape(receipt.purchasedBy||'—')} · Unit price: ₦${(+receipt.unitPrice||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} · Total: ₦${(+receipt.cost||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}<br>Purchase attachments: ${attachments}</div></div>`;
+  return `<div class="field full purchase-trace-card"><label>Purchase traceability</label><div class="item-note"><strong>${goodsEscape(receipt.purchaseReference||'—')}</strong> · ${goodsEscape(receipt.purchaseStatus||'—')} · Lot: ${goodsEscape(receipt.lotNo||'—')} · Origin: ${goodsEscape(origin)}${receipt.originCode?` (${goodsEscape(receipt.originCode)})`:''} · Supplier receipt: ${goodsEscape(receipt.supplierReceiptId||'—')}<br>Purchased by: ${goodsEscape(receipt.purchasedBy||'—')} · Unit price: ₦${(+receipt.unitPrice||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} · Total: ₦${(+receipt.cost||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}${window.purchaseFieldSummary?.(receipt)?`<br>Field weighing &amp; dispatch: ${goodsEscape(window.purchaseFieldSummary(receipt))}${receipt.driverPhone?` · Driver phone ${goodsEscape(receipt.driverPhone)}`:''}${receipt.dispatchedAt?` · Dispatched ${goodsEscape(String(receipt.dispatchedAt).replace('T',' '))}`:''}`:''}<br>Purchase attachments: ${attachments}</div></div>`;
 }
 
 // Receiving readings follow the delivered item's configured quality standard
@@ -132,7 +140,7 @@ const legacyReceivingFields={oilContent:'oilContent',ffa:'ffa',moisture:'moistur
 const receivingFieldName=key=>legacyReceivingFields[key]||`qualityParameter_${String(key).replace(/[^A-Za-z0-9_]/g,'')}`;
 function receivingStandardFor(itemName,category){
   if(itemName)return itemStandard?.(itemName,category)||categoryStandard?.(category)||{name:'No quality standard configured',parameters:[]};
-  return categoryStandard?.(category)||peanutStandard||{name:'JE Oils Standard',parameters:[]};
+  return categoryStandard?.(category)||{name:'No quality standard configured',parameters:[]};
 }
 function formReceivingStandard(form){
   const purchase=data.purchases.find(entry=>entry.id===+form.elements.namedItem('purchaseId')?.value);
@@ -147,7 +155,10 @@ function receivingStandardParameters(standard){
 }
 // [field name, label, unit, baseline source, standard key, operator]
 function receivingComparisonFieldsFor(form){
-  return [['qty','Quantity','','orderedQty'],...receivingStandardParameters(formReceivingStandard(form)).map(parameter=>[receivingFieldName(parameter.key),parameter.label||parameter.key,parameter.unit||'',undefined,parameter.key,parameter.operator])];
+  const purchase=data.purchases.find(entry=>entry.id===+form.elements.namedItem('purchaseId')?.value);
+  const factoryWeight=form.elements.namedItem('netWeightKg')?.value;
+  const weighbridgeComparison=factoryWeight!==''&&factoryWeight!==undefined?[['qty','Quantity vs weighbridge net weight (kg)','','netWeightKg']]:[];
+  return [['qty','Quantity vs ordered','','orderedQty'],...weighbridgeComparison,...receivingStandardParameters(formReceivingStandard(form)).map(parameter=>[receivingFieldName(parameter.key),parameter.label||parameter.key,parameter.unit||'',undefined,parameter.key,parameter.operator])];
 }
 // More material and oil are favourable; every quality contaminant is better
 // when lower. A standard's operator (≥ / ≤) decides this for other parameters.
@@ -199,10 +210,26 @@ function refreshInitialQualityComparison(form){
   });
 }
 
+function receivingWeighbridgeFields(receipt={}){
+  const input=(name,label,attrs='',note='')=>`<div class="field"><label>${label}</label><input name="${name}" value="${goodsEscape(receipt[name]??'')}" ${attrs}>${note?`<div class="item-note">${note}</div>`:''}</div>`;
+  return `<div class="field full"><label>Factory weighbridge</label><div class="item-note">Record the delivery weight at Goods Inwards. This is the factory receiving measurement.</div></div>${input('weighbridgeTicketNo','Weighbridge ticket no.','placeholder="Ticket number, if issued"')}${input('weighedAt','Weighed at','type="datetime-local"')}${input('grossWeightKg','Gross weight (kg)','type="number" min="0" step="any" inputmode="decimal"')}${input('tareWeightKg','Tare weight (kg)','type="number" min="0" step="any" inputmode="decimal"','Vehicle or packaging weight deducted from gross.')}${input('netWeightKg','Net weight (kg)','type="number" min="0" step="any" inputmode="decimal"','Calculated as gross minus tare, or enter the confirmed net weight.')}<div class="field full field-weight-variance item-note" aria-live="polite"></div>`;
+}
+
+function bindReceivingWeighbridge(form){
+  const el=name=>form.elements.namedItem(name),gross=el('grossWeightKg'),tare=el('tareWeightKg'),net=el('netWeightKg');
+  if(!gross||!net)return;
+  const refresh=()=>{const qty=Number(el('qty')?.value)||0,unit=String(el('unit')?.value||'').toLowerCase(),netKg=Number(net.value);const note=form.querySelector('.field-weight-variance');if(note)note.textContent=net.value!==''&&Number.isFinite(netKg)&&qty&&unit==='kg'&&netKg!==qty?`Weighbridge net weight differs from received quantity by ${(netKg-qty).toLocaleString(undefined,{maximumFractionDigits:3})} kg.`:'';};
+  const syncNet=()=>{if(gross.value==='')return;const value=(Number(gross.value)||0)-(Number(tare.value)||0);net.value=value>=0?String(Number(value.toFixed(3))):'';refresh();};
+  gross.addEventListener('input',syncNet);tare.addEventListener('input',syncNet);['netWeightKg','qty','unit'].forEach(name=>{el(name)?.addEventListener('input',refresh);el(name)?.addEventListener('change',refresh);});refresh();
+}
+
 function receiptFields(receipt={}){
   const operator=currentOperator?.()||data.people.find(person=>person.type==='User'),today=new Date().toISOString().slice(0,10);
   const receiptUnits=[...new Set([...(data.units||[]),receipt.unit].filter(Boolean))];
-  return `<div class="form-grid"><div class="field"><label>Goods received date</label><input name="receivedDate" type="date" value="${goodsEscape(receipt.receivedDate||today)}" required></div><div class="field"><label>Link to purchase</label><select name="purchaseId"><option value="">Standalone receipt</option>${data.purchases.map(purchase=>`<option value="${purchase.id}" ${purchase.id===receipt.purchaseId?'selected':''}>${goodsEscape(purchaseLabel(purchase))}</option>`).join('')}</select></div>${purchaseTraceCard(receipt)}${initialQualityCard(receipt)}<div class="field"><label>Supplier</label><input name="supplier" value="${goodsEscape(receipt.supplier||'')}" required></div><div class="field"><label>Item received</label><select name="item" required>${data.items.map(item=>`<option value="${goodsEscape(item.name)}" ${item.name===receipt.item?'selected':''}>${goodsEscape(item.name)}</option>`).join('')}</select></div><div class="field"><label>Category</label><select name="category" required>${data.categories.map(category=>`<option ${category===receipt.category?'selected':''}>${goodsEscape(category)}</option>`).join('')}</select></div><div class="field"><label>Quantity received</label><input name="qty" type="number" min="0" step="any" value="${goodsEscape(receipt.qty??'')}" required></div><div class="field"><label>Receipt unit</label><select name="unit" required>${receiptUnits.map(unit=>`<option value="${goodsEscape(unit)}" ${unit===receipt.unit?'selected':''}>${goodsEscape(unit)}</option>`).join('')}</select><div class="item-note">Stock is posted in the item's base unit; conversions are managed in Administration.</div></div><div class="field"><label>Received by</label><select name="receivedBy">${data.people.map(person=>`<option ${person.name===(receipt.receivedBy||operator?.name)?'selected':''}>${goodsEscape(person.name)}</option>`).join('')}</select></div><div class="field"><label>Assign to warehouse</label><select name="warehouseId"><option value="">Not yet assigned</option>${(data.warehouses||[]).map(warehouse=>`<option value="${warehouse.id}" ${warehouse.id===receipt.warehouseId?'selected':''}>${goodsEscape(warehouse.name)} · ${goodsEscape(warehouse.location)}</option>`).join('')}</select><div class="item-note">Assigning posts the quantity to Stock on Hand.</div></div><div class="field"><label>Assigned by</label><select name="warehouseAssignedById"><option value="">Select a person</option>${data.people.map(person=>`<option value="${person.id}" ${person.id===receipt.warehouseAssignedById?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||person.type||'Person')}</option>`).join('')}</select></div><div class="field"><label>Warehouse assignment date</label><input name="warehouseAssignedDate" type="date" value="${goodsEscape(receipt.warehouseAssignedDate||today)}"></div><div class="field"><label>Created by</label><input value="${goodsEscape(receipt.createdBy||operator?.name||'Current user')}" readonly></div><div class="field"><label>Created date</label><input value="${goodsEscape((receipt.createdAt||today).slice(0,10))}" readonly></div>${goodsQualityFields(receipt)}</div>`;
+  const linkedPurchase=receipt.purchaseId&&data.purchases.find(purchase=>purchase.id===receipt.purchaseId);
+  const receiptItems=[...(data.items||[])];
+  if(linkedPurchase&&!receiptItems.some(item=>item.name===linkedPurchase.item))receiptItems.push({name:linkedPurchase.item,category:linkedPurchase.category,unit:linkedPurchase.unit});
+  return `<div class="form-grid"><div class="field"><label>Goods received date</label><input name="receivedDate" type="date" value="${goodsEscape(receipt.receivedDate||today)}" required></div><div class="field"><label>Link to purchase</label><select name="purchaseId"><option value="">Standalone receipt</option>${data.purchases.map(purchase=>`<option value="${purchase.id}" ${purchase.id===receipt.purchaseId?'selected':''}>${goodsEscape(purchaseLabel(purchase))}</option>`).join('')}</select></div>${purchaseTraceCard(receipt)}${initialQualityCard(receipt)}<div class="field"><label>Supplier</label><input name="supplier" value="${goodsEscape(receipt.supplier||'')}" required></div><div class="field"><label>Item received</label><select name="item" required>${receiptItems.map(item=>`<option value="${goodsEscape(item.name)}" ${item.name===receipt.item?'selected':''}>${goodsEscape(item.name)}</option>`).join('')}</select></div><div class="field"><label>Category</label><select name="category" required>${data.categories.map(category=>`<option ${category===receipt.category?'selected':''}>${goodsEscape(category)}</option>`).join('')}</select></div><div class="field"><label>Quantity received</label><input name="qty" type="number" min="0" step="any" value="${goodsEscape(receipt.qty??'')}" required></div><div class="field"><label>Receipt unit</label><select name="unit" required>${receiptUnits.map(unit=>`<option value="${goodsEscape(unit)}" ${unit===receipt.unit?'selected':''}>${goodsEscape(unit)}</option>`).join('')}</select><div class="item-note">Stock is posted in the item's base unit; conversions are managed in Administration.</div></div>${receivingWeighbridgeFields(receipt)}<div class="field"><label>Received by</label><select name="receivedBy">${data.people.map(person=>`<option ${person.name===(receipt.receivedBy||operator?.name)?'selected':''}>${goodsEscape(person.name)}</option>`).join('')}</select></div><div class="field"><label>Assign to warehouse</label><select name="warehouseId"><option value="">Not yet assigned</option>${(data.warehouses||[]).map(warehouse=>`<option value="${warehouse.id}" ${warehouse.id===receipt.warehouseId?'selected':''}>${goodsEscape(warehouse.name)} · ${goodsEscape(warehouse.location)}</option>`).join('')}</select><div class="item-note">Assigning posts the quantity to Stock on Hand.</div></div><div class="field"><label>Assigned by</label><select name="warehouseAssignedById"><option value="">Select a person</option>${data.people.map(person=>`<option value="${person.id}" ${person.id===receipt.warehouseAssignedById?'selected':''}>${goodsEscape(person.name)} · ${goodsEscape(person.role||person.type||'Person')}</option>`).join('')}</select></div><div class="field"><label>Warehouse assignment date</label><input name="warehouseAssignedDate" type="date" value="${goodsEscape(receipt.warehouseAssignedDate||today)}"></div><div class="field"><label>Created by</label><input value="${goodsEscape(receipt.createdBy||operator?.name||'Current user')}" readonly></div><div class="field"><label>Created date</label><input value="${goodsEscape((receipt.createdAt||today).slice(0,10))}" readonly></div>${goodsQualityFields(receipt)}</div>`;
 }
 
 // `HTMLFormControlsCollection.item` is a browser method, so the purchase-item
@@ -211,7 +238,11 @@ const goodsFormControl=(form,name)=>form.elements.namedItem(name);
 
 function fillGoodsFromPurchase(form,purchase){
   if(!purchase)return;
-  goodsFormControl(form,'item').value=purchase.item;form.elements.supplier.value=purchase.supplier;form.elements.category.value=purchase.category;form.elements.qty.value=purchase.qty;form.elements.unit.value=purchase.unit;if(form.elements.quantityOrdered)form.elements.quantityOrdered.value=`${purchase.qty} ${purchase.unit||''}`.trim();
+  const itemControl=goodsFormControl(form,'item'),categoryControl=form.elements.category,unitControl=form.elements.unit;
+  if(![...itemControl.options].some(option=>option.value===purchase.item))itemControl.add(new Option(purchase.item,purchase.item));
+  if(![...categoryControl.options].some(option=>option.value===purchase.category))categoryControl.add(new Option(purchase.category,purchase.category));
+  if(![...unitControl.options].some(option=>option.value===purchase.unit))unitControl.add(new Option(purchase.unit,purchase.unit));
+  itemControl.value=purchase.item;form.elements.supplier.value=purchase.supplier;categoryControl.value=purchase.category;form.elements.qty.value=purchase.qty;unitControl.value=purchase.unit;if(form.elements.quantityOrdered)form.elements.quantityOrdered.value=`${purchase.qty} ${purchase.unit||''}`.trim();
   const current={purchaseId:purchase.id};syncReceiptFromPurchase(current,purchase);
   form.querySelector('.purchase-trace-card')?.replaceWith(document.createRange().createContextualFragment(purchaseTraceCard(current)));
   form.querySelector('.initial-quality-card')?.replaceWith(document.createRange().createContextualFragment(initialQualityCard(current)));
@@ -279,6 +310,7 @@ function openGoodsInward(receipt){
     setPurchaseLinkedFieldState(form,purchase);
     if(form.elements.qcBatchReference)form.elements.qcBatchReference.value=purchase?.purchaseQuality?.testReference||'';
   };
+  bindReceivingWeighbridge(form);
   goodsFormControl(form,'item').onchange=()=>{const item=data.items.find(entry=>entry.name===goodsFormControl(form,'item').value);if(item){form.elements.category.value=item.category;form.elements.unit.value=item.unit}};
   if(linkedPurchase)fillGoodsFromPurchase(form,linkedPurchase);
   setPurchaseLinkedFieldState(form,linkedPurchase);
@@ -345,10 +377,62 @@ function adjustStockForWarehouseAssignment(previousItem,previousQty,record,isPre
   else {removeFromStock(previousItem,previousQty||0);addToStock(record.item,currentQty);}
   record.stockOnHandQty=currentQty;
 }
+// A completed receiving inspection is a laboratory result. It is mirrored into
+// Lab results against the same batch reference so the two pages cannot
+// disagree about whether a delivered batch was tested, and is kept in step when
+// the receipt is edited, re-decided or deleted.
+function labResultDecisionFor(decision){
+  return decision==='Accepted'?'Pass':decision==='Rejected'?'Fail':'Hold';
+}
+function syncLabResultForReceipt(record){
+  data.labResults??=[];
+  const index=data.labResults.findIndex(entry=>entry.stage==='GOODS_INWARDS'&&String(entry.goodsInwardsRecordId)===String(record.id));
+  const decided=record.qualityCheckRequired&&record.decision&&record.decision!=='Assess'&&!record.deleted;
+  if(!decided){if(index>=0)data.labResults.splice(index,1);return;}
+  const named=Object.entries(record.qualityParameters||{}).filter(([,value])=>value!==''&&value!==null&&value!==undefined);
+  const columns=[['Moisture (%)',record.moisture],['Damaged kernels (%)',record.damaged],['Foreign matter (%)',record.foreignMatter],['Aflatoxin (ppb)',record.aflatoxin],['Oil content (%)',record.oilContent],['FFA (%)',record.ffa]].filter(([,value])=>value!==''&&value!==null&&value!==undefined);
+  const result={
+    date:record.qualityDate||record.receivedDate||new Date().toISOString().slice(0,10),
+    testName:record.qualityStandard||'Goods inwards quality check',
+    sampleType:'Incoming material',
+    batchRef:record.batchNumber||record.batch||record.lotNo||record.goodsInwardsId||'',
+    analyst:record.qualityCheckOfficer||record.receivedBy||'',
+    decision:labResultDecisionFor(record.decision),
+    notes:record.decisionReason||record.notes||'',
+    values:Object.fromEntries(named.length?named:columns),
+    stage:'GOODS_INWARDS',
+    goodsInwardsRecordId:record.id,
+    goodsInwardsRef:record.goodsInwardsId||'',
+    purchaseId:record.purchaseId||null,
+  };
+  if(index<0)data.labResults.unshift({id:id(),...result});
+  else data.labResults[index]={...data.labResults[index],...result};
+}
 $('#record-form').addEventListener('submit',event=>{
   if(event.currentTarget.dataset.type!=='goods-inward')return;
   event.stopImmediatePropagation();
-  const form=event.currentTarget,values=formData(form),receiptId=form.dataset.receiptId,purchase=data.purchases.find(record=>record.id===+values.purchaseId),existing=(receiptId?data.goodsInwards.find(record=>String(record.id)===receiptId):null)||(purchase?data.goodsInwards.find(record=>record.purchaseId===purchase.id):null),operator=currentOperator?.()||data.people.find(person=>person.type==='User'),previousItem=existing?.item||'',previousQty=existing?stockQuantityForReceipt(existing):undefined,isPreviouslyPosted=!!(existing?.linkedPurchase&&data.purchases.find(purchase=>purchase.id===existing.purchaseId)?.stockReceived);
+  const form=event.currentTarget,values=formData(form),receiptId=form.dataset.receiptId,purchase=data.purchases.find(record=>record.id===+values.purchaseId),existing=(receiptId?data.goodsInwards.find(record=>String(record.id)===receiptId):null)||(purchase?data.goodsInwards.find(record=>record.purchaseId===purchase.id):null),operator=currentOperator?.()||data.people.find(person=>person.type==='User'),previousItem=existing?.item||'',isPreviouslyPosted=!!(existing?.linkedPurchase&&data.purchases.find(purchase=>purchase.id===existing.purchaseId)?.stockReceived);
+  // The placeholder receipt created for every purchase carries the ordered
+  // quantity but has posted nothing. Treating it as posted subtracted the
+  // ordered quantity from stock when the real delivery was first received.
+  const previousQty=!existing?undefined:existing.stockOnHandQty!==undefined?Number(existing.stockOnHandQty)||0:isPreviouslyPosted?stockQuantityForReceipt(existing):0;
+  // A purchase created before its catalogue item was configured must still be
+  // receivable. Promote it into Administration → Purchase Items at receipt so
+  // it is available for all later purchases and receipts. New catalogue items
+  // default to QC required; an administrator can explicitly exempt ordinary
+  // consumables after confirming the policy.
+  data.items??=[];
+  const catalogueItem=data.items.find(item=>String(item.name).trim().toLowerCase()===String(values.item).trim().toLowerCase());
+  if(!catalogueItem){
+    const item={id:id(),name:values.item.trim(),category:values.category,unit:values.unit,description:'Added automatically from Goods Inwards.',requiresQualityCheck:true};
+    data.items.unshift(item);
+    if(item.category&&!data.categories.includes(item.category))data.categories.push(item.category);
+    if(item.unit&&!data.units.includes(item.unit))data.units.push(item.unit);
+  }
+  // Items that do not require a quality check are accepted on receipt. The
+  // inspector's decision still governs every quality-controlled item.
+  const qualityCheckRequired=window.StockLedger.requiresQualityCheck(values.item);
+  if(!qualityCheckRequired){values.decision='Accepted';values.decisionReason=values.decisionReason?.trim()||'Quality check not required for this item.';}
   const stockUnit=stockUnitFor(values.item,values.unit),conversionFactor=unitFactor(values.unit,stockUnit);
   if(conversionFactor===null){alert(`No conversion is configured from ${values.unit} to the ${stockUnit} stock unit for ${values.item}. Add it in Administration → Categories & Units before posting this receipt.`);return;}
   const stockQty=Number((Number(values.qty||0)*conversionFactor).toFixed(6));
@@ -356,7 +440,8 @@ $('#record-form').addEventListener('submit',event=>{
   const record=existing||{id:id(),createdBy:operator?.name||'Current user',createdAt:new Date().toISOString()};
   const warehouse=(data.warehouses||[]).find(entry=>entry.id===+values.warehouseId),warehouseAssignee=data.people.find(person=>person.id===+values.warehouseAssignedById);
   record.goodsInwardsId=existing?.goodsInwardsId||nextGoodsInwardsReference();
-  Object.assign(record,{deleted:false,deletedAt:'',deletedBy:'',purchaseId:purchase?.id||null,linkedPurchase:!!purchase,receivedDate:values.receivedDate,arrivedAt:restoringDeletedReceipt?new Date().toISOString():(existing?.arrivedAt||new Date().toISOString()),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,stockQty,stockUnit,receivedBy:values.receivedBy,warehouseId:warehouse?.id||null,warehouseName:warehouse?.name||'',warehouseAssignedById:warehouseAssignee?.id||null,warehouseAssignedBy:warehouseAssignee?.name||'',warehouseAssignedDate:warehouse?values.warehouseAssignedDate||new Date().toISOString().slice(0,10):'',batch:values.batch,qualityDate:values.qualityDate,condition:values.condition,decision:values.decision,notes:values.notes});
+  const receivingNumber=value=>value===''||value===undefined||value===null||!Number.isFinite(Number(value))?'':Number(value);
+  Object.assign(record,{deleted:false,deletedAt:'',deletedBy:'',purchaseId:purchase?.id||null,linkedPurchase:!!purchase,receivedDate:values.receivedDate,arrivedAt:restoringDeletedReceipt?new Date().toISOString():(existing?.arrivedAt||new Date().toISOString()),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,stockQty,stockUnit,weighbridgeTicketNo:values.weighbridgeTicketNo?.trim()||'',weighedAt:values.weighedAt||'',grossWeightKg:receivingNumber(values.grossWeightKg),tareWeightKg:receivingNumber(values.tareWeightKg),netWeightKg:receivingNumber(values.netWeightKg),receivedBy:values.receivedBy,warehouseId:warehouse?.id||null,warehouseName:warehouse?.name||'',warehouseAssignedById:warehouseAssignee?.id||null,warehouseAssignedBy:warehouseAssignee?.name||'',warehouseAssignedDate:warehouse?values.warehouseAssignedDate||new Date().toISOString().slice(0,10):'',batch:values.batch,qualityDate:values.qualityDate,condition:values.condition,decision:values.decision,notes:values.notes});
   // Readings are saved per parameter of the item's standard; nut parameters
   // also keep their original columns for existing lists and reports.
   const readingNumber=(value,places)=>value===''||value===undefined||value===null||!Number.isFinite(Number(value))?'':Number(Number(value).toFixed(places));
@@ -367,6 +452,7 @@ $('#record-form').addEventListener('submit',event=>{
   record.createdBy=values.createdBy?.trim()||record.createdBy;
   const officer=data.people.find(person=>person.id===+values.qualityCheckOfficerId);record.qualityCheckOfficerId=officer?.id||null;record.qualityCheckOfficer=officer?.name||'';record.inspector=record.qualityCheckOfficer;
   record.decisionReason=values.decisionReason||'';
+  record.qualityCheckRequired=qualityCheckRequired;
   if(purchase){
     syncReceiptFromPurchase(record,purchase);
     // Keep the measured receipt quantity and its supplier unit. The linked
@@ -375,7 +461,7 @@ $('#record-form').addEventListener('submit',event=>{
     Object.assign(record,{qty:+values.qty,unit:values.unit,stockQty,stockUnit});
   }
   applyMoistureSettlement(record);
-  if(purchase){purchase.status=purchaseStageFor(purchase,record);purchase.qualityStatus=record.decision||'Assess'}
+  if(purchase){const stage=purchaseStageFor(purchase,record);if(typeof recordPurchaseStage==='function')recordPurchaseStage(purchase,stage);else purchase.status=stage;purchase.qualityStatus=record.decision||'Assess'}
   adjustStockForWarehouseAssignment(previousItem,previousQty,record,isPreviouslyPosted);
   // Completion of an accepted receipt is the only route from a purchase into
   // available stock. A held/rejected receipt remains visible but unavailable.
@@ -385,6 +471,8 @@ $('#record-form').addEventListener('submit',event=>{
     record.finalizedAt=record.finalizedAt||new Date().toISOString();
     if(typeof recordStockMovement==='function')recordStockMovement({type:'RECEIPT',item:record.item,category:record.category,quantity:record.stockQty,unit:record.stockUnit,warehouseId:record.warehouseId,sourceType:'GOODS_RECEIPT',sourceId:record.id,lotNo:record.batchNumber||record.batch||record.lotNo||'',note:`Accepted goods receipt (${record.qty} ${record.unit})`});
   }else record.finalizedAt=null;
-  if(!existing)data.goodsInwards.unshift(record);save();render();
+  if(!existing)data.goodsInwards.unshift(record);
+  syncLabResultForReceipt(record);
+  save();render();
 },true);
 render();

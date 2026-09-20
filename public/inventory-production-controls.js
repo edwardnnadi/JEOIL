@@ -25,30 +25,26 @@
     const people = (data.people || []).filter(person => person.name);
     return `<option value="">${people.length ? 'Select staff' : 'No staff have been added in Admin'}</option>${people.map(person => `<option value="${esc(person.name)}">${esc(person.name)} · ${esc(person.role || person.type || 'Staff')}</option>`).join('')}`;
   }
-  function warehouseAvailable(itemName,warehouseId) {
-    if (!warehouseId) return 0;
-    const matchingMovements=(data.stockMovements||[]).filter(m=>String(m.warehouseId)===String(warehouseId)&&(m.item===itemName||m.itemName===itemName));
-    const receiptQuantity=(data.goodsInwards||[]).filter(receipt=>receipt.decision==='Accepted'&&String(receipt.warehouseId)===String(warehouseId)&&receipt.item===itemName&&!matchingMovements.some(m=>m.sourceType==='GOODS_RECEIPT'&&String(m.sourceId)===String(receipt.id))).reduce((sum,receipt)=>sum+Number(receipt.qty||0),0);
-    return matchingMovements.reduce((sum,movement)=>sum+Number(movement.quantity||0),receiptQuantity);
+  // Quantities come from the shared stock ledger (stock-ledger.js).
+  function warehouseAvailable(itemName,warehouseId) { return window.StockLedger.warehouseBalance(itemName,warehouseId); }
+  // Older stock cards pre-date warehouse-level movements. Their quantity is
+  // real stock, but it has no location yet, so the first transfer must assign
+  // it to the selected source warehouse rather than incorrectly reporting 0.
+  function legacyUnallocatedStock(item) {
+    const located = window.StockLedger.warehouseBalances(item.name).reduce((total, balance) => total + Number(balance.quantity || 0), 0);
+    return Math.max(0, Number(item.qty || 0) - located);
+  }
+  function sourceAvailableForTransfer(item, warehouseId) {
+    const recorded = warehouseAvailable(item.name, warehouseId);
+    return recorded > 0 ? { quantity: recorded, needsAllocation: false } : { quantity: legacyUnallocatedStock(item), needsAllocation: legacyUnallocatedStock(item) > 0 };
   }
   // A production run must name the accepted purchase batch it consumes. This
   // keeps the production record connected to the receiving and QC records.
   function acceptedPurchaseBatches(warehouseId='') {
-    return (data.goodsInwards || []).filter(receipt =>
-      receipt.decision === 'Accepted'
-      && (!warehouseId || String(receipt.warehouseId) === String(warehouseId))
-      && (receipt.batchNumber || receipt.batch || receipt.lotNo),
-    );
+    return window.StockLedger.acceptedBatches(warehouseId ? [warehouseId] : (data.warehouses || []).map(warehouse => warehouse.id));
   }
-  function purchaseBatchNumber(receipt) { return receipt.batchNumber || receipt.batch || receipt.lotNo || ''; }
-  function purchaseBatchAvailable(receipt) {
-    const batch = purchaseBatchNumber(receipt);
-    const received = Number(receipt.stockOnHandQty ?? receipt.stockQty ?? receipt.qty ?? 0);
-    const issued = (data.stockMovements || []).filter(movement =>
-      movement.type === 'PRODUCTION_ISSUE' && movement.lotNo === batch,
-    ).reduce((sum, movement) => sum + Number(movement.quantity || 0), 0);
-    return Math.max(0, received + issued);
-  }
+  function purchaseBatchNumber(receipt) { return window.StockLedger.batchNumber(receipt); }
+  function purchaseBatchAvailable(receipt) { return window.StockLedger.batchRemaining(receipt); }
   function purchaseBatchOptions(warehouseId='') {
     return acceptedPurchaseBatches(warehouseId).map(receipt => {
       const batch = purchaseBatchNumber(receipt), available = purchaseBatchAvailable(receipt);
@@ -161,7 +157,7 @@
     const outputs=[['Crude groundnut oil',Number(form.elements.oil.value||0),form.elements.oilUnit.value],['Groundnut cake',Number(form.elements.cake.value||0),form.elements.cakeUnit.value],['Sludge',Number(form.elements.sludge.value||0),form.elements.sludgeUnit.value]].filter(([,q])=>q>0);
     outputs.forEach(([name, quantity, unit])=>{let item=stockItem(name); if(item)item.qty+=quantity; else { item={id:id(),name,category:'Finished goods',qty:quantity,unit,reorder:0};data.stock.push(item); } recordStockMovement({type:'PRODUCTION_OUTPUT',item:name,category:'Finished goods',quantity,unit,warehouseId:outputWarehouse.id,sourceType:'PRODUCTION_RUN',sourceId:run.batch,note:'Finished production output'});});
     const selectedMachine=(run.machineRatings||[])[0]||{}; const machine=(data.machines||[]).find(entry=>String(entry.id)===String(selectedMachine.id)||entry.name===selectedMachine.name||entry.name===(run.machines||[])[0]);if(machine)machine.manufacturerRating={capacity:form.elements.manufacturerCapacity.value.trim(),input:form.elements.manufacturerInput.value.trim(),output:form.elements.manufacturerOutput.value.trim()};
-    Object.assign(run,{status:'COMPLETED',endedAt,endedAtRecorded:now.toISOString(),timeCorrect:correct,warehouseId:outputWarehouse.id,warehouseName:outputWarehouse.name,actualRating:{capacity:form.elements.actualCapacity.value.trim(),input:form.elements.actualInput.value.trim(),output:form.elements.actualOutput.value.trim()},outputs,adjustment:form.elements.adjustment.value}); data.production.unshift(run); save();render();$('#record-dialog').close();
+    Object.assign(run,{status:'COMPLETED',endedAt,endedAtRecorded:now.toISOString(),timeCorrect:correct,warehouseId:outputWarehouse.id,warehouseName:outputWarehouse.name,actualRating:{capacity:form.elements.actualCapacity.value.trim(),input:form.elements.actualInput.value.trim(),output:form.elements.actualOutput.value.trim()},outputs,adjustment:form.elements.adjustment.value}); data.activeProductionRuns=data.activeProductionRuns.filter(entry=>String(entry.id)!==String(run.id)); data.production.unshift(run); save();render();$('#record-dialog').close();
   }
   $('#record-form').addEventListener('submit', event => { const form=event.currentTarget; if (!['production-start','production-end','production-issue'].includes(form.dataset.type)) return; event.preventDefault();event.stopImmediatePropagation(); if(form.dataset.type==='production-start')startRun(form);else if(form.dataset.type==='production-end')endRun(form);else saveIssue(form); }, true);
   $('#add-production').onclick=openStart;
@@ -171,10 +167,15 @@
   function openInventoryAction(type) {
     const items=(data.stock||[]).map(s=>`<option value="${esc(s.name)}">${esc(s.name)} · ${Number(s.qty).toLocaleString()} ${esc(s.unit)}</option>`).join('');
     $('#modal-label').textContent='INVENTORY CONTROL'; $('#modal-title').textContent=type==='transfer'?'Transfer warehouse stock':'Adjust stock';
-    $('#form-fields').innerHTML=type==='transfer'?`<div class="form-grid"><div class="field full"><label>Material</label><select name="item">${items}</select></div><div class="field"><label>From warehouse</label><select name="fromWarehouse">${warehouseOptions()}</select></div><div class="field"><label>To warehouse</label><select name="toWarehouse">${warehouseOptions()}</select></div><div class="field"><label>Quantity</label><input name="quantity" type="number" min="0.001" step="any" required></div><div class="field full"><label>Reason</label><textarea name="note" required></textarea></div></div>`:`<div class="form-grid"><div class="field full"><label>Material</label><select name="item">${items}</select></div><div class="field"><label>Warehouse</label><select name="warehouseId">${warehouseOptions()}</select></div><div class="field"><label>Quantity change</label><input name="quantity" type="number" step="any" required placeholder="Use - for reduction"></div><div class="field full"><label>Reason</label><textarea name="note" required></textarea></div></div>`;
-    const form=$('#record-form');form.dataset.type=`inventory-${type}`;$('#save-record').textContent=type==='transfer'?'Record transfer':'Record adjustment';$('#record-dialog').showModal();
+    $('#form-fields').innerHTML=type==='transfer'?`<div class="form-grid"><div class="field full"><label>Material</label><select name="item">${items}</select></div><div class="field"><label>From warehouse</label><select name="fromWarehouse">${warehouseOptions()}</select></div><div class="field"><label>To warehouse</label><select name="toWarehouse">${warehouseOptions()}</select></div><div class="field full"><div class="item-note" id="transfer-availability" aria-live="polite"></div></div><div class="field"><label>Quantity</label><input name="quantity" type="number" min="0.001" step="any" required></div><div class="field full"><label>Reason</label><textarea name="note" minlength="10" required placeholder="Explain why this stock is moving"></textarea></div></div>`:`<div class="form-grid"><div class="field full"><label>Material</label><select name="item">${items}</select></div><div class="field"><label>Warehouse</label><select name="warehouseId">${warehouseOptions()}</select></div><div class="field"><label>Quantity change</label><input name="quantity" type="number" step="any" required placeholder="Use - for reduction"></div><div class="field full"><label>Reason</label><textarea name="note" minlength="10" required placeholder="Explain the count variance, loss, damage, or correction"></textarea></div></div>`;
+    const form=$('#record-form');
+    if(type==='transfer'){
+      const availability=()=>{const item=stockItem(form.elements.item.value),source=(data.warehouses||[]).find(warehouse=>String(warehouse.id)===String(form.elements.fromWarehouse.value)),available=item&&sourceAvailableForTransfer(item,source?.id);const note=$('#transfer-availability');if(!item||!source||!note)return;note.textContent=available.needsAllocation?`${available.quantity.toLocaleString()} ${item.unit} is unassigned legacy stock. It will be assigned to ${source.name} before this transfer.`:`${available.quantity.toLocaleString()} ${item.unit} available in ${source.name}.`;};
+      form.elements.item.onchange=availability;form.elements.fromWarehouse.onchange=availability;availability();
+    }
+    form.dataset.type=`inventory-${type}`;$('#save-record').textContent=type==='transfer'?'Record transfer':'Record adjustment';$('#record-dialog').showModal();
   }
-  $('#record-form').addEventListener('submit',event=>{const form=event.currentTarget,type=form.dataset.type;if(!['inventory-transfer','inventory-adjustment'].includes(type))return;event.preventDefault();event.stopImmediatePropagation();const item=stockItem(form.elements.namedItem('item').value),quantity=Number(form.elements.quantity.value);if(!item||!Number.isFinite(quantity)||quantity===0)return alert('Enter a valid quantity.');if(type==='inventory-transfer'){if(form.elements.fromWarehouse.value===form.elements.toWarehouse.value)return alert('Choose two different warehouses.');recordStockMovement({type:'TRANSFER_OUT',item:item.name,category:item.category,quantity:-quantity,unit:item.unit,warehouseId:+form.elements.fromWarehouse.value,sourceType:'TRANSFER',sourceId:id(),note:form.elements.note.value});recordStockMovement({type:'TRANSFER_IN',item:item.name,category:item.category,quantity,unit:item.unit,warehouseId:+form.elements.toWarehouse.value,sourceType:'TRANSFER',sourceId:id(),note:form.elements.note.value});}else{if(item.qty+quantity<0)return alert('This adjustment would make stock negative.');item.qty+=quantity;recordStockMovement({type:'ADJUSTMENT',item:item.name,category:item.category,quantity,unit:item.unit,warehouseId:+form.elements.warehouseId.value,sourceType:'ADJUSTMENT',sourceId:id(),note:form.elements.note.value});}save();render();$('#record-dialog').close();},true);
+  $('#record-form').addEventListener('submit',event=>{const form=event.currentTarget,type=form.dataset.type;if(!['inventory-transfer','inventory-adjustment'].includes(type))return;event.preventDefault();event.stopImmediatePropagation();const note=form.elements.note.value.trim();if(note.length<10)return alert('Enter a reason of at least 10 characters.');const item=stockItem(form.elements.namedItem('item').value),quantity=Number(form.elements.quantity.value);if(!item||!Number.isFinite(quantity)||quantity===0)return alert('Enter a valid quantity.');if(type==='inventory-transfer'){if(form.elements.fromWarehouse.value===form.elements.toWarehouse.value)return alert('Choose two different warehouses.');const sourceId=form.elements.fromWarehouse.value,source=(data.warehouses||[]).find(warehouse=>String(warehouse.id)===String(sourceId)),availability=sourceAvailableForTransfer(item,sourceId);if(quantity<=0||quantity>availability.quantity)return alert(`Only ${availability.quantity.toLocaleString()} ${item.unit} of ${item.name} is available in the source warehouse.`);if(availability.needsAllocation)recordStockMovement({type:'OPENING_ALLOCATION',item:item.name,category:item.category,quantity:availability.quantity,unit:item.unit,warehouseId:+sourceId,sourceType:'OPENING_STOCK',sourceId:id(),note:`Assigned legacy stock to ${source?.name||'source warehouse'} before transfer.`});const transferId=id();recordStockMovement({type:'TRANSFER_OUT',item:item.name,category:item.category,quantity:-quantity,unit:item.unit,warehouseId:+sourceId,sourceType:'TRANSFER',sourceId:transferId,note});recordStockMovement({type:'TRANSFER_IN',item:item.name,category:item.category,quantity,unit:item.unit,warehouseId:+form.elements.toWarehouse.value,sourceType:'TRANSFER',sourceId:transferId,note});}else{const adjustAvailable=warehouseAvailable(item.name,form.elements.warehouseId.value);if(adjustAvailable+quantity<0)return alert(`This adjustment would make ${item.name} negative in that warehouse (${adjustAvailable.toLocaleString()} ${item.unit} available).`);item.qty+=quantity;recordStockMovement({type:'ADJUSTMENT',item:item.name,category:item.category,quantity,unit:item.unit,warehouseId:+form.elements.warehouseId.value,sourceType:'ADJUSTMENT',sourceId:id(),note});}save();render();$('#record-dialog').close();},true);
   function inventoryControls() {
     const stockHead=$('#stock-view .view-head'); if(stockHead&&!$('#inventory-actions'))stockHead.insertAdjacentHTML('beforeend','<div class="header-actions" id="inventory-actions"><button class="secondary" id="transfer-stock">Transfer stock</button><button class="primary" id="adjust-stock">Adjust stock</button></div>');
     $('#transfer-stock')?.addEventListener('click',()=>openInventoryAction('transfer')); $('#adjust-stock')?.addEventListener('click',()=>openInventoryAction('adjustment'));

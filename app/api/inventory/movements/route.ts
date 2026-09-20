@@ -27,6 +27,11 @@ export async function POST(request: Request) {
   const warehouse = text(body.warehouse);
   const quantity = positiveNumber(body.quantity);
   if (!itemName || !unit || !warehouse || quantity === null) return badRequest('Item, unit, warehouse and positive quantity are required');
+  // A stock movement is an audit event. Do not let the UI's `required`
+  // attribute be the only thing standing between an unexplained loss and the
+  // ledger: callers can invoke this endpoint directly.
+  const note = optionalText(body.note);
+  if (!note || note.length < 10) return badRequest('A reason of at least 10 characters is required for every stock movement');
   const db = getDb();
   const now = new Date();
   if (action === 'ADJUSTMENT') {
@@ -36,7 +41,7 @@ export async function POST(request: Request) {
       const [balance] = await db.select({ quantity: sql<number>`coalesce(sum(${stockMovements.quantity}), 0)` }).from(stockMovements).where(and(eq(stockMovements.itemName, itemName), eq(stockMovements.warehouse, warehouse)));
       if ((balance?.quantity ?? 0) < quantity) return conflict('Adjustment would make warehouse stock negative');
     }
-    const movement = { id: crypto.randomUUID(), movementType: 'ADJUSTMENT', itemName, unit, quantity: direction === 'OUT' ? -quantity : quantity, warehouse, lotNumber: optionalText(body.lotNumber), sourceType: 'ADJUSTMENT', sourceId: crypto.randomUUID(), note: optionalText(body.note), recordedBy: user.email, recordedAt: now };
+    const movement = { id: crypto.randomUUID(), movementType: 'ADJUSTMENT', itemName, unit, quantity: direction === 'OUT' ? -quantity : quantity, warehouse, lotNumber: optionalText(body.lotNumber), sourceType: 'ADJUSTMENT', sourceId: crypto.randomUUID(), note, recordedBy: user.email, recordedAt: now };
     await db.insert(stockMovements).values(movement);
     return NextResponse.json({ stockMovements: [movement] }, { status: 201 });
   }
@@ -46,7 +51,7 @@ export async function POST(request: Request) {
   const [balance] = await db.select({ quantity: sql<number>`coalesce(sum(${stockMovements.quantity}), 0)` }).from(stockMovements).where(and(eq(stockMovements.itemName, itemName), eq(stockMovements.warehouse, warehouse)));
   if ((balance?.quantity ?? 0) < quantity) return conflict('Transfer exceeds source warehouse stock');
   const sourceId = crypto.randomUUID();
-  const common = { itemName, unit, lotNumber: optionalText(body.lotNumber), sourceType: 'TRANSFER', sourceId, note: optionalText(body.note), recordedBy: user.email, recordedAt: now };
+  const common = { itemName, unit, lotNumber: optionalText(body.lotNumber), sourceType: 'TRANSFER', sourceId, note, recordedBy: user.email, recordedAt: now };
   const outbound = { ...common, id: crypto.randomUUID(), movementType: 'TRANSFER_OUT', quantity: -quantity, warehouse };
   const inbound = { ...common, id: crypto.randomUUID(), movementType: 'TRANSFER_IN', quantity, warehouse: destinationWarehouse };
   await db.insert(stockMovements).values([outbound, inbound]);

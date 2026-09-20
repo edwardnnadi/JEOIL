@@ -35,7 +35,7 @@ function changedAreas(before: string | null, after: string) {
     const next = JSON.parse(after) as Record<string, unknown>;
     const labels: Record<string, string> = {
       purchases: 'Purchases', goodsInwards: 'Goods inwards', assessments: 'Quality assessments',
-      production: 'Production runs', stock: 'Stock', suppliers: 'Suppliers', people: 'People',
+      production: 'Production runs', stock: 'Stock', goodsOutwards: 'Goods outward', suppliers: 'Suppliers', people: 'People',
       warehouses: 'Warehouses', machines: 'Machines', labResults: 'Lab results', labRuns: 'Lab runs',
     };
     const recordName = (record: Record<string, unknown>) => String(
@@ -92,6 +92,136 @@ function changedCompletedProduction(before: string | null, after: string) {
     // only if it passes the normal persistence flow.
     return false;
   }
+}
+
+type StateRecord = Record<string, unknown>;
+
+function records(value: unknown): StateRecord[] {
+  return Array.isArray(value) ? value.filter((entry): entry is StateRecord => Boolean(entry) && typeof entry === 'object') : [];
+}
+
+function movementId(movement: StateRecord) {
+  const value = movement.id;
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : null;
+}
+
+/**
+ * The legacy workspace persists a client-side aggregate, but the journal
+ * within it is still our accounting record. Preserve its history and reject
+ * unreasoned adjustments at the server boundary so DevTools or a hand-written
+ * request cannot silently change a quantity.
+ */
+function inventoryIntegrityError(before: string | null, after: string): string | null {
+  let previous: StateRecord;
+  let next: StateRecord;
+  try {
+    previous = before ? JSON.parse(before) as StateRecord : {};
+    next = JSON.parse(after) as StateRecord;
+  } catch {
+    return 'Invalid operational state';
+  }
+
+  const oldMovements = records(previous.stockMovements);
+  const newMovements = records(next.stockMovements);
+  const oldById = new Map<string, StateRecord>();
+  for (const movement of oldMovements) {
+    const id = movementId(movement);
+    if (id) oldById.set(id, movement);
+  }
+  const seen = new Set<string>();
+  const additions: StateRecord[] = [];
+  for (const movement of newMovements) {
+    const id = movementId(movement);
+    if (!id || seen.has(id)) return 'Every stock movement must have a unique immutable identifier';
+    seen.add(id);
+    const original = oldById.get(id);
+    if (original && JSON.stringify(original) !== JSON.stringify(movement)) return 'Recorded stock movements cannot be changed';
+    if (!original) additions.push(movement);
+  }
+  if (oldById.size && [...oldById.keys()].some(id => !seen.has(id))) return 'Recorded stock movements cannot be deleted';
+
+  const allowedTypes = new Set(['RECEIPT', 'OPENING_ALLOCATION', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT', 'PRODUCTION_ISSUE', 'PRODUCTION_OUTPUT', 'CONSUMPTION_ISSUE']);
+  for (const movement of additions) {
+    const quantity = Number(movement.quantity);
+    const type = typeof movement.type === 'string' ? movement.type : movement.movementType;
+    const sourceType = typeof movement.sourceType === 'string' ? movement.sourceType : '';
+    const note = typeof movement.note === 'string' ? movement.note.trim() : '';
+    if (!allowedTypes.has(String(type)) || !Number.isFinite(quantity) || quantity === 0 || !sourceType) {
+      return 'A new stock movement has invalid accounting details';
+    }
+    if ((type === 'ADJUSTMENT' || type === 'TRANSFER_IN' || type === 'TRANSFER_OUT') && note.length < 10) {
+      return 'A reason of at least 10 characters is required for every adjustment or transfer';
+    }
+    if (type === 'ADJUSTMENT' && sourceType !== 'ADJUSTMENT') return 'Stock adjustments must be recorded as adjustment events';
+    if (type === 'CONSUMPTION_ISSUE') {
+      const useType = typeof movement.useType === 'string' ? movement.useType.trim() : '';
+      const useLocation = typeof movement.useLocation === 'string' ? movement.useLocation.trim() : '';
+      const issuedTo = typeof movement.issuedTo === 'string' ? movement.issuedTo.trim() : '';
+      const issuedBy = typeof movement.issuedBy === 'string' ? movement.issuedBy.trim() : '';
+      const issuedAt = typeof movement.issuedAt === 'string' ? Date.parse(movement.issuedAt) : Number.NaN;
+      if (sourceType !== 'GOODS_OUTWARD' || quantity >= 0 || note.length < 10 || !useType || !useLocation || !issuedTo || !issuedBy || !Number.isFinite(issuedAt)) {
+        return 'A goods-outward issue must identify its destination, purpose, responsible person, and issue time';
+      }
+    }
+  }
+
+  // The business record and the ledger event are a pair: neither can be
+  // rewritten or inserted alone. This keeps the destination and purpose shown
+  // in Goods outward tied to the quantity that actually left stock.
+  const oldIssues = new Map(records(previous.goodsOutwards).map(issue => [String(issue.id ?? ''), issue]));
+  const newIssues = new Map(records(next.goodsOutwards).map(issue => [String(issue.id ?? ''), issue]));
+  for (const [issueId, oldIssue] of oldIssues) {
+    if (!issueId || JSON.stringify(oldIssue) !== JSON.stringify(newIssues.get(issueId))) {
+      return 'Recorded goods-outward issues cannot be changed or deleted';
+    }
+  }
+  const addedIssueIds = new Set<string>();
+  for (const [issueId, issue] of newIssues) {
+    if (oldIssues.has(issueId)) continue;
+    const requiredText = ['item', 'unit', 'warehouseName', 'useType', 'useLocation', 'purpose', 'issuedTo', 'issuedBy', 'issuedAt'];
+    const warehouseId = issue.warehouseId;
+    if (!issueId || requiredText.some(key => typeof issue[key] !== 'string' || !String(issue[key]).trim()) ||
+      (typeof warehouseId !== 'string' && typeof warehouseId !== 'number') || !String(warehouseId).trim() ||
+      !Number.isFinite(Number(issue.quantity)) || Number(issue.quantity) <= 0 || String(issue.purpose).trim().length < 10) {
+      return 'A goods-outward issue is missing required traceability details';
+    }
+    addedIssueIds.add(issueId);
+  }
+  const consumptionMovementIds = new Set(additions
+    .filter(movement => movement.type === 'CONSUMPTION_ISSUE' && movement.sourceType === 'GOODS_OUTWARD')
+    .map(movement => String(movement.sourceId ?? '')));
+  if ([...addedIssueIds].some(issueId => !consumptionMovementIds.has(issueId)) ||
+    [...consumptionMovementIds].some(issueId => !addedIssueIds.has(issueId))) {
+    return 'Every goods-outward record must have exactly one matching stock-consumption event';
+  }
+
+  // The stock-card quantity is an aggregate, never an independent source of
+  // truth. Any card change must reconcile exactly to the newly appended
+  // journal entries for that item. This also prevents direct edits to legacy
+  // cards that have not yet had a movement recorded.
+  const addedQuantityByItem = new Map<string, number>();
+  additions.forEach(movement => {
+    const name = String(movement.item ?? movement.itemName ?? '').trim().toLowerCase();
+    if (name) addedQuantityByItem.set(name, (addedQuantityByItem.get(name) ?? 0) + Number(movement.quantity));
+  });
+  const oldStock = new Map(records(previous.stock).map(item => [String(item.id ?? item.name ?? ''), item]));
+  const nextStockKeys = new Set<string>();
+  for (const item of records(next.stock)) {
+    const key = String(item.id ?? item.name ?? '');
+    nextStockKeys.add(key);
+    const original = oldStock.get(key);
+    const name = String(item.name ?? '').trim().toLowerCase();
+    const oldQuantity = original ? Number(original.qty) : 0;
+    const newQuantity = Number(item.qty);
+    if (!Number.isFinite(newQuantity) || !Number.isFinite(oldQuantity)) return 'Stock quantities must be valid numbers';
+    const delta = Math.round((newQuantity - oldQuantity) * 1e6) / 1e6;
+    const journalDelta = Math.round((addedQuantityByItem.get(name) ?? 0) * 1e6) / 1e6;
+    if (delta !== 0 && delta !== journalDelta) {
+      return 'Stock card quantities must reconcile to newly recorded receiving, usage, transfer, or adjustment events';
+    }
+  }
+  if ([...oldStock.keys()].some(key => !nextStockKeys.has(key))) return 'Stock cards cannot be deleted; record a documented write-off or adjustment instead';
+  return null;
 }
 
 export async function GET() {
@@ -153,6 +283,9 @@ export async function POST(request: Request) {
       { status: 403 },
     );
   }
+
+  const inventoryError = inventoryIntegrityError(current?.payload ?? null, body.payload);
+  if (inventoryError) return NextResponse.json({ error: inventoryError }, { status: 422 });
 
   const updatedAt = new Date(Math.max(Date.now(), (currentRevision ?? 0) + 1));
   if (!current) {

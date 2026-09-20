@@ -5,6 +5,9 @@ const nigeriaLgaSource = 'https://raw.githubusercontent.com/temikeezy/nigeria-ge
 const maxAttachmentBytes = 1000000;
 
 function escapeValue(value=''){return String(value).replace(/[&<>'"]/g, character=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));}
+// Field QC uses the same parameter list as receiving, so nut purchases record
+// moisture at the collection site; the factory reading is compared against it.
+function fieldQcParameters(standard){return typeof receivingStandardParameters==='function'?receivingStandardParameters(standard):(standard?.parameters||[]);}
 function traceabilityData(){
   data.purchaseIdConfig ??= {prefix:'PUR-',sequenceStart:1001,nextNumber:1001,padding:4,suffix:''};
   data.lotNoConfig ??= {prefix:'LOT-',suffix:'',padding:4};
@@ -80,12 +83,12 @@ function purchaseQualityFields(values={},auditChanges=false,statusLocked=false,i
   const history=escapeValue(JSON.stringify(values.statusHistory||[]));
   const auditNote=auditChanges?'Changing the Field QC status requires a dated, reasoned audit entry.':'Set the initial Field QC status for this new purchase. A dated reason is only required when updating an existing purchase.';
   const statusControl=statusLocked?`<input name="purchaseQcStatus" value="${escapeValue(qcStatus)}" readonly aria-describedby="purchase-qc-status-note"><div id="purchase-qc-status-note" class="item-note">Change this status from the QC dropdown on the Purchases list.</div>`:`<select name="purchaseQcStatus" id="purchase-qc-status">${['Pending','Inspection in progress','Accepted','Hold / retest','Rejected'].map(value=>`<option ${value===qcStatus?'selected':''}>${value}</option>`).join('')}</select>`;
-  const standard=itemName?(itemStandard?.(itemName,category)||{name:'No quality standard configured',parameters:[]}):(peanutStandard||{name:'JE Oils Standard',parameters:[]});
-  const parameters=(standard.parameters||[]).map(parameter=>`<div class="field"><label>${escapeValue(parameter.label)}${parameter.unit?` (${escapeValue(parameter.unit)})`:''}<span class="item-note"> ${escapeValue(parameter.operator||'')} ${escapeValue(parameter.limit??'')} ${escapeValue(parameter.unit||'')}</span></label><input name="purchaseParameter_${escapeValue(parameter.key)}" type="number" step="any" inputmode="decimal" value="${escapeValue(values.parameters?.[parameter.key]??'')}"></div>`).join('');
+  const standard=itemName?(itemStandard?.(itemName,category)||{name:'No quality standard configured',parameters:[]}):{name:'No quality standard configured',parameters:[]};
+  const parameters=fieldQcParameters(standard).map(parameter=>`<div class="field"><label>${escapeValue(parameter.label)}${parameter.unit?` (${escapeValue(parameter.unit)})`:''}<span class="item-note"> ${escapeValue(parameter.operator||'')} ${escapeValue(parameter.limit??'')} ${escapeValue(parameter.unit||'')}</span></label><input name="purchaseParameter_${escapeValue(parameter.key)}" type="number" step="any" inputmode="decimal" value="${escapeValue(values.parameters?.[parameter.key]??'')}"></div>`).join('');
   return `<div class="field full"><label>Field QC assessment</label><div class="item-note">Record the QC inspection completed at the collection site against <span data-purchase-qc-standard-name>${escapeValue(standard.name||'the configured')}</span> standard. ${auditNote}</div></div><div class="field"><label>Inspector</label><select name="purchaseInspectorId"><option value="">Select a user</option>${data.people.filter(person=>person.type==='User').map(person=>`<option value="${person.id}" ${String(person.id)===inspectorId||person.name===inspectorName?'selected':''}>${escapeValue(person.name)} · ${escapeValue(person.role||person.type||'User')}</option>`).join('')}</select></div><div class="field"><label>QC Batch Reference</label><input name="purchaseQcTestRef" value="${escapeValue(batchReference)}" readonly><div class="item-note">Generated automatically from Administration settings.</div></div><div class="field"><label>Inspection date and time</label><input name="purchaseQcTestedAt" type="datetime-local" value="${escapeValue(values.testedAt||'')}"></div><div class="field full" data-purchase-qc-parameters><div class="form-grid">${parameters}</div></div><div class="field"><label>Initial condition</label><select name="purchaseCondition">${['Clean and dry','Minor defects','Contamination observed'].map(value=>`<option ${value===(values.condition||'Clean and dry')?'selected':''}>${value}</option>`).join('')}</select></div><div class="field"><label>Field QC status</label>${statusControl}<input type="hidden" name="purchaseQcStatusHistory" value="${history}"></div><div class="field full"><label>Initial assessment notes</label><textarea name="purchaseNotes">${escapeValue(values.notes||'')}</textarea></div>`;
 }
-function purchaseQualityFromForm(values){const inspector=data.people.find(person=>person.id===+values.purchaseInspectorId),status=values.purchaseQcStatus||'Pending',parameters={};Object.entries(values).forEach(([key,value])=>{if(key.startsWith('purchaseParameter_'))parameters[key.slice('purchaseParameter_'.length)]=value===''?'':Number(value)});let history=[];try{history=JSON.parse(values.purchaseQcStatusHistory||'[]')}catch{}return {status,statusHistory:Array.isArray(history)?history:[],testReference:values.purchaseQcTestRef?.trim()||'',testedAt:values.purchaseQcTestedAt||'',inspectorId:inspector?.id||null,inspector:inspector?.name||'',parameters,condition:values.purchaseCondition||'',decision:status==='Accepted'?'Accepted':status==='Rejected'?'Rejected':status==='Hold / retest'?'Hold':'Assess',notes:values.purchaseNotes?.trim()||''};}
-window.refreshPurchaseQcParameters=form=>{const host=form.querySelector('[data-purchase-qc-parameters] .form-grid');if(!host)return;const values=formData(form),standard=typeof purchaseQualityStandard==='function'?purchaseQualityStandard(form):(itemStandard?.(form.elements.namedItem('item')?.value,form.elements.namedItem('category')?.value)||peanutStandard||{parameters:[]}),standardName=form.querySelector('[data-purchase-qc-standard-name]');if(standardName)standardName.textContent=standard.name||'the configured';host.innerHTML=(standard.parameters||[]).map(parameter=>`<div class="field"><label>${escapeValue(parameter.label)}${parameter.unit?` (${escapeValue(parameter.unit)})`:''}<span class="item-note"> ${escapeValue(parameter.operator||'')} ${escapeValue(parameter.limit??'')} ${escapeValue(parameter.unit||'')}</span></label><input name="purchaseParameter_${escapeValue(parameter.key)}" type="number" step="any" inputmode="decimal" value="${escapeValue(values[`purchaseParameter_${parameter.key}`]??'')}"></div>`).join('')||'<div class="item-note">No Field QC parameters are configured for this item.</div>';};
+function purchaseQualityFromForm(values){const inspector=data.people.find(person=>person.id===+values.purchaseInspectorId),status=values.purchaseQcStatus||'Pending',parameters={};Object.entries(values).forEach(([key,value])=>{if(key.startsWith('purchaseParameter_'))parameters[key.slice('purchaseParameter_'.length)]=value===''?'':Number(value)});let history=[];try{history=JSON.parse(values.purchaseQcStatusHistory||'[]')}catch{}return {status,statusHistory:Array.isArray(history)?history:[],moisture:parameters.moisture??'',testReference:values.purchaseQcTestRef?.trim()||'',testedAt:values.purchaseQcTestedAt||'',inspectorId:inspector?.id||null,inspector:inspector?.name||'',parameters,condition:values.purchaseCondition||'',decision:status==='Accepted'?'Accepted':status==='Rejected'?'Rejected':status==='Hold / retest'?'Hold':'Assess',notes:values.purchaseNotes?.trim()||''};}
+window.refreshPurchaseQcParameters=form=>{const host=form.querySelector('[data-purchase-qc-parameters] .form-grid');if(!host)return;const values=formData(form),standard=typeof purchaseQualityStandard==='function'?purchaseQualityStandard(form):(itemStandard?.(form.elements.namedItem('item')?.value,form.elements.namedItem('category')?.value)||{parameters:[]}),standardName=form.querySelector('[data-purchase-qc-standard-name]');if(standardName)standardName.textContent=standard.name||'the configured';if(window.StockLedger&&!window.StockLedger.requiresQualityCheck(form.elements.namedItem('item')?.value||'')){host.innerHTML='<div class="item-note">Quality check not required for this item.</div>';return;}host.innerHTML=fieldQcParameters(standard).map(parameter=>`<div class="field"><label>${escapeValue(parameter.label)}${parameter.unit?` (${escapeValue(parameter.unit)})`:''}<span class="item-note"> ${escapeValue(parameter.operator||'')} ${escapeValue(parameter.limit??'')} ${escapeValue(parameter.unit||'')}</span></label><input name="purchaseParameter_${escapeValue(parameter.key)}" type="number" step="any" inputmode="decimal" value="${escapeValue(values[`purchaseParameter_${parameter.key}`]??'')}"></div>`).join('')||'<div class="item-note">No Field QC parameters are configured for this item.</div>';};
 function traceabilityFields(purchase={}, isNew=false){
   const reference=isNew?purchaseReference():(purchase.purchaseId||'Not assigned');
   const batchNumber=purchase.batchNumber||purchase.lotNo||lotReference(reference);
@@ -140,6 +143,17 @@ function localDateTimeValue(date=new Date()){
 function stageForFieldQcStatus(status){
   return {Pending:'Ordered',"Inspection in progress":'QC inspection',Accepted:'QC accepted','Hold / retest':'QC hold / retest',Rejected:'Rejected'}[status]||null;
 }
+// Field QC drives the purchase stage forward, never backward. A load that has
+// already been collected must not be pulled back to "QC accepted" because the
+// on-site inspection record was completed or edited afterwards.
+function advancedPurchaseStage(current,next){
+  if(!next)return null;
+  const ladder=['Quote','Ordered','QC inspection','QC accepted','In transit','Arrived at factory','Moved to warehouse'];
+  const to=ladder.indexOf(next);
+  if(to<0)return next;
+  const from=ladder.indexOf(current);
+  return from>=to?null:next;
+}
 function bindPurchaseQcStatus(form,{auditChanges=false}={}){
   const select=form.elements.purchaseQcStatus,historyInput=form.elements.purchaseQcStatusHistory;
   if(!select||!historyInput||select.dataset.auditBound==='yes')return;
@@ -161,7 +175,7 @@ function bindPurchaseQcStatus(form,{auditChanges=false}={}){
       history.push({from,to,changedAt,reason,changedBy:operator?.name||'Current user'});
       historyInput.value=JSON.stringify(history);
       select.value=to;select.dataset.confirmedStatus=to;
-      const purchaseStage=form.elements.status,stage=stageForFieldQcStatus(to);
+      const purchaseStage=form.elements.status,stage=purchaseStage?advancedPurchaseStage(purchaseStage.value,stageForFieldQcStatus(to)):null;
       if(purchaseStage&&stage&&purchaseStage.value!=='Quote')purchaseStage.value=stage;
       close(overlay);
     };
@@ -172,7 +186,7 @@ function bindPurchaseQcStatus(form,{auditChanges=false}={}){
     if(from===to)return;
     if(!auditChanges){
       select.dataset.confirmedStatus=to;
-      const purchaseStage=form.elements.status,stage=stageForFieldQcStatus(to);
+      const purchaseStage=form.elements.status,stage=purchaseStage?advancedPurchaseStage(purchaseStage.value,stageForFieldQcStatus(to)):null;
       if(purchaseStage&&stage&&purchaseStage.value!=='Quote')purchaseStage.value=stage;
       return;
     }
@@ -241,7 +255,7 @@ $('#record-form').addEventListener('submit',event=>{
   // consuming QC batch references.
   const purchaseQuality=purchaseQualityFromForm({...values,purchaseQcTestRef:nextQcBatchReference()});
   const batchNumber=values.batchNumber?.trim()||values.lotNo?.trim()||lotReference(purchaseId);
-  const purchase={id:id(),purchaseId,date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:values.createdBy||operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),batchNumber,lotNo:batchNumber,originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,attachments,stockReceived:false,qualityStatus:purchaseQuality.decision};
+  const purchase={id:id(),purchaseId,date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:values.createdBy||operator?.name||'Current user',createdAt:new Date().toISOString(),item:values.item,itemDescription:values.itemDescription?.trim()||'',supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),batchNumber,lotNo:batchNumber,originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,attachments,stockReceived:false,qualityStatus:purchaseQuality.decision,...window.purchaseFieldLogisticsFromForm?.(values),stageHistory:[{from:'',to:values.status,changedAt:new Date().toISOString(),changedBy:values.createdBy||operator?.name||'Current user'}]};
   data.purchases.unshift(purchase);save();render();$('#record-dialog').close();
 },true);
 
@@ -253,7 +267,8 @@ $('#record-form').addEventListener('submit',event=>{
   const values=formData(form),purchase=data.purchases.find(entry=>entry.id===+form.dataset.editId),person=data.people.find(entry=>entry.id===+values.purchasedById);
   const purchaseQuality=purchaseQualityFromForm(values);
   const batchNumber=purchase.batchNumber||purchase.lotNo||values.batchNumber?.trim()||values.lotNo?.trim()||lotReference(purchase.purchaseId);
-  Object.assign(purchase,{date:values.purchasedDate,status:values.status,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:values.createdBy||purchase.createdBy,item:values.item,supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),batchNumber,lotNo:batchNumber,originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,qualityStatus:purchaseQuality.decision,attachments:form.__traceAttachments||purchase.attachments||[]});
+  if(typeof recordPurchaseStage==="function")recordPurchaseStage(purchase,values.status);else purchase.status=values.status;
+  Object.assign(purchase,{date:values.purchasedDate,purchasedById:+values.purchasedById,purchasedBy:person?.name||'',createdBy:values.createdBy||purchase.createdBy,item:values.item,itemDescription:values.itemDescription?.trim()||'',supplier:values.supplier,category:values.category,qty:+values.qty,unit:values.unit,unitPrice:parsePurchaseAmount(values.unitPrice),cost:parsePurchaseAmount(values.cost),batchNumber,lotNo:batchNumber,originState:values.originState||'',originLga:values.originLga||'',collectionSite:values.collectionSite?.trim()||'',originCode:values.originCode?.trim().toUpperCase()||'',supplierReceiptId:values.supplierReceiptId?.trim()||'',purchaseQuality,qualityStatus:purchaseQuality.decision,attachments:form.__traceAttachments||purchase.attachments||[],...window.purchaseFieldLogisticsFromForm?.(values)});
   save();render();$('#record-dialog').close();
 },true);
 

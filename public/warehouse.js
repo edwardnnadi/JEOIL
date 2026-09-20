@@ -1,31 +1,23 @@
 // Warehouses are master records used by receiving, storage and future stock transfers.
 function warehouseData(){data.warehouses??=[];}
 function warehouseEscape(value=''){return String(value).replace(/[&<>'"]/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));}
+// One row per item with its current balance in this warehouse. Receipts,
+// production issues, outputs, transfers and adjustments are all netted by the
+// shared stock ledger, so this figure matches production material selection.
 function warehouseItems(warehouse){
-  const receivedItems=(data.goodsInwards||[]).filter(receipt=>
-    String(receipt.warehouseId)===String(warehouse.id)
-    &&receipt.decision==='Accepted'
-    &&+(receipt.stockOnHandQty??receipt.qty)>0
-  );
-  const productionItems=[...(data.finishedGoodsWarehouseEntries||[]),...(data.stockMovements||[]).filter(entry=>entry.type==='PRODUCTION_OUTPUT'||entry.sourceType==='PRODUCTION_OUTPUT')].filter(entry=>
-    String(entry.warehouseId)===String(warehouse.id)
-    &&+(entry.qty??entry.quantity)>0
-  );
-  return [...receivedItems,...productionItems];
+  return warehouse?window.StockLedger.warehouseStock(warehouse.id):[];
 }
-function warehouseQuantity(receipt){return +(receipt.stockOnHandQty??receipt.stockQty??receipt.qty??receipt.quantity)||0;}
-function warehouseUnit(receipt){return receipt.stockUnit||receipt.unit||'';}
 function warehouseItemRows(warehouse){
   const items=warehouseItems(warehouse);
-  if(!items.length)return '<tr class="warehouse-items-empty"><td colspan="5">No accepted items have been posted to this warehouse yet.</td></tr>';
-  return items.map(receipt=>`<tr><td><strong>${warehouseEscape(receipt.item||'Unnamed item')}</strong><div class="item-note">${receipt.productionRunRef?`Production: ${warehouseEscape(receipt.productionRunRef)}`:`Lot: ${warehouseEscape(receipt.lotNo||receipt.batch||'—')}`}</div></td><td>${warehouseEscape(receipt.category||'—')}</td><td>${warehouseQuantity(receipt).toLocaleString()} ${warehouseEscape(warehouseUnit(receipt))}</td><td>${warehouseEscape(receipt.source||receipt.supplier||'—')}</td><td>${warehouseEscape(receipt.postedAt||receipt.warehouseAssignedDate||receipt.receivedDate||'—')}</td></tr>`).join('');
+  if(!items.length)return '<tr class="warehouse-items-empty"><td colspan="5">No stock is currently held in this warehouse.</td></tr>';
+  return items.map(row=>`<tr><td><strong>${warehouseEscape(row.item)}</strong><div class="item-note">${row.lots.length?`Lots: ${warehouseEscape(row.lots.join(', '))}`:'—'}</div></td><td>${warehouseEscape(row.category||'—')}</td><td>${row.quantity.toLocaleString()} ${warehouseEscape(row.unit)}</td><td>${warehouseEscape(row.suppliers.join(', ')||'—')}</td><td>${warehouseEscape(row.lastMovementAt?row.lastMovementAt.slice(0,10):'—')}</td></tr>`).join('');
 }
 
 function renderWarehouses(){
   warehouseData();
   $('#warehouses-table').innerHTML=data.warehouses.map(warehouse=>{
     const items=warehouseItems(warehouse),isOpen=String(warehouse.id)===String(window.openWarehouseItemsId);
-    return `<tr><td><strong>${warehouseEscape(warehouse.name)}</strong><div class="item-note">${items.length} ${items.length===1?'item':'items'} posted</div></td><td>${warehouseEscape(warehouse.location)}</td><td><button class="text-btn view-warehouse-items" data-id="${warehouse.id}" aria-expanded="${isOpen}" aria-controls="warehouse-items-${warehouse.id}">${isOpen?'Hide items':'View items'}</button> <button class="text-btn edit-warehouse" data-id="${warehouse.id}">Edit</button> <button class="text-btn delete-warehouse" data-id="${warehouse.id}">Delete</button></td></tr>${isOpen?`<tr id="warehouse-items-${warehouse.id}" class="warehouse-items-row"><td colspan="3"><div class="warehouse-items"><h3>${warehouseEscape(warehouse.name)} items</h3><table><thead><tr><th>Item / lot</th><th>Category</th><th>Quantity posted</th><th>Supplier</th><th>Posted</th></tr></thead><tbody>${warehouseItemRows(warehouse)}</tbody></table></div></td></tr>`:''}`;
+    return `<tr><td><strong>${warehouseEscape(warehouse.name)}</strong><div class="item-note">${items.length} ${items.length===1?'item':'items'} in stock</div></td><td>${warehouseEscape(warehouse.location)}</td><td><button class="text-btn view-warehouse-items" data-id="${warehouse.id}" aria-expanded="${isOpen}" aria-controls="warehouse-items-${warehouse.id}">${isOpen?'Hide items':'View items'}</button> <button class="text-btn edit-warehouse" data-id="${warehouse.id}">Edit</button> <button class="text-btn delete-warehouse" data-id="${warehouse.id}">Delete</button></td></tr>${isOpen?`<tr id="warehouse-items-${warehouse.id}" class="warehouse-items-row"><td colspan="3"><div class="warehouse-items"><h3>${warehouseEscape(warehouse.name)} items</h3><table><thead><tr><th>Item / lots</th><th>Category</th><th>On hand</th><th>Supplier</th><th>Last movement</th></tr></thead><tbody>${warehouseItemRows(warehouse)}</tbody></table></div></td></tr>`:''}`;
   }).join('')||'<tr><td colspan="3">No warehouses have been added yet.</td></tr>';
   document.querySelectorAll('.view-warehouse-items').forEach(button=>button.onclick=()=>{
     const warehouseId=button.dataset.id;

@@ -4,6 +4,14 @@ const lifecycleEscape = (value = '') => String(value).replace(/[&<>'"]/g, (chara
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
 }[character]));
 
+// Every stage change keeps who moved the purchase and when, so the field trip
+// can be reconstructed afterwards (ordered, loaded, dispatched, arrived).
+function recordPurchaseStage(purchase, to, changedBy) {
+  if (purchase.status === to) return;
+  purchase.stageHistory = [...(purchase.stageHistory || []), { from: purchase.status || '', to, changedAt: new Date().toISOString(), changedBy: changedBy || currentOperator?.()?.name || 'Current user' }];
+  purchase.status = to;
+}
+
 function lifecycleReceiptFor(purchase) {
   return (data.goodsInwards || []).find((receipt) => receipt.purchaseId === purchase.id);
 }
@@ -125,7 +133,7 @@ function renderPurchaseLifecycle() {
       <td><strong>${lifecycleEscape(purchase.item)}</strong><div class="item-note">${lifecycleEscape(purchase.purchaseId || `Purchase ${purchase.id}`)}${purchase.batchNumber || purchase.lotNo ? ` · Batch: ${lifecycleEscape(purchase.batchNumber || purchase.lotNo)}` : ''}</div></td>
       <td>${purchase.itemDescription ? lifecycleEscape(purchase.itemDescription) : '<span class="purchase-muted">Not recorded</span>'}</td>
       <td>${lifecycleEscape(purchase.supplier)}</td>
-      <td>${Number(purchase.qty || 0).toLocaleString()} ${lifecycleEscape(purchase.unit)}</td>
+      <td>${Number(purchase.qty || 0).toLocaleString()} ${lifecycleEscape(purchase.unit)}${window.purchaseFieldSummary?.(purchase) ? `<div class="item-note">${lifecycleEscape(window.purchaseFieldSummary(purchase))}</div>` : ''}</td>
       <td>${purchaseLogisticsSelect(purchase)}<div class="item-note">${lifecycle.detail}</div></td>
       <td>${lifecycleWarehouse(lifecycle, purchase)}</td>
       <td>${purchaseQcSelect(purchase)}</td>
@@ -170,8 +178,8 @@ function openQcChangeDialog(purchase, select, nextStage) {
     quality.decision = nextStatus === 'Accepted' ? 'Accepted' : nextStatus === 'Rejected' ? 'Rejected' : 'Assess';
     purchase.purchaseQuality = quality;
     purchase.qualityStatus = quality.decision;
-    const stage = stageForFieldQcStatus(nextStatus);
-    if (stage) purchase.status = stage;
+    const stage = advancedPurchaseStage(purchase.status, stageForFieldQcStatus(nextStatus));
+    if (stage) recordPurchaseStage(purchase, stage);
     save(); render(); closeLifecycleDialog(overlay);
   };
   reason.focus();
@@ -188,7 +196,7 @@ function openWarehouseAssignmentDialog(purchase, select) {
   overlay.querySelector('.delivery-save').onclick = () => {
     const warehouse = warehouses.find(entry => entry.id === +overlay.querySelector('.delivery-warehouse').value);
     if (!warehouse) return;
-    purchase.status = 'Moved to warehouse';
+    recordPurchaseStage(purchase, 'Moved to warehouse');
     purchase.warehouseId = warehouse.id;
     purchase.warehouseName = warehouse.name;
     purchase.warehouseAssignedDate = new Date().toISOString().slice(0, 10);
@@ -209,14 +217,15 @@ document.addEventListener('change', (event) => {
   const purchase = data.purchases.find(entry => entry.id === +logistics.dataset.purchaseId);
   if (!purchase || logistics.value === purchaseLogisticsStage(purchase)) return;
   const nextStages={Quote:'Ordered',Ordered:'QC inspection','QC inspection':'QC accepted','QC accepted':'In transit','In transit':'Arrived at factory','Arrived at factory':'Moved to warehouse'};
-  if (logistics.value==='Rejected') { purchase.status='Rejected'; save(); render(); return; }
+  if (logistics.value==='Rejected') { recordPurchaseStage(purchase,'Rejected'); save(); render(); return; }
   if (nextStages[purchaseLogisticsStage(purchase)]!==logistics.value) { alert(`Move this record through the workflow in order. The next stage is ${nextStages[purchaseLogisticsStage(purchase)]||'not available'}.`); logistics.value=purchaseLogisticsStage(purchase); return; }
   if (logistics.value === 'Moved to warehouse') { openWarehouseAssignmentDialog(purchase, logistics); return; }
-  purchase.status = logistics.value;
+  recordPurchaseStage(purchase, logistics.value);
   if (logistics.value !== 'Moved to warehouse') {
     delete purchase.warehouseId; delete purchase.warehouseName; delete purchase.warehouseAssignedDate;
   }
   save(); render();
+  if (logistics.value === 'In transit' && !purchase.vehicleRegNo && confirm('No truck details are recorded for this load. Add the vehicle, driver and waybill now?')) editModal('purchase', purchase);
 });
 
 // Goods Inwards is deliberately the gateway between purchase and available

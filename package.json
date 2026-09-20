@@ -11,6 +11,7 @@
     "start": "wrangler dev --config wrangler.cloud.jsonc",
     "deploy:cloudflare": "pnpm build && wrangler deploy --config wrangler.cloud.jsonc",
     "lint": "oxlint",
+    "test": "node --test \"tests/*.test.mjs\"",
     "format": "oxfmt",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "node scripts/migrate-local-d1.mjs"

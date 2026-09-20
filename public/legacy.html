@@ -10,28 +10,30 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="quality.css?v=quality-direction-20260910" />
     <link rel="stylesheet" href="production.css" />
-    <link rel="stylesheet" href="brand.css?v=purchase-filter-layout-20260909" />
+    <link rel="stylesheet" href="brand.css?v=navigation-icons-20260915" />
     <link rel="stylesheet" href="reports.css?v=report-centre-20260913" />
   </head>
   <body class="operations-app">
-    <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Hide navigation menu">
-      <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+    <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Collapse navigation" title="Collapse navigation">
+      <svg class="icon-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" /></svg>
+      <svg class="icon-menu" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 5.5h14M3 10h14M3 14.5h14" /></svg>
     </button>
     <div class="sidebar-scrim" id="sidebar-scrim" aria-hidden="true"></div>
     <aside class="sidebar" id="sidebar" aria-label="Operations navigation">
       <div class="brand"><img class="brand-logo" src="/brand/je-oils-logo.png" alt="" /><span>JE OILS<small>INSPIRED BY CHANGE</small></span></div>
       <p class="workspace">OPERATIONS WORKSPACE</p>
       <nav>
-        <button class="nav-item active" data-view="dashboard" data-title="Operations overview"><span>▦</span>Dashboard</button>
-        <button class="nav-item" data-view="purchases" data-title="Purchases"><span>↙</span>Purchases</button>
-        <button class="nav-item" data-view="quality" data-title="Goods inwards"><span>✓</span>Goods inwards</button>
-        <button class="nav-item" data-view="lab-results" data-title="Lab results"><span>⌁</span>Lab results</button>
-        <button class="nav-item" data-view="production" data-title="Production"><span>◒</span>Production</button>
-        <button class="nav-item production-subpage" data-view="machine-services" data-title="Machine service records"><span>↳</span>Machine service</button>
-        <button class="nav-item" data-view="stock" data-title="Stock"><span>□</span>Stock</button>
-        <button class="nav-item" data-view="suppliers" data-title="Suppliers"><span>♙</span>Suppliers</button>
-        <button class="nav-item" data-view="reports" data-title="Report Centre"><span>▤</span>Reports</button>
-        <button class="nav-item admin-parent" data-view="admin" data-title="Administration" aria-controls="admin-submenu" aria-expanded="false"><span>⚙</span>Admin <b aria-hidden="true">⌄</b></button>
+        <button class="nav-item active" data-view="dashboard" data-title="Operations overview"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span>Dashboard</button>
+        <button class="nav-item" data-view="purchases" data-title="Purchases"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="m2 2 3.2 3.2L7.6 17h11.8l2-9.5H6.2"/></svg></span>Purchases</button>
+        <button class="nav-item" data-view="quality" data-title="Goods inwards"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/><path d="m9 16 2 2 4-4"/></svg></span>Goods inwards</button>
+        <button class="nav-item" data-view="lab-results" data-title="Lab results"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v7.5L4.8 19A2 2 0 0 0 6.5 22h11a2 2 0 0 0 1.7-3l-5.2-8.5V3"/><path d="M8 16h8"/></svg></span>Lab results</button>
+        <button class="nav-item" data-view="production" data-title="Production"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V9l6 3V9l6 3V3h3v18Z"/><path d="M9 21v-4h3v4M18 8h1M18 12h1"/></svg></span>Production</button>
+        <button class="nav-item production-subpage" data-view="machine-services" data-title="Machine service records"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18l3 3 5.3-5.3a5 5 0 0 0 6.4-6.4l-3.2 3.2-3.1-3.1Z"/></svg></span>Machine service</button>
+        <button class="nav-item" data-view="stock" data-title="Stock"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 8-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg></span>Stock</button>
+        <button class="nav-item" data-view="goods-outwards" data-title="Goods outward"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/><path d="M21 5v7M18 9l3 3 3-3"/></svg></span>Goods outward</button>
+        <button class="nav-item" data-view="suppliers" data-title="Suppliers"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-3M5 17h5"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></span>Suppliers</button>
+        <button class="nav-item" data-view="reports" data-title="Report Centre"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 16 4-5 3 3 5-7"/></svg></span>Reports</button>
+        <button class="nav-item admin-parent" data-view="admin" data-title="Administration" aria-controls="admin-submenu" aria-expanded="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.3 2.3-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-3.2v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L6 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H4.6v-3.2h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L6 7.8 8.3 5.5l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6v-.2h3.2v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.3 2.3-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2V14H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span>Admin <b aria-hidden="true">⌄</b></button>
         <div class="admin-submenu" id="admin-submenu" hidden>
           <button type="button" data-admin-section="people">Users &amp; People</button>
           <button type="button" data-admin-section="roles">Roles</button>
@@ -72,7 +74,8 @@
 
       <section class="view" id="machine-services-view"><div class="view-head"><div><p class="admin-section-label">PRODUCTION / MAINTENANCE</p><h2>Machine service records</h2><p>Record preventive maintenance and repairs for every production machine.</p></div><button class="primary" id="add-machine-service">+ Add service details</button></div><div class="production-tip"><span>⚙</span><div><strong>Maintenance traceability</strong><p>Log service work for worms, belts, pots and other components. Keep the technician, parts and next due date with the machine record.</p></div></div><div class="panel table-panel"><table><thead><tr><th>Service date</th><th>Machine</th><th>Service type</th><th>Components serviced</th><th>Technician</th><th>Next due</th><th>Status</th><th></th></tr></thead><tbody id="machine-services-table"></tbody></table></div></section>
 
-      <section class="view" id="stock-view"><div class="view-head"><div><h2>Stock on hand</h2><p>Your current inventory across raw materials, consumables and finished goods.</p></div><button class="primary" id="add-stock">+ Add stock item</button></div><div class="stock-grid" id="stock-grid"></div></section>
+      <section class="view" id="stock-view"><div class="view-head"><div><h2>Stock on hand</h2><p>Your current inventory across raw materials, consumables and finished goods.</p></div><button class="primary" id="add-stock" type="button">+ Record opening stock</button></div><div class="stock-grid" id="stock-grid"></div></section>
+      <section class="view" id="goods-outwards-view"><div class="view-head"><div><p class="admin-section-label">INVENTORY / ISSUE</p><h2>Goods outward</h2><p>Issue stock to a machine, generator, department, or work area with a clear purpose and accountable person.</p></div><button class="primary" id="add-goods-outward" type="button">+ Issue stock</button></div><div class="production-tip"><span>↗</span><div><strong>Every issue is traceable</strong><p>Record what was issued, where it went, why it was used, who received it, who issued it, and the remaining warehouse balance.</p></div></div><div class="panel table-panel"><table><thead><tr><th>Date</th><th>Reference</th><th>Item</th><th>Quantity issued</th><th>Where used</th><th>How / why used</th><th>Issued to</th><th>Issued by</th><th>Remaining</th></tr></thead><tbody id="goods-outwards-table"></tbody></table></div></section>
       <section class="view" id="warehouse-view"><div class="view-head"><div><h2>Warehouses</h2><p>Maintain the warehouses used to receive, store and issue materials.</p></div><button class="primary" id="add-warehouse">+ Add warehouse</button></div><div class="panel table-panel"><table><thead><tr><th>Warehouse name</th><th>Warehouse location</th><th></th></tr></thead><tbody id="warehouses-table"></tbody></table></div></section>
 
       <section class="view" id="reports-view"><div class="view-head"><div><p class="admin-section-label">REPORTING</p><h2>Report Centre</h2><p>Operational reporting, yield analysis and traceability using the live ERP records.</p></div><div class="header-actions"><button class="secondary" id="report-builder-toggle" type="button">Create report</button><button class="primary" id="report-favourites" type="button">★ Favourites</button></div></div><section class="report-catalogue panel"><div class="report-catalogue-tools"><label class="report-search"><span>⌕</span><input id="report-search" type="search" placeholder="Find a report"></label><div id="report-area-filters" class="report-area-filters" aria-label="Report areas"></div></div><div id="report-catalogue-list" class="report-catalogue-list"></div></section><section id="report-builder" class="panel report-builder" hidden></section><section id="report-runner" class="panel report-runner" hidden></section></section>
@@ -85,40 +88,44 @@
     </main>
 
     <dialog id="record-dialog"><form method="dialog" id="record-form"><div class="modal-head"><div><span class="modal-label" id="modal-label">NEW RECORD</span><h2 id="modal-title">Record purchase</h2></div><button class="close" type="button" data-close>×</button></div><div id="form-fields"></div><div class="modal-actions"><button type="button" data-close class="secondary">Cancel</button><button class="primary" id="save-record" value="default">Save record</button></div></form></dialog>
-    <script src="app.js?v=state-save-20260909"></script>
+    <script src="app.js?v=save-conflict-merge-20260916"></script>
+    <script src="stock-ledger.js?v=shared-stock-ledger-20260915b"></script>
     <script src="production-flow.js?v=purchase-batch-traceability-20260914"></script>
     <script src="fixes.js"></script>
-    <script src="admin.js"></script>
-    <script src="edit.js?v=item-configured-category-list-20260910"></script>
-    <script src="goods-inwards.js?v=item-receiving-standard-20260912"></script>
+    <script src="admin.js?v=item-qc-policy-20260915"></script>
+    <script src="edit.js?v=item-qc-policy-20260915"></script>
+    <script src="goods-inwards.js?v=standard-mass-conversions-20260916"></script>
     <script src="purchase-workflow.js?v=named-item-lookup-20260912"></script>
     <script src="purchase-presentation.js?v=named-item-lookup-20260912"></script>
-    <script src="purchase-traceability.js?v=item-field-qc-standard-20260912"></script>
-    <script src="warehouse.js?v=unit-safe-posting-20260911"></script>
+    <script src="purchase-traceability.js?v=workflow-fixes-20260916"></script>
+    <script src="warehouse.js?v=shared-stock-ledger-20260915"></script>
     <script src="goods-inwards-receiving.js?v=item-receiving-standard-20260912"></script>
-    <script src="purchase-wizard.js?v=item-field-qc-standard-20260912"></script>
+    <script src="purchase-field-logistics.js?v=field-weighing-dispatch-20260915"></script>
+    <script src="purchase-wizard.js?v=purchase-save-submit-20260916"></script>
     <script src="purchase-actions.js?v=server-purchase-delete-20260910"></script>
-    <script src="receiving-assessment.js?v=receiving-decision-panel-20260912"></script>
-    <script src="goods-inwards-wizard.js?v=receiving-decision-panel-20260912"></script>
-    <script src="purchase-lifecycle.js?v=purchase-description-20260911"></script>
+    <script src="receiving-assessment.js?v=reason-step-focus-20260916"></script>
+    <script src="goods-inwards-wizard.js?v=stage-history-reason-20260916b"></script>
+    <script src="purchase-lifecycle.js?v=workflow-fixes-20260916"></script>
     <script src="purchase-enhancements.js?v=explicit-unit-selection-20260911"></script>
-    <script src="inventory-production-controls.js?v=purchase-batch-traceability-20260914"></script>
-    <script src="stock-locations.js?v=warehouse-ledger-totals-20260911"></script>
+    <script src="inventory-production-controls.js?v=workflow-fixes-20260916"></script>
+    <script src="goods-outwards.js?v=consumption-ledger-20260920"></script>
+    <script src="opening-stock.js?v=warehouse-opening-stock-20260917"></script>
+    <script src="stock-locations.js?v=shared-stock-ledger-20260915"></script>
     <script src="view-persistence.js?v=20260904"></script>
-    <script src="sidebar-navigation.js?v=20260907"></script>
+    <script src="sidebar-navigation.js?v=responsive-navigation-20260915b"></script>
     <script src="insights.js?v=20260908"></script>
     <script src="machines-admin.js?v=kurma-expellers-20260910"></script>
-    <script src="lab.js?v=record-result-dialog-20260910"></script>
+    <script src="lab.js?v=workflow-fixes-20260916"></script>
     <script src="admin-navigation.js?v=unit-conversions-20260911"></script>
     <script src="activity-log.js?v=activity-ledger-20260913"></script>
-    <script src="record-deletion.js?v=admin-only-deletions-20260911"></script>
+    <script src="record-deletion.js?v=stock-quantity-reset-20260916"></script>
     <script src="admin-master-deletion.js?v=20260910"></script>
-    <script src="supplier-purchase-items.js?v=20260910"></script>
+    <script src="supplier-purchase-items.js?v=supplier-address-20260916"></script>
     <script src="purchase-number-linking.js?v=shared-purchase-number-20260911"></script>
     <script src="purchase-category-filter.js?v=named-item-lookup-20260912"></script>
     <script src="dropdown-defaults.js?v=no-implicit-dropdowns-20260911"></script>
     <script src="employees.js?v=employees-20260911"></script>
-    <script src="production-enhancements.js?v=production-reference-fix-20260914"></script>
+    <script src="production-enhancements.js?v=checkbox-multi-warehouse-20260915"></script>
     <script src="machine-services.js?v=machine-service-records-20260914"></script>
     <script src="production-run-workspace.js?v=production-reference-fix-20260914"></script>
     <script src="reports.js?v=report-centre-open-fix-20260913"></script>

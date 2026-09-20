@@ -1,4 +1,7 @@
 // Guided receiving workflow: receipt selection, quality comparison, decision, then warehouse assignment.
+// Items that do not require a quality check (Administration → Purchase Items)
+// skip the inspection step and are accepted on receipt.
+const QC_EXEMPT_REASON='Quality check not required for this item.';
 function buildGoodsInwardsWizard(form,receipt){
   const area=$('#form-fields');let allFields=[...area.querySelectorAll('.field')];
   // The flag alone is not enough: #form-fields is re-rendered on every open, so
@@ -10,9 +13,11 @@ function buildGoodsInwardsWizard(form,receipt){
   // through every receiving and quality step.
   const pinnedFields=allFields.filter(field=>field.querySelector('label')?.textContent==='QC Batch Reference');
   allFields=allFields.filter(field=>!pinnedFields.includes(field));
+  // Quantity and batch belong to the receipt itself, so they stay available
+  // when an exempt item skips the inspection step.
   const groups=[
-    {title:'Select goods to receive',help:'Choose the purchase being received. Its supplier, item and ordered quantity will be brought through automatically.',names:['goodsInwardsId','purchaseId','receivedDate','quantityOrdered','supplier','item','category','unit','receivedBy']},
-    {title:'Inspect quality',help:'Enter the factory findings, then review the collection-versus-factory comparison below.',names:['batch','qualityDate','qty','oilContent','ffa','moisture','damaged','foreignMatter','aflatoxin','qualityCheckOfficerId']},
+    {title:'Select goods to receive',help:'Choose the purchase being received. Its supplier, item and ordered quantity will be brought through automatically, then record the factory weighbridge reading.',names:['goodsInwardsId','purchaseId','receivedDate','quantityOrdered','supplier','item','category','unit','qty','weighbridgeTicketNo','weighedAt','grossWeightKg','tareWeightKg','netWeightKg','batch','receivedBy']},
+    {title:'Inspect quality',help:'Enter the factory findings, then review the collection-versus-factory comparison below.',names:['qualityDate','oilContent','ffa','moisture','damaged','foreignMatter','aflatoxin','qualityCheckOfficerId']},
     {title:'Accept, hold or reject',help:'Record the final receiving decision and any observations.',names:['condition','decision','notes']},
     {title:'Assign to warehouse',help:'Assign accepted goods to a warehouse. This posts the quantity to Stock on Hand.',names:['warehouseId','warehouseAssignedById','warehouseAssignedDate']}
   ];
@@ -41,11 +46,42 @@ function buildGoodsInwardsWizard(form,receipt){
   };
   const selectStandard=standardCard(),inspectStandard=standardCard();
   const panels=groups.map((group,index)=>{const panel=document.createElement('section');panel.className='wizard-step';panel.dataset.step=index;const active=index===0;panel.hidden=!active;panel.style.setProperty('display',active?'block':'none','important');panel.innerHTML=`<header><h3>${group.title}</h3><p>${group.help}</p></header><div class="form-grid"></div>`;const grid=panel.querySelector('.form-grid');if(index===0)grid.append(selectStandard.card);if(index===1){grid.classList.add('receiving-inspection-grid');grid.append(inspectStandard.card)}buckets[index].forEach(field=>grid.append(field));wizard.append(panel);return panel});
-  const refreshStandards=()=>{selectStandard.render();inspectStandard.render();renderReceivingParameterFields(form);refreshReceivingDecision(form);};
+  const exemptNote=document.createElement('section');exemptNote.className='field full qc-exempt-note';exemptNote.setAttribute('role','status');
+  exemptNote.innerHTML='<strong>No quality check required</strong><span>This purchase item is received without QC inspection (Administration → Purchase Items). It is accepted on receipt and can be assigned straight to a warehouse.</span>';
+  panels[2].querySelector('.form-grid').prepend(exemptNote);
+  const receivingItemName=()=>goodsFormControl(form,'item')?.value||data.purchases.find(purchase=>purchase.id===+form.elements.purchaseId?.value)?.item||'';
+  const isQcExempt=()=>form.dataset.qcExempt==='true';
+  const setShown=(element,shown)=>{if(element)element.style.display=shown?'':'none';};
+  const applyQcPolicy=()=>{
+    const required=window.StockLedger.requiresQualityCheck(receivingItemName());
+    form.dataset.qcExempt=String(!required);
+    setShown(progress.querySelector('[data-step="1"]'),required);
+    setShown(exemptNote,!required);
+    setShown(selectStandard.card,required);
+    setShown(panels[2].querySelector('.receiving-decision-review'),required);
+    const decision=form.elements.decision,reason=form.elements.decisionReason,officer=form.elements.qualityCheckOfficerId;
+    setShown(decision?.closest('.field'),required);
+    if(officer)officer.required=required;
+    if(!required){
+      if(decision)decision.value='Accepted';
+      if(reason&&!reason.value.trim())reason.value=QC_EXEMPT_REASON;
+    }else if(form._qcExemptApplied){
+      // The item changed from an exempt to a controlled one: undo the automatic acceptance.
+      if(decision?.value==='Accepted')decision.value='Assess';
+      if(reason?.value===QC_EXEMPT_REASON)reason.value='';
+    }
+    form._qcExemptApplied=!required;
+    if(typeof receivingApplyGate==='function')receivingApplyGate(form);
+  };
+  const refreshStandards=()=>{selectStandard.render();inspectStandard.render();renderReceivingParameterFields(form);refreshReceivingDecision(form);applyQcPolicy();};
   addReceivingDecisionPanel(form,panels[2],standardFor,receipt);
   const qualityOfficer=form.elements.qualityCheckOfficerId?.closest('.field');if(qualityOfficer)qualityOfficer.querySelector('label').textContent='Inspection officer';
   const controls=document.createElement('div');controls.className='wizard-controls';controls.innerHTML='<button type="button" class="secondary goods-wizard-back">Back</button><button type="button" class="primary goods-wizard-next">Continue</button>';wizard.append(controls);area.append(wizard);
-  let step=0,save=$('#save-record'),modalActions=save.parentElement;
+  // Added here rather than when the modal opens: step 2 does not exist yet at
+  // that point, so the field silently never appeared and decisions were saved
+  // with no explanation attached.
+  if(typeof receivingDecisionReason==="function")receivingDecisionReason(form,receipt);
+  let step=0;const save=$('#save-record'),modalActions=save.parentElement;
   // Purchase review hides the shared action bar and changes its button type.
   // Restore both whenever the receiving wizard opens, otherwise its final
   // Finish receipt action is unreachable after visiting a purchase form.
@@ -53,8 +89,8 @@ function buildGoodsInwardsWizard(form,receipt){
   save.type='submit';
   save.disabled=false;
   const syncDeliveryReadings=()=>{form._deliveryReadings=Object.fromEntries(receivingComparisonFieldsFor(form).map(([key])=>[key,form.elements[key]?.value??'']));refreshReceivingDecision(form);};
-  const show=next=>{if(next===2)syncDeliveryReadings();step=next;if(step===groups.length-1&&typeof receivingApplyGate==='function')receivingApplyGate(form);panels.forEach((panel,index)=>{const active=index===step;panel.hidden=!active;panel.style.setProperty('display',active?'block':'none','important');});progress.querySelectorAll('button').forEach((item,index)=>{item.classList.toggle('active',index===step);item.toggleAttribute('aria-current',index===step);});controls.querySelector('.goods-wizard-back').hidden=step===0;controls.querySelector('.goods-wizard-next').hidden=step===groups.length-1;modalActions.hidden=false;save.hidden=step!==groups.length-1;if(step===groups.length-1){save.type='submit';save.textContent='Finish receipt';}};
-  const canAdvanceTo=next=>{for(let index=step;index<next;index++){const invalid=[...panels[index].querySelectorAll('[required]')].find(input=>!input.checkValidity());if(invalid){show(index);invalid.reportValidity();return false;}}return true;};
+  const show=next=>{if(next===1&&isQcExempt())next=step>1?0:2;if(next===2)syncDeliveryReadings();step=next;if(step===groups.length-1&&typeof receivingApplyGate==='function')receivingApplyGate(form);panels.forEach((panel,index)=>{const active=index===step;panel.hidden=!active;panel.style.setProperty('display',active?'block':'none','important');});progress.querySelectorAll('button').forEach((item,index)=>{item.classList.toggle('active',index===step);item.toggleAttribute('aria-current',index===step);});controls.querySelector('.goods-wizard-back').hidden=step===0;controls.querySelector('.goods-wizard-next').hidden=step===groups.length-1;modalActions.hidden=false;save.hidden=step!==groups.length-1;if(step===groups.length-1){save.type='submit';save.textContent='Finish receipt';}};
+  const canAdvanceTo=next=>{for(let index=step;index<next;index++){if(index===1&&isQcExempt())continue;const invalid=[...panels[index].querySelectorAll('[required]')].find(input=>!input.checkValidity());if(invalid){show(index);invalid.reportValidity();return false;}}return true;};
   progress.querySelectorAll('button').forEach(button=>button.onclick=()=>{const next=Number(button.dataset.step);if(next<=step||canAdvanceTo(next))show(next);});
   controls.querySelector('.goods-wizard-back').onclick=()=>show(Math.max(0,step-1));
   controls.querySelector('.goods-wizard-next').onclick=()=>{if(!canAdvanceTo(step+1))return;show(Math.min(groups.length-1,step+1));};
@@ -65,14 +101,14 @@ function buildGoodsInwardsWizard(form,receipt){
   }
   ['item','category'].forEach(name=>(name==='item'?form.elements.namedItem(name):form.elements[name])?.addEventListener('change',refreshStandards));
   receivingComparisonFieldsFor(form).forEach(([key])=>{const control=form.elements.namedItem(key);control?.addEventListener('input',syncDeliveryReadings);control?.addEventListener('change',syncDeliveryReadings);});
-  form.dataset.goodsWizard='ready';show(0);
+  form.dataset.goodsWizard='ready';applyQcPolicy();show(0);
 }
 
 const goodsWizardOpen=openGoodsInward;
 openGoodsInward=receipt=>{goodsWizardOpen(receipt);buildGoodsInwardsWizard($('#record-form'),receipt);};
 
 const goodsWizardStyle=document.createElement('style');
-goodsWizardStyle.textContent='#record-dialog:has(#record-form[data-type="goods-inward"]){width:min(1180px,calc(100vw - 48px))}.goods-inwards-wizard .wizard-progress{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.goods-inwards-wizard .wizard-progress button{border:0;padding:0;background:transparent;color:#887c68;font:12px inherit;display:flex;gap:6px;align-items:center;cursor:pointer}.goods-inwards-wizard .wizard-progress b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#eee5d5;color:#5c513d}.goods-inwards-wizard .wizard-progress button.active{color:#1e1b16;font-weight:700}.goods-inwards-wizard .wizard-progress button.active b{background:#c89b3c;color:#16120a}.goods-inwards-wizard .wizard-step header{margin-bottom:14px}.goods-inwards-wizard .wizard-step h3{margin:0;color:#201b13}.goods-inwards-wizard .wizard-step p{margin:4px 0 0;color:#776b58;font-size:13px}.goods-inwards-wizard .wizard-controls{display:flex;justify-content:space-between;gap:10px;margin-top:18px}.goods-inwards-wizard .wizard-step[hidden]{display:none!important}.receiving-standard-card{align-content:start;gap:10px;padding:13px 14px;border:1px solid #d8e2d3;border-radius:7px;background:#f5f8f1;color:#39523c}.receiving-standard-heading{display:grid;gap:2px}.receiving-standard-heading span{color:#657368;font-size:12px}.receiving-standard-card ul{display:grid;gap:7px;margin:0;padding:10px 0 0;border-top:1px solid #d8e2d3;list-style:none}.receiving-standard-card li{display:flex;justify-content:space-between;gap:12px;color:#657368;font-size:12px}.receiving-standard-card li strong{color:#39523c;white-space:nowrap}.receiving-inspection-grid{grid-template-columns:minmax(270px,.72fr) minmax(0,1fr)}.receiving-inspection-grid .receiving-standard-card{grid-column:1;grid-row:span 8}.receiving-inspection-grid .field:not(.receiving-standard-card){grid-column:2}.receiving-inspection-grid .field.full:not(.receiving-standard-card){grid-column:2}@media(max-width:760px){#record-dialog:has(#record-form[data-type="goods-inward"]){width:calc(100vw - 20px)}.goods-inwards-wizard .wizard-progress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}.goods-inwards-wizard .wizard-progress button{font-size:11px;align-items:flex-start;text-align:left}.receiving-inspection-grid{grid-template-columns:1fr}.receiving-inspection-grid .receiving-standard-card,.receiving-inspection-grid .field:not(.receiving-standard-card),.receiving-inspection-grid .field.full:not(.receiving-standard-card){grid-column:1;grid-row:auto}}';
+goodsWizardStyle.textContent='#record-dialog:has(#record-form[data-type="goods-inward"]){width:min(1180px,calc(100vw - 48px))}.goods-inwards-wizard .wizard-progress{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.goods-inwards-wizard .wizard-progress button{border:0;padding:0;background:transparent;color:#887c68;font:12px inherit;display:flex;gap:6px;align-items:center;cursor:pointer}.goods-inwards-wizard .wizard-progress b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#eee5d5;color:#5c513d}.goods-inwards-wizard .wizard-progress button.active{color:#1e1b16;font-weight:700}.goods-inwards-wizard .wizard-progress button.active b{background:#c89b3c;color:#16120a}.goods-inwards-wizard .wizard-step header{margin-bottom:14px}.goods-inwards-wizard .wizard-step h3{margin:0;color:#201b13}.goods-inwards-wizard .wizard-step p{margin:4px 0 0;color:#776b58;font-size:13px}.goods-inwards-wizard .wizard-controls{display:flex;justify-content:space-between;gap:10px;margin-top:18px}.goods-inwards-wizard .wizard-step[hidden]{display:none!important}.receiving-standard-card{align-content:start;gap:10px;padding:13px 14px;border:1px solid #d8e2d3;border-radius:7px;background:#f5f8f1;color:#39523c}.receiving-standard-heading{display:grid;gap:2px}.receiving-standard-heading span{color:#657368;font-size:12px}.receiving-standard-card ul{display:grid;gap:7px;margin:0;padding:10px 0 0;border-top:1px solid #d8e2d3;list-style:none}.receiving-standard-card li{display:flex;justify-content:space-between;gap:12px;color:#657368;font-size:12px}.receiving-standard-card li strong{color:#39523c;white-space:nowrap}.receiving-inspection-grid{grid-template-columns:minmax(270px,.72fr) minmax(0,1fr)}.receiving-inspection-grid .receiving-standard-card{grid-column:1;grid-row:span 8}.receiving-inspection-grid .field:not(.receiving-standard-card){grid-column:2}.receiving-inspection-grid .field.full:not(.receiving-standard-card){grid-column:2}.qc-exempt-note{display:grid;gap:3px;padding:11px 13px;border:1px solid #bfd7b9;border-radius:7px;background:#edf6ea;color:#285f32;font-size:13px}.qc-exempt-note span{font-size:12px}@media(max-width:760px){#record-dialog:has(#record-form[data-type="goods-inward"]){width:calc(100vw - 20px)}.goods-inwards-wizard .wizard-progress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}.goods-inwards-wizard .wizard-progress button{font-size:11px;align-items:flex-start;text-align:left}.receiving-inspection-grid{grid-template-columns:1fr}.receiving-inspection-grid .receiving-standard-card,.receiving-inspection-grid .field:not(.receiving-standard-card),.receiving-inspection-grid .field.full:not(.receiving-standard-card){grid-column:1;grid-row:auto}}';
 document.head.append(goodsWizardStyle);
 
 const goodsWizardAlignmentStyle=document.createElement('style');

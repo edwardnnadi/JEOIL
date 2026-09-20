@@ -15,7 +15,7 @@
     try {
       data = JSON.parse(result.payload);
       data.assessments ??= [];
-      stateRevision = result.revision ?? null;
+      stateRevision = result.revision ?? null; stateBase = result.payload;
       render();
     } catch {
       alert(`Could not refresh records after deleting ${label}.`);
@@ -33,7 +33,7 @@
     try {
       data = JSON.parse(result.payload);
       data.assessments ??= [];
-      stateRevision = result.revision ?? null;
+      stateRevision = result.revision ?? null; stateBase = result.payload;
       render();
       $('#record-dialog').close();
     } catch {
@@ -50,11 +50,38 @@
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) return alert(result.error || 'Could not delete stock items.');
-    data = JSON.parse(result.payload); data.assessments ??= []; stateRevision = result.revision ?? null; render();
+    data = JSON.parse(result.payload); data.assessments ??= []; stateRevision = result.revision ?? null; stateBase = result.payload; render();
+  };
+  const resetStockQuantities = async () => {
+    if (!allowed()) return deny();
+    if (!data.stock?.length) return alert('There are no stock items to reset.');
+    const confirmation = prompt(`This will set all ${data.stock.length} stock quantities to 0 and clear their current ledger balances. Stock items, reorder levels, purchases and supplier records will be kept. Type RESET STOCK to continue.`);
+    if (confirmation !== 'RESET STOCK') return;
+
+    const resetAt = new Date().toISOString();
+    data.stock.forEach(item => { item.qty = 0; });
+    // The warehouse and stock screens derive balances from these records, so
+    // clearing only item.qty would allow historic movements to refill stock.
+    data.stockMovements = [];
+    data.finishedGoodsWarehouseEntries = [];
+    (data.goodsInwards || []).forEach(receipt => {
+      if (receipt.decision !== 'Accepted' || receipt.deleted) return;
+      receipt.stockQty = 0;
+      receipt.stockOnHandQty = 0;
+      receipt.stockResetAt = resetAt;
+    });
+    data.stockResetAt = resetAt;
+
+    if (!(await save())) return alert('Could not reset stock. No changes were saved.');
+    render();
   };
   const addButtons = () => {
     if (!allowed()) return;
     const stockHeader = document.querySelector('#stock-view .view-head');
+    if (stockHeader && !stockHeader.querySelector('#reset-stock-quantities')) {
+      stockHeader.insertAdjacentHTML('beforeend', '<button class="secondary reset-stock-quantities" id="reset-stock-quantities" type="button">Reset quantities to zero</button>');
+      stockHeader.querySelector('#reset-stock-quantities')?.addEventListener('click', resetStockQuantities);
+    }
     if (stockHeader && !stockHeader.querySelector('#delete-all-stock')) {
       stockHeader.insertAdjacentHTML('beforeend', '<button class="secondary delete-all-stock" id="delete-all-stock" type="button">Delete all stock</button>');
       stockHeader.querySelector('#delete-all-stock')?.addEventListener('click', deleteAllStock);

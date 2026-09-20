@@ -97,16 +97,22 @@ editModal=(kind,record)=>{
   form.querySelectorAll('#category-parameters,#add-parameter').forEach(element=>element.closest('.field')?.remove());
   form.querySelector('[name="standardName"]')?.closest('.field')?.remove();
   form.querySelectorAll('.item-note').forEach(note=>{if(note.textContent.includes('purchase item'))note.closest('.field')?.remove()});
-  const inherited=record.qualityStandard||categoryStandard(record.category)||peanutStandard;
+  // Never pre-fill the nut standard: an item without its own or its category's
+  // standard starts empty instead of inheriting oil-content limits.
+  const inherited=record.qualityStandard||categoryStandard(record.category)||{name:'JE Oils Standard',parameters:[]};
   const species=record.speciesSpecs?.length?record.speciesSpecs:[{name:'Standard',standard:inherited}];
-  $('#form-fields').insertAdjacentHTML('beforeend','<div class="field full"><label>Species / grades and standard specifications</label><div class="item-note">Maintain a separate test and production specification for each species or grade of this purchase item.</div></div><div id="item-species-editor"></div><div class="field"><button type="button" class="secondary" id="add-species">+ Add species / grade</button></div>');
+  const qcRequired=window.StockLedger.requiresQualityCheck(record.name);
+  $('#form-fields').insertAdjacentHTML('beforeend',`<div class="field full"><label class="qc-policy-check"><input type="checkbox" name="requiresQualityCheck" ${qcRequired?'checked':''}> Requires quality check at receiving</label><div class="item-note">When unticked, deliveries of this item skip the QC inspection and are accepted on receipt. Use this for firewood, cleaning materials, packaging and similar consumables.</div></div><div class="item-qc-standard"><div class="field full"><label>Species / grades and standard specifications</label><div class="item-note">Maintain a separate test and production specification for each species or grade of this purchase item.</div></div><div id="item-species-editor"></div><div class="field"><button type="button" class="secondary" id="add-species">+ Add species / grade</button></div></div>`);
   setupSpeciesEditor(species);
+  const qcToggle=form.elements.requiresQualityCheck,standardSection=form.querySelector('.item-qc-standard');
+  const syncQcSection=()=>{standardSection.hidden=!qcToggle.checked;standardSection.querySelectorAll('input,select,button').forEach(control=>control.disabled=!qcToggle.checked);};
+  qcToggle.onchange=syncQcSection;syncQcSection();
   form.dataset.type='item-species-edit';
 };
 $('#record-form').addEventListener('submit',event=>{
   if(event.currentTarget.dataset.type!=='item-species-edit')return;
   event.stopImmediatePropagation();event.preventDefault();
   const form=event.currentTarget,values=formData(form),item=data.items.find(entry=>entry.id===+form.dataset.editId);if(!item)return;
-  const oldName=item.name,speciesSpecs=readSpeciesSpecs(form);Object.assign(item,{name:values.name.trim(),description:values.description?.trim()||'',category:values.category.trim(),unit:values.unit.trim(),speciesSpecs,qualityStandard:speciesSpecs[0]?.standard||item.qualityStandard});
+  const oldName=item.name,speciesSpecs=readSpeciesSpecs(form);Object.assign(item,{name:values.name.trim(),description:values.description?.trim()||'',category:values.category.trim(),unit:values.unit.trim(),speciesSpecs,qualityStandard:speciesSpecs[0]?.standard||item.qualityStandard,requiresQualityCheck:Boolean(form.elements.requiresQualityCheck?.checked)});
   if(oldName!==item.name){data.purchases.forEach(purchase=>{if(purchase.item===oldName)purchase.item=item.name});data.stock.forEach(stock=>{if(stock.name===oldName)stock.name=item.name})}save();$('#record-dialog').close();render();
 },true);

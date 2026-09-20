@@ -5,70 +5,12 @@
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
   })[character]);
 
-  const normalized = value => String(value || '').trim().toLowerCase();
   const number = value => Number(value) || 0;
 
-  function warehouseBalances(item) {
-    const itemName = normalized(item.name);
-    const movements = (data.stockMovements || []).filter(movement =>
-      normalized(movement.item || movement.itemName) === itemName &&
-      movement.warehouseId !== undefined && movement.warehouseId !== null,
-    );
-
-    // Modern records use the ledger. Older received/finished-goods records
-    // did not always create ledger entries, so retain a safe compatibility
-    // path for them instead of showing an empty location dialog.
-    const sourceEntries = movements.length
-      ? movements.map(movement => ({
-          warehouseId: movement.warehouseId,
-          quantity: number(movement.quantity),
-        }))
-      : [
-          ...(data.goodsInwards || [])
-            .filter(receipt =>
-              normalized(receipt.item) === itemName &&
-              receipt.decision === 'Accepted' &&
-              receipt.warehouseId !== undefined && receipt.warehouseId !== null,
-            )
-            .map(receipt => ({
-              warehouseId: receipt.warehouseId,
-              quantity: number(receipt.stockOnHandQty ?? receipt.qty),
-            })),
-          ...(data.finishedGoodsWarehouseEntries || [])
-            .filter(entry =>
-              normalized(entry.item || entry.name) === itemName &&
-              entry.warehouseId !== undefined && entry.warehouseId !== null,
-            )
-            .map(entry => ({ warehouseId: entry.warehouseId, quantity: number(entry.qty) })),
-          item.warehouseId === undefined || item.warehouseId === null
-            ? []
-            : [{ warehouseId: item.warehouseId, quantity: number(item.qty) }],
-        ];
-
-    const warehouses = new Map((data.warehouses || []).map(warehouse => [String(warehouse.id), warehouse]));
-    const balances = new Map();
-    sourceEntries.forEach(({ warehouseId, quantity }) => {
-      const key = String(warehouseId);
-      balances.set(key, (balances.get(key) || 0) + quantity);
-    });
-
-    return [...balances.entries()]
-      .filter(([, quantity]) => quantity > 0)
-      .map(([warehouseId, quantity]) => ({
-        warehouse: warehouses.get(warehouseId),
-        quantity,
-      }))
-      .sort((a, b) => (a.warehouse?.name || '').localeCompare(b.warehouse?.name || ''));
-  }
-
-  // Warehouse movements are the authoritative quantity once an item has been
-  // received, transferred, adjusted or issued through a warehouse. Legacy
-  // opening stock without a warehouse record remains visible as its stored
-  // value until it is brought into a warehouse.
-  function onHandQuantity(item) {
-    const balances = warehouseBalances(item);
-    return balances.length ? balances.reduce((sum, balance) => sum + number(balance.quantity), 0) : number(item.qty);
-  }
+  // Balances come from the shared stock ledger (stock-ledger.js), the same
+  // calculation used by the Warehouses view and production material selection.
+  const warehouseBalances = item => window.StockLedger.warehouseBalances(item.name);
+  const onHandQuantity = item => window.StockLedger.onHand(item.name);
 
   function ensureDialog() {
     let dialog = document.querySelector('#stock-location-dialog');

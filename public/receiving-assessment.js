@@ -132,6 +132,24 @@ function receivingDecisionReason(form, receipt) {
   );
 }
 
+function enforceDecisionReason(form) {
+  const decision = form.elements.decision?.value || 'Assess';
+  if (decision === 'Assess') return true;
+  const reason = form.elements.decisionReason;
+  if (!reason) return false;
+  if (reason.value.trim()) return true;
+  reason.setCustomValidity('Record why this delivery was accepted, held or rejected.');
+  // The reason sits on the inspection step, but Finish receipt is on the last
+  // one. A hidden control cannot be focused, so the browser reported nothing
+  // and the button simply looked dead: bring its step back into view first.
+  const reasonStep = reason.closest?.('.wizard-step')?.dataset?.step;
+  if (reasonStep !== undefined) form.querySelector?.(`.wizard-progress [data-step="${reasonStep}"]`)?.click();
+  reason.reportValidity();
+  reason.focus?.();
+  reason.oninput = () => reason.setCustomValidity('');
+  return false;
+}
+
 function receivingParameterKey(label = '') {
   const normalised = label.toLowerCase().replace(/[^a-z]/g, '');
   return { quantity: 'qty', oilcontent: 'oilContent', ffa: 'ffa', moisture: 'moisture', damagedkernels: 'damaged', damaged: 'damaged', foreignmatter: 'foreignMatter', aflatoxin: 'aflatoxin' }[normalised];
@@ -252,20 +270,18 @@ openGoodsInward = (receipt) => {
 
 // A decision without a reason is the gap the paper trail keeps falling through,
 // so it is enforced at submit rather than left to the officer's discretion.
-$('#record-form').addEventListener(
+// Bound on the document, not the form: the goods-inwards handler is registered
+// first and calls stopImmediatePropagation, so a form-level guard never ran and
+// a decision could be saved with the reason box left empty.
+document.addEventListener(
   'submit',
   (event) => {
-    const form = event.currentTarget;
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
     if (form.dataset.type !== 'goods-inward') return;
-    const decision = receivingDecisionValue(form);
-    const reason = form.elements.decisionReason;
-    if (decision === 'Assess' || !reason) return;
-    if (reason.value.trim()) return;
+    if (enforceDecisionReason(form)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    reason.setCustomValidity('Record why this delivery was accepted, held or rejected.');
-    reason.reportValidity();
-    reason.oninput = () => reason.setCustomValidity('');
   },
   true,
 );
