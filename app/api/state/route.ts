@@ -140,7 +140,7 @@ function inventoryIntegrityError(before: string | null, after: string): string |
   }
   if (oldById.size && [...oldById.keys()].some(id => !seen.has(id))) return 'Recorded stock movements cannot be deleted';
 
-  const allowedTypes = new Set(['RECEIPT', 'OPENING_ALLOCATION', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT', 'PRODUCTION_ISSUE', 'PRODUCTION_OUTPUT', 'CONSUMPTION_ISSUE']);
+  const allowedTypes = new Set(['RECEIPT', 'OPENING_ALLOCATION', 'TRANSFER_IN', 'TRANSFER_OUT', 'ADJUSTMENT', 'PRODUCTION_ISSUE', 'PRODUCTION_RETURN', 'PRODUCTION_OUTPUT', 'CONSUMPTION_ISSUE']);
   for (const movement of additions) {
     const quantity = Number(movement.quantity);
     const type = typeof movement.type === 'string' ? movement.type : movement.movementType;

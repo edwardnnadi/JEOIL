@@ -59,6 +59,10 @@ function issue(state, { item, quantity, warehouseId, lotNo = '' }) {
   state.stockMovements.unshift({ type: 'PRODUCTION_ISSUE', item, quantity: -quantity, warehouseId: String(warehouseId), sourceType: 'PRODUCTION_RUN', sourceId: 'PR-0001', lotNo });
 }
 
+function returnFromProduction(state, { item, quantity, warehouseId, lotNo = '' }) {
+  state.stockMovements.unshift({ type: 'PRODUCTION_RETURN', item, quantity, warehouseId: String(warehouseId), sourceType: 'PRODUCTION_RUN', sourceId: 'PR-0001', lotNo });
+}
+
 const warehouseRow = (ledger, state, warehouseId, item) => ledger.warehouseStock(warehouseId, state).find(row => row.item === item);
 
 function loadNamedFunction(sourceText, name, contextValues = {}) {
@@ -161,6 +165,18 @@ test('issuing 5,100 kg to production leaves 4,900 kg on both screens', () => {
   assert.equal(warehouseRow(ledger, state, VAULT_A, 'Peanut kernels').quantity, 4900);
   assert.equal(ledger.warehouseBalance('Peanut kernels', VAULT_A, state), 4900);
   assert.equal(ledger.batchRemaining(state.goodsInwards[0], state), 4900);
+});
+
+test('returning unused issued material restores its warehouse and purchase-batch balance', () => {
+  const ledger = loadLedger();
+  const state = factory();
+  receive(state, { id: 'GI-1', item: 'Peanut kernels', quantity: 10000, warehouseId: VAULT_A, batch: 'LOT-1' });
+  issue(state, { item: 'Peanut kernels', quantity: 5100, warehouseId: VAULT_A, lotNo: 'LOT-1' });
+  returnFromProduction(state, { item: 'Peanut kernels', quantity: 900, warehouseId: VAULT_A, lotNo: 'LOT-1' });
+
+  assert.equal(warehouseRow(ledger, state, VAULT_A, 'Peanut kernels').quantity, 5800);
+  assert.equal(ledger.warehouseBalance('Peanut kernels', VAULT_A, state), 5800);
+  assert.equal(ledger.batchRemaining(state.goodsInwards[0], state), 5800);
 });
 
 test('a ledger movement never hides accepted receipts that pre-date the ledger', () => {

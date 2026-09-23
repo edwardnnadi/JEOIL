@@ -142,7 +142,7 @@
     if (!isAccepted(receipt)) return 0;
     const batch = batchNumber(receipt);
     const issued = (stateOf(state).stockMovements || []).filter(movement =>
-      movement.type === 'PRODUCTION_ISSUE' && batch && movement.lotNo === batch &&
+      (movement.type === 'PRODUCTION_ISSUE' || movement.type === 'PRODUCTION_RETURN') && batch && movement.lotNo === batch &&
       normalized(movementItem(movement)) === normalized(receipt.item) &&
       (!hasId(movement.warehouseId) || String(movement.warehouseId) === String(receipt.warehouseId)),
     ).reduce((total, movement) => total + number(movement.quantity), 0);
