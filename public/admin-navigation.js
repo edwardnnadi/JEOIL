@@ -15,9 +15,10 @@
     numbering: ['Purchase, lot & Goods Inwards numbers', 'Configure the automatically generated purchase, lot and Goods Inwards references.'],
     lab: ['Lab configuration', 'Configure the laboratory tests and result fields available to analysts.'],
     activity: ['User activity log', 'Immutable sign-in and operational activity history.'],
+    'ai-settings': ['AI Settings', 'Securely replace and verify the dashboard AI connection without opening Cloudflare.'],
   };
   const visiblePanels = {
-    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel', 'unit-conversions-panel'], machines: ['machines-panel'], production: ['production-master-panel'], numbering: ['purchase-number-panel'], lab: ['lab-tests-panel'], activity: ['activity-log-panel'],
+    home: [], people: ['people-panel'], roles: ['roles-panel'], items: ['items-panel'], catalogue: ['categories-panel', 'units-panel', 'unit-conversions-panel'], machines: ['machines-panel'], production: ['production-master-panel'], numbering: ['purchase-number-panel'], lab: ['lab-tests-panel'], activity: ['activity-log-panel'], 'ai-settings': ['ai-settings-panel'],
   };
   const storageKey = 'je-oils-admin-submenu-expanded';
   if (!root.querySelector('.admin-breadcrumbs')) root.querySelector('.view-head').insertAdjacentHTML('afterend', '<nav class="admin-breadcrumbs" aria-label="Administration breadcrumb"><button type="button" data-admin-section="home">Administration</button><span aria-hidden="true">/</span><span aria-current="page">Overview</span></nav>');
@@ -35,6 +36,8 @@
   if (overview && !overview.querySelector('[data-admin-section="lab"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="lab"><span>LAB CONFIGURATION</span><strong id="admin-lab-count">0</strong><small>Manage laboratory tests and result fields</small></button>');
   if (!submenu.querySelector('[data-admin-section="activity"]')) submenu.insertAdjacentHTML('beforeend', '<button type="button" data-admin-section="activity">User activity log</button>');
   if (overview && !overview.querySelector('[data-admin-section="activity"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="activity"><span>USER ACTIVITY LOG</span><strong>→</strong><small>Review sign-ins and operational changes</small></button>');
+  if (!submenu.querySelector('[data-admin-section="ai-settings"]')) submenu.insertAdjacentHTML('beforeend', '<button type="button" data-admin-section="ai-settings">AI Settings</button>');
+  if (overview && !overview.querySelector('[data-admin-section="ai-settings"]')) overview.insertAdjacentHTML('beforeend', '<button type="button" class="admin-overview-card" data-admin-section="ai-settings"><span>AI SETTINGS</span><strong>→</strong><small>Replace and test the dashboard AI connection</small></button>');
 
   const setExpanded = (expanded) => {
     submenu.hidden = !expanded;
