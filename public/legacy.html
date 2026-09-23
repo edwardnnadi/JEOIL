@@ -55,7 +55,7 @@
           <div class="ai-prompts" aria-label="Suggested questions"><button type="button" data-ai-prompt="Compare our latest production runs and explain any notable differences.">Compare production runs</button><button type="button" data-ai-prompt="What are the main stock and production risks I should address?">Identify operational risks</button><button type="button" data-ai-prompt="Give me insights into supplier activity and any supplier concentration risks.">Review suppliers</button></div>
           <form class="ai-question-form" id="ai-question-form"><label class="sr-only" for="ai-question">Ask AI Insights</label><textarea id="ai-question" rows="2" maxlength="1500" placeholder="Ask a question about production, purchases, quality, suppliers, warehouses or stock…" required></textarea><button class="primary" type="submit">Ask AI</button></form>
           <div class="ai-answer" id="ai-answer" hidden aria-live="polite"></div>
-          <p class="ai-connection-note" id="ai-connection-note">Answers use your live application data. Connect an OpenAI API project to enable this feature.</p>
+          <p class="ai-connection-note" id="ai-connection-note">Answers use your live application data. An administrator must connect the server to an OpenAI API project; a ChatGPT subscription alone cannot enable this feature.</p>
         </section>
         <div class="stat-grid" id="stats"></div>
         <section class="panel production-summary"><div class="panel-head"><div><h3>Production output</h3><p>Finished goods recorded from production runs</p></div><button class="text-btn" data-goto="production">Record a run →</button></div><div class="output-summary" id="output-summary"></div></section>

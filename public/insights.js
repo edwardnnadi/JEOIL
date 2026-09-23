@@ -6,9 +6,18 @@
   const note = document.querySelector('#ai-connection-note');
   if (!form || !input || !answer || !status || !note) return;
 
-  const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
-  }[character]));
+  const escapeHtml = (value) =>
+    String(value).replace(
+      /[&<>'"]/g,
+      (character) =>
+        ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;',
+        })[character],
+    );
 
   const showAnswer = (title, text, state = 'answer') => {
     answer.hidden = false;
@@ -31,24 +40,42 @@
     const submit = form.querySelector('button[type="submit"]');
     submit.disabled = true;
     status.textContent = 'Analysing live data…';
-    showAnswer('Preparing your answer', 'Reviewing the current operational records…', 'loading');
+    showAnswer(
+      'Preparing your answer',
+      'Reviewing the current operational records…',
+      'loading',
+    );
 
     try {
       const response = await fetch('/api/insights', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        status.textContent = result.code === 'AI_NOT_CONFIGURED' ? 'Connection needed' : 'Try again';
-        showAnswer(result.code === 'AI_NOT_CONFIGURED' ? 'Connect AI Insights' : 'Unable to answer', result.error || 'Please try again.', 'error');
+        const needsSetup = result.code === 'AI_NOT_CONFIGURED';
+        status.textContent = needsSetup ? 'Admin setup needed' : 'Try again';
+        showAnswer(
+          needsSetup
+            ? 'AI Insights needs administrator setup'
+            : 'Unable to answer',
+          result.error || 'Please try again.',
+          'error',
+        );
         return;
       }
       status.textContent = 'Insight ready';
-      note.textContent = 'Answer generated from the live JE Oils operational data available at the time of your question.';
+      note.textContent =
+        'Answer generated from the live JE Oils operational data available at the time of your question.';
       showAnswer('AI insight', result.answer);
     } catch {
       status.textContent = 'Try again';
-      showAnswer('Unable to answer', 'Check your connection and try again.', 'error');
+      showAnswer(
+        'Unable to answer',
+        'Check your connection and try again.',
+        'error',
+      );
     } finally {
       submit.disabled = false;
     }

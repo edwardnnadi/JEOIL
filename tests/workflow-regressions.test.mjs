@@ -33,9 +33,9 @@ test('opening a purchase wizard restores a purchase-specific save label', () => 
   assert.equal(save.textContent, 'Save purchase');
 });
 
-test('Goods Inwards always requires factory inspection and exposes the linked field test', () => {
-  assert.match(goodsInwardsWizardSource, /const required=true;/);
-  assert.match(goodsInwardsSource, /const qualityCheckRequired=true;/);
+test('Goods Inwards requires factory inspection only for QC-controlled items and exposes the linked field test', () => {
+  assert.match(goodsInwardsWizardSource, /const required=window\.StockLedger\.requiresQualityCheck\(receivingItemName\(\)\);/);
+  assert.match(goodsInwardsSource, /const qualityCheckRequired=window\.StockLedger\.requiresQualityCheck\(values\.item\);/);
   assert.match(goodsInwardsSource, /<label>Field test<\/label>/);
 });
 

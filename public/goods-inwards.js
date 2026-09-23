@@ -431,10 +431,11 @@ $('#record-form').addEventListener('submit',event=>{
     if(item.category&&!data.categories.includes(item.category))data.categories.push(item.category);
     if(item.unit&&!data.units.includes(item.unit))data.units.push(item.unit);
   }
-  // Every delivery needs a receiving (factory) inspection. Catalogue QC flags
-  // may still guide which parameters are configured, but cannot bypass the
-  // receipt, decision, laboratory record, or stock-release gate.
-  const qualityCheckRequired=true;
+  // The item policy determines whether receiving QC is required. Controlled
+  // materials must complete the factory inspection before stock release;
+  // configured consumables remain explicitly QC-exempt.
+  const qualityCheckRequired=window.StockLedger.requiresQualityCheck(values.item);
+  if(!qualityCheckRequired){values.decision='Accepted';values.decisionReason=values.decisionReason?.trim()||'Quality check not required for this item.';}
   const stockUnit=stockUnitFor(values.item,values.unit),conversionFactor=unitFactor(values.unit,stockUnit);
   if(conversionFactor===null){alert(`No conversion is configured from ${values.unit} to the ${stockUnit} stock unit for ${values.item}. Add it in Administration → Categories & Units before posting this receipt.`);return;}
   const stockQty=Number((Number(values.qty||0)*conversionFactor).toFixed(6));
