@@ -33,6 +33,28 @@
     </div>`;
   }
 
+  function resultPanel(run) {
+    const materials = run.materials || [];
+    const outputs = run.outputs || [];
+    const totalInput = materials.reduce((total, material) => total + Number(material.quantity ?? material.qty ?? 0), 0) || Number(run.kernels || 0);
+    const outputEntries = Array.isArray(outputs) ? outputs : [];
+    const totalOutput = outputEntries.reduce((total, output) => total + Number(output.quantity ?? output.qty ?? 0), 0) || Number(run.oilOutput || 0) + Number(run.cake || 0) + Number(run.sludgeOutput || 0);
+    const outputRows = outputEntries.length
+      ? outputEntries.map(output => `<tr><td><strong>${esc(output.name || output.item || 'Output')}</strong></td><td>${esc(Number(output.quantity ?? output.qty ?? 0).toLocaleString())}</td><td>${esc(output.unit || '—')}</td><td>${esc(output.lotNumber || output.lotNo || '—')}</td></tr>`).join('')
+      : [
+        ['Oil', run.oilOutput], ['Cake', run.cake], ['Sludge', run.sludgeOutput],
+      ].filter(([, quantity]) => Number(quantity) > 0).map(([name, quantity]) => `<tr><td><strong>${esc(name)}</strong></td><td>${esc(Number(quantity).toLocaleString())}</td><td>Mt</td><td>—</td></tr>`).join('') || `<tr><td colspan="4" class="muted">No production outputs have been recorded for this run.</td></tr>`;
+    const actual = run.actualRating || {};
+    const yieldPercent = totalInput > 0 && totalOutput > 0 ? (totalOutput / totalInput) * 100 : null;
+    const resultState = isOpen(run) ? 'This run is still in progress. Results update when outputs are recorded.' : 'This completed run is an audit record and cannot be changed here.';
+    return `<section class="production-results" aria-label="Production results">
+      <div class="production-results-summary"><article><small>Status</small><strong>${esc(isOpen(run) ? 'In progress' : 'Completed')}</strong></article><article><small>Total input</small><strong>${esc(totalInput ? totalInput.toLocaleString() : '—')}</strong></article><article><small>Total output</small><strong>${esc(totalOutput ? totalOutput.toLocaleString() : '—')}</strong></article><article><small>Output yield</small><strong>${yieldPercent === null ? '—' : esc(`${yieldPercent.toFixed(1)}%`)}</strong></article></div>
+      <p class="production-run-readonly">${esc(resultState)}</p>
+      <h3>Recorded outputs</h3><div class="production-run-table"><table><thead><tr><th>Output</th><th>Quantity</th><th>Unit</th><th>Lot</th></tr></thead><tbody>${outputRows}</tbody></table></div>
+      <div class="production-results-details"><div><small>Started</small><strong>${esc(dateTime(run.startedAt || run.productionStart))}</strong></div><div><small>Ended</small><strong>${esc(dateTime(run.endedAt || run.productionEnd))}</strong></div><div><small>Recorded output</small><strong>${esc(actual.output || '—')}</strong></div><div><small>Tests recorded</small><strong>${esc((run.testResults || []).length)}</strong></div></div>
+    </section>`;
+  }
+
   function testPanel(run) {
     const tests = run.testResults || [];
     const rows = tests.length ? tests.map(test => `<tr><td>${esc(test.testName)}</td><td><strong>${esc(test.decision || test.outcome || '—')}</strong></td><td>${esc(test.values ? Object.entries(test.values).map(([name, value]) => `${name}: ${value}`).join(' · ') : `${test.value || '—'} ${test.unit || ''}`)}</td><td>${esc(test.analyst || test.testedBy || '—')}</td><td>${esc(dateTime(test.recordedAt))}</td></tr>`).join('') : '<tr><td colspan="5" class="muted">No tests have been recorded for this run.</td></tr>';
@@ -57,11 +79,11 @@
     const run = getRun(selectedRunId);
     const modal = dialog();
     if (!run) { modal.close(); return; }
-    const content = selectedTab === 'test' ? testPanel(run) : selectedTab === 'faults' ? faultPanel(run) : parameterPanel(run);
-    modal.innerHTML = `<div class="production-run-head"><div><span>PRODUCTION RUN</span><h2>${esc(run.batch || run.reference || 'Production run')}</h2><p>${esc(isOpen(run) ? 'In progress' : 'Completed run record')}</p></div><button type="button" class="close" data-close-run aria-label="Close production run">×</button></div><div class="production-run-tabs" role="tablist" aria-label="Production run sections"><button type="button" role="tab" data-run-tab="parameters" aria-selected="${selectedTab === 'parameters'}">Parameters</button><button type="button" role="tab" data-run-tab="test" aria-selected="${selectedTab === 'test'}">Test${(run.testResults || []).length ? ` (${run.testResults.length})` : ''}</button><button type="button" role="tab" data-run-tab="faults" aria-selected="${selectedTab === 'faults'}">Faults${(run.issues || []).length ? ` (${run.issues.length})` : ''}</button></div><div class="production-run-content" role="tabpanel">${content}</div>`;
+    const content = selectedTab === 'results' ? resultPanel(run) : selectedTab === 'test' ? testPanel(run) : selectedTab === 'faults' ? faultPanel(run) : parameterPanel(run);
+    modal.innerHTML = `<div class="production-run-head"><div><span>PRODUCTION RUN</span><h2>${esc(run.batch || run.reference || 'Production run')}</h2><p>${esc(isOpen(run) ? 'In progress' : 'Completed run record')}</p></div><button type="button" class="close" data-close-run aria-label="Close production run">×</button></div><div class="production-run-tabs" role="tablist" aria-label="Production run sections"><button type="button" role="tab" data-run-tab="results" aria-selected="${selectedTab === 'results'}">Results</button><button type="button" role="tab" data-run-tab="parameters" aria-selected="${selectedTab === 'parameters'}">Parameters</button><button type="button" role="tab" data-run-tab="test" aria-selected="${selectedTab === 'test'}">Test${(run.testResults || []).length ? ` (${run.testResults.length})` : ''}</button><button type="button" role="tab" data-run-tab="faults" aria-selected="${selectedTab === 'faults'}">Faults${(run.issues || []).length ? ` (${run.issues.length})` : ''}</button></div><div class="production-run-content" role="tabpanel">${content}</div>`;
   }
 
-  function open(id) { selectedRunId = id; selectedTab = 'parameters'; draw(); const modal = dialog(); if (!modal.open) modal.showModal(); }
+  function open(id, tab = 'parameters') { selectedRunId = id; selectedTab = tab; draw(); const modal = dialog(); if (!modal.open) modal.showModal(); }
   function repairActiveRunReference() {
     const run = activeRun();
     if (!run || run.batch !== 'PR-0NaN') return false;
@@ -82,18 +104,24 @@
     if (repairActiveRunReference()) void save();
     document.querySelectorAll('#production-table tr').forEach((row, index) => {
       const run = (data.production || [])[index];
-      if (!run || row.querySelector('.open-production-run')) return;
-      const cell = row.cells[1] || row.cells[0];
-      cell?.insertAdjacentHTML('beforeend', `<button class="text-btn open-production-run" type="button" data-run-id="${esc(run.id)}">Open run</button>`);
+      if (!run || row.querySelector('.production-register-view')) return;
+      const batchCell = row.cells[1] || row.cells[0];
+      const controlsCell = row.cells[5];
+      batchCell?.insertAdjacentHTML('beforeend', `<div class="production-run-actions"><button class="text-btn open-production-run" type="button" data-run-id="${esc(run.id)}">Open run</button></div>`);
+      controlsCell?.insertAdjacentHTML('beforeend', `<button class="text-btn production-register-view" type="button" data-run-id="${esc(run.id)}">View</button>`);
     });
     const active = activeRun();
     const banner = document.querySelector('#active-production-run');
-    if (active && banner && !banner.querySelector('.open-production-run')) banner.querySelector('#end-production-run')?.insertAdjacentHTML('beforebegin', `<button class="secondary open-production-run" type="button" data-run-id="${esc(active.id)}">Open workspace</button>`);
+    if (active && banner && !banner.querySelector('.production-register-view')) banner.querySelector('#end-production-run')?.insertAdjacentHTML('beforebegin', `<button class="secondary production-register-view" type="button" data-run-id="${esc(active.id)}">View</button><button class="secondary open-production-run" type="button" data-run-id="${esc(active.id)}">Open workspace</button>`);
   }
 
   document.addEventListener('click', event => {
     const openButton = event.target.closest('.open-production-run');
     if (openButton) { open(openButton.dataset.runId); return; }
+    const viewButton = event.target.closest('.production-register-view');
+    if (viewButton) { open(viewButton.dataset.runId, 'results'); return; }
+    const resultsButton = event.target.closest('.view-production-results');
+    if (resultsButton) { open(resultsButton.dataset.runId, 'results'); return; }
     const tab = event.target.closest('[data-run-tab]');
     if (tab) { selectedTab = tab.dataset.runTab; draw(); return; }
     if (event.target.closest('[data-close-run]')) dialog().close();

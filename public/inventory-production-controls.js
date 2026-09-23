@@ -3,6 +3,12 @@
 (function () {
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const today = () => new Date().toISOString().slice(0, 10);
+  let stockMovementSequence = 0;
+  // A production completion may post oil, cake, and sludge in one event loop.
+  // Date.now() alone can therefore create duplicate movement IDs.
+  const stockMovementId = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${++stockMovementSequence}`;
   const ref = (config, number) => `${config.prefix}${String(number).padStart(config.padding, '0')}${config.suffix}`;
   function inventoryData() {
     data.stockMovements ??= [];
@@ -13,7 +19,7 @@
   }
   window.recordStockMovement = movement => {
     inventoryData();
-    data.stockMovements.unshift({ id: id(), at: new Date().toISOString(), by: currentOperator?.()?.name || 'Current user', ...movement });
+    data.stockMovements.unshift({ id: stockMovementId(), at: new Date().toISOString(), by: currentOperator?.()?.name || 'Current user', ...movement });
   };
   function nextBatch() { inventoryData(); return ref(data.productionConfig.batch, data.productionConfig.batch.nextNumber); }
   function warehouseOptions() { return (data.warehouses || []).map(w => `<option value="${w.id}">${esc(w.name)}${w.location ? ` · ${esc(w.location)}` : ''}</option>`).join(''); }
@@ -146,7 +152,7 @@
     $('#form-fields').innerHTML = `<div class="form-grid"><div class="field full"><label>Production timing</label><div class="item-note">Started ${new Date(run.startedAt).toLocaleString()}. Confirm the recorded end time, or provide the actual earlier completion time.</div></div><div class="field"><label>End time is correct</label><select name="timeCorrect"><option value="yes">Yes — end now</option><option value="no">No — finished earlier</option></select></div><div class="field"><label>Actual completion time</label><input name="endedAt" type="datetime-local"></div><div class="field full"><label>Output warehouse</label><select name="warehouseId" required><option value="">Select output warehouse</option>${outputWarehouseOptions}</select><div class="item-note">Finished goods will be posted to this warehouse.</div></div><div class="field full"><label>Manufacturer's rating — ${esc(machineName)}</label><div class="item-note">${esc(ratingNote || 'No manufacturer rating was recorded for this machine when the run started.')}</div></div><div class="field"><label>Manufacturer capacity rating</label><input name="manufacturerCapacity" value="${esc(rating.capacity)}" placeholder="e.g. 15 tonnes/day"></div><div class="field"><label>Manufacturer input rating</label><input name="manufacturerInput" value="${esc(rating.input)}" placeholder="e.g. 1,000 kg/day"></div><div class="field"><label>Manufacturer output rating</label><input name="manufacturerOutput" value="${esc(rating.output)}" placeholder="e.g. 350 kg/day"></div><div class="field"><label>Actual capacity rating</label><input name="actualCapacity" placeholder="e.g. 12 tonnes/day"></div><div class="field full"><label>Actual input</label><input name="actualInput" value="${esc(actualInput)}" readonly><div class="item-note">Automatically brought forward from Materials to Issue.</div></div><div class="field"><label>Actual output</label><input name="actualOutput" placeholder="e.g. 315 kg/day"></div><div class="field"><label>Oil output</label><input name="oil" type="number" min="0" step="any" value="0"></div><div class="field"><label>Oil unit</label><input name="oilUnit" value="${esc(outputUnit('Crude groundnut oil','L'))}" readonly></div><div class="field"><label>Cake output</label><input name="cake" type="number" min="0" step="any" value="0"></div><div class="field"><label>Cake unit</label><input name="cakeUnit" value="${esc(outputUnit('Groundnut cake','kg'))}" readonly></div><div class="field"><label>Sludge output</label><input name="sludge" type="number" min="0" step="any" value="0"></div><div class="field"><label>Sludge unit</label><input name="sludgeUnit" value="${esc(outputUnit('Sludge','kg'))}" readonly></div><div class="field full"><label>Consumption correction</label><textarea name="adjustment" placeholder="Explain material return, loss, or additional consumption. Use Stock adjustments for quantity corrections."></textarea></div></div>`;
     const form=$('#record-form'); form.dataset.type='production-end'; form.dataset.runId=run.id; showSubmitAction('End production run'); $('#record-dialog').showModal();
   }
-  function endRun(form) {
+  async function endRun(form) {
     const run=data.activeProductionRuns.find(r => String(r.id) === String(form.dataset.runId)); if (!run) return;
     const now=new Date(), correct=form.elements.timeCorrect.value==='yes';
     if (!correct && !form.elements.endedAt.value) return alert('Enter the actual completion time.');
@@ -157,9 +163,27 @@
     const outputs=[['Crude groundnut oil',Number(form.elements.oil.value||0),form.elements.oilUnit.value],['Groundnut cake',Number(form.elements.cake.value||0),form.elements.cakeUnit.value],['Sludge',Number(form.elements.sludge.value||0),form.elements.sludgeUnit.value]].filter(([,q])=>q>0);
     outputs.forEach(([name, quantity, unit])=>{let item=stockItem(name); if(item)item.qty+=quantity; else { item={id:id(),name,category:'Finished goods',qty:quantity,unit,reorder:0};data.stock.push(item); } recordStockMovement({type:'PRODUCTION_OUTPUT',item:name,category:'Finished goods',quantity,unit,warehouseId:outputWarehouse.id,sourceType:'PRODUCTION_RUN',sourceId:run.batch,note:'Finished production output'});});
     const selectedMachine=(run.machineRatings||[])[0]||{}; const machine=(data.machines||[]).find(entry=>String(entry.id)===String(selectedMachine.id)||entry.name===selectedMachine.name||entry.name===(run.machines||[])[0]);if(machine)machine.manufacturerRating={capacity:form.elements.manufacturerCapacity.value.trim(),input:form.elements.manufacturerInput.value.trim(),output:form.elements.manufacturerOutput.value.trim()};
-    Object.assign(run,{status:'COMPLETED',endedAt,endedAtRecorded:now.toISOString(),timeCorrect:correct,warehouseId:outputWarehouse.id,warehouseName:outputWarehouse.name,actualRating:{capacity:form.elements.actualCapacity.value.trim(),input:form.elements.actualInput.value.trim(),output:form.elements.actualOutput.value.trim()},outputs,adjustment:form.elements.adjustment.value}); data.activeProductionRuns=data.activeProductionRuns.filter(entry=>String(entry.id)!==String(run.id)); data.production.unshift(run); save();render();$('#record-dialog').close();
+    Object.assign(run,{status:'COMPLETED',endedAt,endedAtRecorded:now.toISOString(),timeCorrect:correct,warehouseId:outputWarehouse.id,warehouseName:outputWarehouse.name,actualRating:{capacity:form.elements.actualCapacity.value.trim(),input:form.elements.actualInput.value.trim(),output:form.elements.actualOutput.value.trim()},outputs,adjustment:form.elements.adjustment.value}); data.activeProductionRuns=data.activeProductionRuns.filter(entry=>String(entry.id)!==String(run.id)); data.production.unshift(run);
+    const submit = form.querySelector('button[type="submit"]');
+    if (submit) { submit.disabled = true; submit.textContent = 'Saving completed run…'; }
+    try {
+      const saved = await save();
+      if (!saved) {
+        alert('The completed run could not be saved. The latest records have been reloaded; please try again.');
+        render();
+        return;
+      }
+      render();
+      $('#record-dialog').close();
+    } catch (error) {
+      console.error(error);
+      alert(`The completed run could not be saved: ${error.message || 'please try again.'}`);
+      render();
+    } finally {
+      if (submit) { submit.disabled = false; submit.textContent = 'End production run'; }
+    }
   }
-  $('#record-form').addEventListener('submit', event => { const form=event.currentTarget; if (!['production-start','production-end','production-issue'].includes(form.dataset.type)) return; event.preventDefault();event.stopImmediatePropagation(); if(form.dataset.type==='production-start')startRun(form);else if(form.dataset.type==='production-end')endRun(form);else saveIssue(form); }, true);
+  $('#record-form').addEventListener('submit', event => { const form=event.currentTarget; if (!['production-start','production-end','production-issue'].includes(form.dataset.type)) return; event.preventDefault();event.stopImmediatePropagation(); if(form.dataset.type==='production-start')startRun(form);else if(form.dataset.type==='production-end')void endRun(form);else saveIssue(form); }, true);
   $('#add-production').onclick=openStart;
   const originalRender=render; render=()=>{ originalRender(); inventoryData(); activeRunBanner(); };
   window.setInterval(updateActiveRunTimer, 1000);
