@@ -35,7 +35,10 @@
 
   function resultPanel(run) {
     const materials = run.materials || [];
-    const outputs = run.outputs || [];
+    const outputs = (run.outputs || []).map(output => Array.isArray(output) ? { name: output[0], quantity: output[1], unit: output[2] } : output);
+    const returnedMaterials = Array.isArray(run.returnedMaterials) ? run.returnedMaterials : null;
+    const materialKey = material => `${material.name || material.item || ''}\u0000${material.unit || ''}\u0000${material.lotNo || material.lotNumber || ''}\u0000${material.warehouseId || ''}`;
+    const returnedByMaterial = new Map((returnedMaterials || []).map(material => [materialKey(material), Number(material.quantity ?? material.qty ?? 0)]));
     const totalInput = materials.reduce((total, material) => total + Number(material.quantity ?? material.qty ?? 0), 0) || Number(run.kernels || 0);
     const outputEntries = Array.isArray(outputs) ? outputs : [];
     const totalOutput = outputEntries.reduce((total, output) => total + Number(output.quantity ?? output.qty ?? 0), 0) || Number(run.oilOutput || 0) + Number(run.cake || 0) + Number(run.sludgeOutput || 0);
@@ -44,6 +47,14 @@
       : [
         ['Oil', run.oilOutput], ['Cake', run.cake], ['Sludge', run.sludgeOutput],
       ].filter(([, quantity]) => Number(quantity) > 0).map(([name, quantity]) => `<tr><td><strong>${esc(name)}</strong></td><td>${esc(Number(quantity).toLocaleString())}</td><td>Mt</td><td>—</td></tr>`).join('') || `<tr><td colspan="4" class="muted">No production outputs have been recorded for this run.</td></tr>`;
+    const materialRows = materials.length
+      ? materials.map(material => {
+        const issued = Number(material.quantity ?? material.qty ?? 0);
+        const returned = returnedMaterials ? returnedByMaterial.get(materialKey(material)) ?? 0 : null;
+        const consumed = returned === null ? 'Not recorded' : (issued - returned).toLocaleString();
+        return `<tr><td><strong>${esc(material.name || material.item || 'Material')}</strong></td><td>${esc(issued.toLocaleString())}</td><td>${returned === null ? '—' : esc(returned.toLocaleString())}</td><td>${esc(consumed)}</td><td>${esc(material.unit || '—')}</td></tr>`;
+      }).join('')
+      : '<tr><td colspan="5" class="muted">No issued materials have been recorded for this run.</td></tr>';
     const actual = run.actualRating || {};
     const yieldPercent = totalInput > 0 && totalOutput > 0 ? (totalOutput / totalInput) * 100 : null;
     const resultState = isOpen(run) ? 'This run is still in progress. Results update when outputs are recorded.' : 'This completed run is an audit record and cannot be changed here.';
@@ -51,6 +62,7 @@
       <div class="production-results-summary"><article><small>Status</small><strong>${esc(isOpen(run) ? 'In progress' : 'Completed')}</strong></article><article><small>Total input</small><strong>${esc(totalInput ? totalInput.toLocaleString() : '—')}</strong></article><article><small>Total output</small><strong>${esc(totalOutput ? totalOutput.toLocaleString() : '—')}</strong></article><article><small>Output yield</small><strong>${yieldPercent === null ? '—' : esc(`${yieldPercent.toFixed(1)}%`)}</strong></article></div>
       <p class="production-run-readonly">${esc(resultState)}</p>
       <h3>Recorded outputs</h3><div class="production-run-table"><table><thead><tr><th>Output</th><th>Quantity</th><th>Unit</th><th>Lot</th></tr></thead><tbody>${outputRows}</tbody></table></div>
+      <h3>Material accounting</h3><div class="production-run-table"><table><thead><tr><th>Material</th><th>Issued</th><th>Returned unused</th><th>Actually consumed</th><th>Unit</th></tr></thead><tbody>${materialRows}</tbody></table></div>
       <div class="production-results-details"><div><small>Started</small><strong>${esc(dateTime(run.startedAt || run.productionStart))}</strong></div><div><small>Ended</small><strong>${esc(dateTime(run.endedAt || run.productionEnd))}</strong></div><div><small>Recorded output</small><strong>${esc(actual.output || '—')}</strong></div><div><small>Tests recorded</small><strong>${esc((run.testResults || []).length)}</strong></div></div>
     </section>`;
   }
